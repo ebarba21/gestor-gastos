@@ -7,6 +7,7 @@
 import type { Profile } from '../db/schema';
 import { profilesRepo } from '../db/profilesRepo';
 import { settingsRepo, defaultSettingInput } from '../db/settingsRepo';
+import { seedDefaultCategories } from './categoryService';
 import { ValidationError } from '../lib/validation';
 
 // Clave de localStorage. No sensible: solo guarda que perfil abrir al arrancar.
@@ -94,8 +95,10 @@ export const profileService = {
     const profile = await profilesRepo.create({ name, color, avatarEmoji });
     try {
       await settingsRepo.create(profile.id, defaultSettingInput());
+      // Un perfil nuevo arranca con un set de categorias por defecto (editable y borrable).
+      await seedDefaultCategories(profile.id);
     } catch (err) {
-      // Rollback: borra en cascada lo poco que se hubiera creado y propaga el error.
+      // Rollback: borra en cascada lo que se hubiera creado y propaga el error.
       await profilesRepo.removeCascade(profile.id).catch(() => undefined);
       throw err;
     }

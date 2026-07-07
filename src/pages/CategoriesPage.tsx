@@ -1,9 +1,11 @@
-// Pagina Categorias. Placeholder sin logica de negocio (ver specs/ARCHITECTURE.md).
+// Pagina Categorias: categorias, subcategorias y etiquetas del perfil activo.
+import { CategoriesSection, TagsSection } from '../components/categories';
+
 export default function CategoriesPage() {
   return (
-    <section>
-      <h2 className="text-xl font-semibold text-slate-100">Categorias</h2>
-      <p className="mt-2 text-sm text-slate-400">Seccion vacia. Pendiente de implementacion.</p>
-    </section>
+    <div className="max-w-3xl space-y-10">
+      <CategoriesSection />
+      <TagsSection />
+    </div>
   );
 }

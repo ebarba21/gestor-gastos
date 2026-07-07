@@ -175,4 +175,52 @@ export const transactionsRepo = {
     const rows = await db.transactions.where('tagIds').equals(tagId).toArray();
     return rows.filter((t) => t.profileId === profileId);
   },
+
+  // --- Contadores de uso (reglas de integridad al borrar cuentas/categorias/etiquetas) ---
+
+  // Movimientos que usan una cuenta (indice [profileId+accountId]).
+  countByAccount(profileId: string, accountId: string): Promise<number> {
+    requireProfileId(profileId);
+    return db.transactions.where('[profileId+accountId]').equals([profileId, accountId]).count();
+  },
+
+  // Movimientos cuya categoria (raiz o sub) es categoryId (indice [profileId+categoryId]).
+  countByCategory(profileId: string, categoryId: string): Promise<number> {
+    requireProfileId(profileId);
+    return db.transactions.where('[profileId+categoryId]').equals([profileId, categoryId]).count();
+  },
+
+  // Movimientos que referencian una subcategoria en el campo subcategoryId. Ese campo no
+  // esta indexado (DATA_MODEL seccion 3), asi que se escanea el perfil y se filtra en
+  // memoria. Uso puntual (solo al borrar una categoria), no en caliente.
+  async countBySubcategory(profileId: string, subcategoryId: string): Promise<number> {
+    requireProfileId(profileId);
+    const rows = await db.transactions.where('profileId').equals(profileId).toArray();
+    return rows.filter((t) => t.subcategoryId === subcategoryId).length;
+  },
+
+  // Numero de movimientos del perfil que llevan una etiqueta.
+  async countByTag(profileId: string, tagId: string): Promise<number> {
+    const rows = await transactionsRepo.listByTag(profileId, tagId);
+    return rows.length;
+  },
+
+  // Desvincula una etiqueta de todos los movimientos del perfil que la llevan, en una
+  // unica transaccion Dexie. Devuelve cuantos movimientos se modificaron. Solo toca el
+  // perfil indicado (aislamiento). No borra movimientos: solo quita la etiqueta.
+  async detachTagFromAll(profileId: string, tagId: string): Promise<number> {
+    requireProfileId(profileId);
+    const affected = await transactionsRepo.listByTag(profileId, tagId);
+    if (affected.length === 0) return 0;
+    const ts = now();
+    await db.transaction('rw', db.transactions, async () => {
+      for (const t of affected) {
+        await db.transactions.update(t.id, {
+          tagIds: t.tagIds.filter((x) => x !== tagId),
+          updatedAt: ts,
+        });
+      }
+    });
+    return affected.length;
+  },
 };

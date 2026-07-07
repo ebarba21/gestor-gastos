@@ -1,9 +1,10 @@
-// Pagina Cuentas. Placeholder sin logica de negocio (ver specs/ARCHITECTURE.md).
+// Pagina Cuentas: fuentes de dinero del perfil activo.
+import { AccountsSection } from '../components/accounts';
+
 export default function AccountsPage() {
   return (
-    <section>
-      <h2 className="text-xl font-semibold text-slate-100">Cuentas</h2>
-      <p className="mt-2 text-sm text-slate-400">Seccion vacia. Pendiente de implementacion.</p>
-    </section>
+    <div className="max-w-3xl">
+      <AccountsSection />
+    </div>
   );
 }
