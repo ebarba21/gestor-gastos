@@ -11,6 +11,17 @@ if [ ! -f "package.json" ]; then
   exit 0
 fi
 
+# Asegura que node/npx esten disponibles aunque no esten en el PATH global
+# (en Windows, instalacion estandar en "C:\Program Files\nodejs").
+if ! command -v npx >/dev/null 2>&1; then
+  for d in "/c/Program Files/nodejs" "/c/Program Files (x86)/nodejs" "$HOME/AppData/Local/Programs/nodejs"; do
+    if [ -x "$d/npx" ] || [ -f "$d/npx.cmd" ]; then
+      export PATH="$d:$PATH"
+      break
+    fi
+  done
+fi
+
 # ---- 1. Guardia de red: sin fetch/axios/etc. en src/ ----
 if [ -d "src" ]; then
   # Se permite el service worker (assets propios de la PWA).
@@ -27,7 +38,7 @@ fi
 
 # ---- 2. Typecheck (solo si hay dependencias instaladas) ----
 if [ -d "node_modules" ] && [ -f "tsconfig.json" ]; then
-  TSC_OUTPUT=$(npx tsc --noEmit 2>&1)
+  TSC_OUTPUT=$(npx tsc -b 2>&1)
   if [ $? -ne 0 ]; then
     echo "ERRORES DE TYPESCRIPT tras la ultima edicion:" >&2
     echo "$TSC_OUTPUT" | head -40 >&2
