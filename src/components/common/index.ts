@@ -1,2 +1,3 @@
-// Componentes comunes: botones, modales, confirmaciones, tabla virtual.
-export {};
+// Componentes comunes: modales, estados vacios, confirmaciones, tabla virtual.
+export { Modal } from './Modal';
+export { EmptyState } from './EmptyState';

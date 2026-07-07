@@ -8,6 +8,7 @@ import AccountsPage from './pages/AccountsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import ExportPage from './pages/ExportPage';
 import SettingsPage from './pages/SettingsPage';
+import { ProfileGate, ProfileSwitcher } from './components/profile';
 
 interface NavItem {
   to: string;
@@ -36,7 +37,7 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   ].join(' ');
 }
 
-export default function App() {
+function AppLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100 md:flex-row">
       <aside className="border-b border-slate-800 bg-slate-900 md:w-64 md:shrink-0 md:border-b-0 md:border-r">
@@ -44,13 +45,8 @@ export default function App() {
           <span className="text-lg font-bold">Gestor de Gastos</span>
         </div>
         <div className="px-4 pb-3">
-          {/* Selector de perfil (placeholder). Fase 2: perfiles y aislamiento. */}
-          <button
-            type="button"
-            className="w-full rounded-lg border border-slate-700 px-3 py-2 text-left text-sm text-slate-300"
-          >
-            Sin perfil activo
-          </button>
+          {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
+          <ProfileSwitcher />
         </div>
         <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
           {NAV_ITEMS.map((item) => (
@@ -75,5 +71,15 @@ export default function App() {
         </Routes>
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  // El gate garantiza que solo se renderiza la app cuando hay un perfil activo:
+  // asi ninguna seccion de datos accede sin profileId (aislamiento por diseno).
+  return (
+    <ProfileGate>
+      <AppLayout />
+    </ProfileGate>
   );
 }
