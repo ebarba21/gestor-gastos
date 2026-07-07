@@ -1,0 +1,27 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+dist-ssr/
+coverage/
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Claude Code (configuracion personal local, no compartir)
+.claude/settings.local.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+npm-debug.log*

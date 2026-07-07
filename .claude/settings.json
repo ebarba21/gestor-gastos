@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run build)",
+      "Bash(npm run lint:*)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vitest run:*)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/verificar.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
