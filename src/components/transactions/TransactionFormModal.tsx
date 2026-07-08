@@ -13,6 +13,7 @@ import {
   MAX_CONCEPT_LENGTH,
   MAX_NOTES_LENGTH,
 } from '../../services/transactionService';
+import { ruleService } from '../../services/ruleService';
 import { eurosToCents } from '../../lib/money';
 
 const TYPE_LABELS: Record<'expense' | 'income', string> = {
@@ -174,7 +175,11 @@ export function TransactionFormModal({
         if (tx) {
           await transactionService.update(profileId, tx.id, payload);
         } else {
-          await transactionService.create(profileId, payload);
+          const created = await transactionService.create(profileId, payload);
+          // Autocategorizacion por reglas al crear a mano: solo actua si el movimiento no se
+          // categorizo manualmente (sin categoria elegida en el alta). Si ninguna regla casa,
+          // no cambia nada. La categorizacion manual del usuario siempre prevalece.
+          await ruleService.applyToTransaction(profileId, created.id);
         }
       }
       showToast(isEdit ? 'Movimiento actualizado.' : 'Movimiento creado.', 'success');
