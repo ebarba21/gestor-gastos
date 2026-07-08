@@ -53,6 +53,23 @@ function statsFlagFor(excluded: boolean): 0 | 1 {
   return excluded ? 1 : 0;
 }
 
+// Construye la entidad Transaction completa (id, profileId, statsFlag y timestamps) a
+// partir de la entrada del llamante, validando integridad. NO escribe en la base: lo usan
+// tanto los metodos de este repositorio como las operaciones atomicas de otros repos
+// (p. ej. commitBatch de importBatchesRepo) para compartir la misma validacion.
+export function buildTransactionEntity(profileId: string, input: NewTransaction): Transaction {
+  validateIntegrity(input);
+  const ts = now();
+  return {
+    ...input,
+    id: newId(),
+    profileId,
+    statsFlag: statsFlagFor(input.excludedFromStats),
+    createdAt: ts,
+    updatedAt: ts,
+  };
+}
+
 async function requireOwned(profileId: string, id: string): Promise<Transaction> {
   const row = await db.transactions.get(id);
   if (!row || row.profileId !== profileId) {
@@ -64,16 +81,7 @@ async function requireOwned(profileId: string, id: string): Promise<Transaction>
 export const transactionsRepo = {
   async create(profileId: string, input: NewTransaction): Promise<Transaction> {
     requireProfileId(profileId);
-    validateIntegrity(input);
-    const ts = now();
-    const entity: Transaction = {
-      ...input,
-      id: newId(),
-      profileId,
-      statsFlag: statsFlagFor(input.excludedFromStats),
-      createdAt: ts,
-      updatedAt: ts,
-    };
+    const entity = buildTransactionEntity(profileId, input);
     await db.transactions.add(entity);
     return entity;
   },
@@ -160,6 +168,23 @@ export const transactionsRepo = {
       .toArray();
   },
 
+  // Conjunto de todos los dedupeHash del perfil, para deteccion de duplicados en lote
+  // (importacion) sin hacer una consulta por fila. Escaneo solo de indice
+  // ([profileId+dedupeHash]): no deserializa los registros completos, asi escala a decenas
+  // de miles de movimientos. Aislamiento: solo el perfil indicado.
+  async collectDedupeHashes(profileId: string): Promise<Set<string>> {
+    requireProfileId(profileId);
+    const keys = await db.transactions
+      .where('[profileId+dedupeHash]')
+      .between([profileId, ''], [profileId, '￿'], true, true)
+      .keys();
+    const set = new Set<string>();
+    for (const key of keys as unknown as Array<[string, string]>) {
+      set.add(key[1]);
+    }
+    return set;
+  },
+
   listByImportBatch(profileId: string, importBatchId: string): Promise<Transaction[]> {
     requireProfileId(profileId);
     return db.transactions
@@ -229,18 +254,9 @@ export const transactionsRepo = {
   // cada uno y mantiene statsFlag. Todos comparten el mismo profileId (aislamiento).
   async createMany(profileId: string, inputs: NewTransaction[]): Promise<Transaction[]> {
     requireProfileId(profileId);
-    const ts = now();
-    const entities: Transaction[] = inputs.map((input) => {
-      validateIntegrity(input);
-      return {
-        ...input,
-        id: newId(),
-        profileId,
-        statsFlag: statsFlagFor(input.excludedFromStats),
-        createdAt: ts,
-        updatedAt: ts,
-      };
-    });
+    const entities: Transaction[] = inputs.map((input) =>
+      buildTransactionEntity(profileId, input),
+    );
     await db.transaction('rw', db.transactions, async () => {
       await db.transactions.bulkAdd(entities);
     });

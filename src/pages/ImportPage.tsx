@@ -1,9 +1,11 @@
-// Pagina Importar datos. Placeholder sin logica de negocio (ver specs/ARCHITECTURE.md).
+// Pagina Importar datos: wizard fichero -> mapeo/plantilla -> preview/duplicados -> commit.
+// La logica vive en la seccion y en importService (ver specs/ARCHITECTURE.md seccion 5.1).
+import { ImportSection } from '../components/import';
+
 export default function ImportPage() {
   return (
-    <section>
-      <h2 className="text-xl font-semibold text-slate-100">Importar datos</h2>
-      <p className="mt-2 text-sm text-slate-400">Seccion vacia. Pendiente de implementacion.</p>
-    </section>
+    <div className="mx-auto max-w-6xl">
+      <ImportSection />
+    </div>
   );
 }
