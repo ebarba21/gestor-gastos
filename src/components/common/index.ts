@@ -5,3 +5,4 @@ export { ConfirmDialog } from './ConfirmDialog';
 export type { DialogButton } from './ConfirmDialog';
 export { ColorPicker } from './ColorPicker';
 export { IconPicker } from './IconPicker';
+export { VirtualList } from './VirtualList';

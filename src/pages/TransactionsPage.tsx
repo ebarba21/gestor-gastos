@@ -1,9 +1,11 @@
-// Pagina Movimientos. Placeholder sin logica de negocio (ver specs/ARCHITECTURE.md).
+// Pagina Movimientos: listado, filtros, CRUD, acciones masivas y movimientos especiales
+// del perfil activo. La logica vive en la seccion y en transactionService.
+import { TransactionsSection } from '../components/transactions';
+
 export default function TransactionsPage() {
   return (
-    <section>
-      <h2 className="text-xl font-semibold text-slate-100">Movimientos</h2>
-      <p className="mt-2 text-sm text-slate-400">Seccion vacia. Pendiente de implementacion.</p>
-    </section>
+    <div className="mx-auto max-w-5xl">
+      <TransactionsSection />
+    </div>
   );
 }

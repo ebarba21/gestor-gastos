@@ -168,6 +168,24 @@ export const transactionsRepo = {
       .toArray();
   },
 
+  // Lineas hijas de un split (parentId apunta al padre). Indice [profileId+parentId].
+  listChildren(profileId: string, parentId: string): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    return db.transactions
+      .where('[profileId+parentId]')
+      .equals([profileId, parentId])
+      .toArray();
+  },
+
+  // Las dos patas de una transferencia interna (mismo transferGroupId).
+  listByTransferGroup(profileId: string, transferGroupId: string): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    return db.transactions
+      .where('[profileId+transferGroupId]')
+      .equals([profileId, transferGroupId])
+      .toArray();
+  },
+
   // Movimientos con una etiqueta dada dentro del perfil. multiEntry (*tagIds) no
   // compone con indices compuestos, por eso se filtra el perfil en memoria.
   async listByTag(profileId: string, tagId: string): Promise<Transaction[]> {
@@ -203,6 +221,80 @@ export const transactionsRepo = {
   async countByTag(profileId: string, tagId: string): Promise<number> {
     const rows = await transactionsRepo.listByTag(profileId, tagId);
     return rows.length;
+  },
+
+  // --- Operaciones masivas atomicas (una unica transaccion Dexie) ---
+
+  // Crea varios movimientos de golpe (splits, par de transferencia). Valida integridad de
+  // cada uno y mantiene statsFlag. Todos comparten el mismo profileId (aislamiento).
+  async createMany(profileId: string, inputs: NewTransaction[]): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    const ts = now();
+    const entities: Transaction[] = inputs.map((input) => {
+      validateIntegrity(input);
+      return {
+        ...input,
+        id: newId(),
+        profileId,
+        statsFlag: statsFlagFor(input.excludedFromStats),
+        createdAt: ts,
+        updatedAt: ts,
+      };
+    });
+    await db.transaction('rw', db.transactions, async () => {
+      await db.transactions.bulkAdd(entities);
+    });
+    return entities;
+  },
+
+  // Aplica una mutacion a un conjunto de movimientos del perfil, en una unica transaccion.
+  // `mutate` recibe el movimiento actual y devuelve el patch a aplicar. Se re-fijan id y
+  // profileId, se mantiene statsFlag y se valida integridad. Ignora ids de otro perfil o
+  // inexistentes (no rompe el lote). Devuelve cuantos se modificaron.
+  async applyToMany(
+    profileId: string,
+    ids: string[],
+    mutate: (t: Transaction) => TransactionPatch,
+  ): Promise<number> {
+    requireProfileId(profileId);
+    if (ids.length === 0) return 0;
+    let changed = 0;
+    await db.transaction('rw', db.transactions, async () => {
+      for (const id of ids) {
+        const existing = await db.transactions.get(id);
+        // Aislamiento: un id de otro perfil se ignora como si no existiera.
+        if (!existing || existing.profileId !== profileId) continue;
+        const merged: Transaction = {
+          ...existing,
+          ...mutate(existing),
+          id: existing.id,
+          profileId: existing.profileId,
+          updatedAt: now(),
+        };
+        merged.statsFlag = statsFlagFor(merged.excludedFromStats);
+        validateIntegrity(merged);
+        await db.transactions.put(merged);
+        changed += 1;
+      }
+    });
+    return changed;
+  },
+
+  // Borra un conjunto de movimientos del perfil en una unica transaccion. Ignora ids de
+  // otro perfil o inexistentes. Devuelve cuantos se borraron realmente.
+  async removeMany(profileId: string, ids: string[]): Promise<number> {
+    requireProfileId(profileId);
+    if (ids.length === 0) return 0;
+    let removed = 0;
+    await db.transaction('rw', db.transactions, async () => {
+      for (const id of ids) {
+        const existing = await db.transactions.get(id);
+        if (!existing || existing.profileId !== profileId) continue;
+        await db.transactions.delete(id);
+        removed += 1;
+      }
+    });
+    return removed;
   },
 
   // Desvincula una etiqueta de todos los movimientos del perfil que la llevan, en una
