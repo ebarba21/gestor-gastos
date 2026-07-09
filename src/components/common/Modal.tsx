@@ -33,7 +33,7 @@ export function Modal({ open, onClose, title, children, dismissible = true }: Mo
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-2xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-semibold text-slate-100">{title}</h3>

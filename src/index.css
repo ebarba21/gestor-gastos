@@ -5,3 +5,13 @@ body,
 #root {
   height: 100%;
 }
+
+/* En pantallas estrechas los controles de formulario usan al menos 16px:
+   por debajo de ese tamano iOS hace zoom automatico al enfocar el campo. */
+@media (max-width: 640px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+}

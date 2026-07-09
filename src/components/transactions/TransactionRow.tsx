@@ -66,7 +66,8 @@ export function TransactionRow({
         className="h-4 w-4 shrink-0"
       />
 
-      <span className="w-24 shrink-0 tabular-nums text-slate-400">{tx.date}</span>
+      {/* En pantallas estrechas la fecha pasa a la linea secundaria del concepto. */}
+      <span className="hidden w-24 shrink-0 tabular-nums text-slate-400 sm:block">{tx.date}</span>
 
       <button
         type="button"
@@ -78,6 +79,7 @@ export function TransactionRow({
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-1">
           <span className="truncate text-xs text-slate-500">
+            <span className="tabular-nums sm:hidden">{tx.date} · </span>
             {categoryLabel}
             {subLabel ? ` › ${subLabel}` : ''} · {accountLabel}
           </span>
@@ -96,7 +98,7 @@ export function TransactionRow({
         {TYPE_LABEL[tx.type]}
       </span>
 
-      <span className={`w-28 shrink-0 text-right font-medium tabular-nums ${amountClass}`}>
+      <span className={`w-24 shrink-0 text-right font-medium tabular-nums sm:w-28 ${amountClass}`}>
         {formatCents(tx.amountCents, locale, currency)}
       </span>
 

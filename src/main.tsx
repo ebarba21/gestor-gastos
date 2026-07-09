@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { ProfileProvider } from './context/ProfileContext';
 import { ToastProvider } from './context/ToastContext';
-import { registerServiceWorker } from './pwa/registerSW';
+import { PwaReloadPrompt } from './pwa/PwaReloadPrompt';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -19,9 +19,11 @@ createRoot(rootElement).render(
         <ProfileProvider>
           <App />
         </ProfileProvider>
+        {/* Registro del SW + avisos de nueva version y de offline listo. Dentro del
+            ToastProvider porque usa toasts; fuera del gate de perfil para avisar
+            tambien en la pantalla de seleccion de perfil. */}
+        <PwaReloadPrompt />
       </ToastProvider>
     </BrowserRouter>
   </StrictMode>,
 );
-
-registerServiceWorker();

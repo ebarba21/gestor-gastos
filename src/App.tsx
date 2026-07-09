@@ -41,12 +41,14 @@ function AppLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100 md:flex-row">
       <aside className="border-b border-slate-800 bg-slate-900 md:w-64 md:shrink-0 md:border-b-0 md:border-r">
-        <div className="px-4 py-4">
+        {/* En movil, titulo y selector de perfil comparten fila para ahorrar altura;
+            en PC vuelven a apilarse en la barra lateral. */}
+        <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
           <span className="text-lg font-bold">Gestor de Gastos</span>
-        </div>
-        <div className="px-4 pb-3">
           {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
-          <ProfileSwitcher />
+          <div className="w-44 shrink-0 md:mt-4 md:w-auto">
+            <ProfileSwitcher />
+          </div>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
           {NAV_ITEMS.map((item) => (
@@ -57,7 +59,8 @@ function AppLayout() {
         </nav>
       </aside>
 
-      <main className="flex-1 p-6">
+      {/* min-w-0 evita que tablas y graficos anchos desborden el layout flex. */}
+      <main className="min-w-0 flex-1 p-4 md:p-6">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/movimientos" element={<TransactionsPage />} />

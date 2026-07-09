@@ -109,7 +109,7 @@ src/
 │   ├── ExportPage.tsx
 │   └── SettingsPage.tsx
 ├── pwa/
-│   └── registerSW.ts        # registro/actualizacion del service worker
+│   └── PwaReloadPrompt.tsx  # registro del SW + aviso de actualizacion y de offline listo
 └── test/
     └── setup.ts             # setup Vitest + fake-indexeddb
 ```
@@ -197,7 +197,7 @@ useDashboard(profileId, periodo, filtros)
   - `NavigationFallback` a `index.html` para rutas de la SPA.
   - **Sin runtime caching de dominios externos**: no se cachea nada de terceros porque no se piden recursos de terceros (invariante 3 de CLAUDE.md). Fuentes e iconos se empaquetan localmente.
 - **Manifest**: nombre, iconos (varios tamanos), `display: standalone`, `theme_color`, `start_url`. App instalable en PC y movil.
-- **Actualizaciones**: `registerSW` gestiona nueva version disponible y ofrece recargar. Sin autorefresh silencioso que interrumpa una edicion.
+- **Actualizaciones**: `PwaReloadPrompt` gestiona nueva version disponible y ofrece recargar. Sin autorefresh silencioso que interrumpa una edicion.
 - **Instalabilidad real**: requiere HTTPS. En desarrollo se usa `--host` en LAN; para instalar como PWA, hosting estatico gratuito (p. ej. GitHub Pages) en fase 7. El hosting estatico no rompe el coste 0.
 
 ---

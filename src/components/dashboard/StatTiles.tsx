@@ -23,7 +23,7 @@ function Tile({
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-1 text-xl font-semibold tabular-nums ${valueClass}`}>{value}</p>
+      <p className={`mt-1 text-lg font-semibold tabular-nums sm:text-xl ${valueClass}`}>{value}</p>
       {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
     </div>
   );
