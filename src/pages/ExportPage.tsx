@@ -1,9 +1,7 @@
-// Pagina Exportaciones. Placeholder sin logica de negocio (ver specs/ARCHITECTURE.md).
+// Pagina Exportaciones (ruta /exportar). Toda la logica vive en ExportSection y en los
+// servicios de exportacion/backup; aqui solo se monta la seccion.
+import { ExportSection } from '../components/export';
+
 export default function ExportPage() {
-  return (
-    <section>
-      <h2 className="text-xl font-semibold text-slate-100">Exportaciones</h2>
-      <p className="mt-2 text-sm text-slate-400">Seccion vacia. Pendiente de implementacion.</p>
-    </section>
-  );
+  return <ExportSection />;
 }

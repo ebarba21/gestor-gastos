@@ -51,6 +51,11 @@ export class GestorGastosDB extends Dexie {
   }
 }
 
+// Version del esquema de datos (Dexie). Fuente unica: la usan los backups para saber con
+// que version se generaron y decidir si son restaurables (DATA_MODEL seccion 7). Debe
+// coincidir con la ultima db.version(n) declarada arriba.
+export const SCHEMA_VERSION = 1;
+
 // Singleton de la base de datos usado por todos los repositorios.
 export const db = new GestorGastosDB();
 

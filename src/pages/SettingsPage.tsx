@@ -2,6 +2,7 @@
 // color, avatar) y eliminar (con doble confirmacion). Moneda/locale llegaran mas
 // adelante. Ver ARCHITECTURE.md seccion 4 (ruta /ajustes).
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useActiveProfile } from '../hooks/useProfiles';
 import { ProfileAvatar, ProfileFormModal, DeleteProfileModal } from '../components/profile';
 
@@ -34,6 +35,44 @@ export default function SettingsPage() {
             Editar perfil
           </button>
         </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+          Mover tus datos entre dispositivos
+        </h3>
+        <p className="mt-2 text-sm text-slate-400">
+          Esta app guarda todo en este dispositivo, sin nube. Para llevar tus datos de un PC a un
+          movil (o al reves) usa el backup del perfil:
+        </p>
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-300">
+          <li>
+            En el dispositivo de origen, ve a{' '}
+            <Link to="/exportar" className="font-medium text-indigo-400 hover:text-indigo-300">
+              Exportar
+            </Link>{' '}
+            y pulsa <strong className="text-slate-100">Descargar backup de este perfil</strong>. Se
+            guarda un unico archivo JSON con todos tus datos.
+          </li>
+          <li>
+            Pasa ese archivo al otro dispositivo por el medio que prefieras (cable, memoria USB,
+            tu propio correo, un disco compartido...). El archivo es tuyo y no pasa por esta app.
+          </li>
+          <li>
+            En el dispositivo de destino, abre{' '}
+            <Link to="/exportar" className="font-medium text-indigo-400 hover:text-indigo-300">
+              Exportar
+            </Link>
+            , elige el archivo en <strong className="text-slate-100">Restaurar un backup</strong> y
+            decide si <strong className="text-slate-100">creas un perfil nuevo</strong> (recomendado
+            la primera vez) o <strong className="text-slate-100">sobrescribes</strong> un perfil
+            existente.
+          </li>
+        </ol>
+        <p className="mt-3 text-sm text-slate-500">
+          Consejo: haz un backup cada cierto tiempo. Es tambien tu copia de seguridad si cambias de
+          navegador o borras los datos del sitio.
+        </p>
       </div>
 
       <div className="mt-6 rounded-2xl border border-red-900/60 bg-red-950/20 p-5">
