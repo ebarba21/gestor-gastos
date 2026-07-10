@@ -820,6 +820,210 @@ export function computeForecast(
   };
 }
 
+// --- Analitica de ahorro e inversion ---
+
+// Punto mensual de la analitica de ahorro e inversion. Las aportaciones son NETAS
+// (aportado menos retirado via reembolso, misma semantica que el resumen del periodo) y
+// pueden ser negativas en un mes con retirada neta. Los acumulados corren DENTRO de la
+// ventana analizada (no son el acumulado historico; ese va aparte en el agregado).
+export interface SavingsInvestmentMonthPoint {
+  month: string; // YYYY-MM
+  incomeCents: number; // ingresos reales del mes (sin reembolsos)
+  netSavingsCents: number; // ahorro neto del mes = ingresos - gasto neto
+  savingsContribCents: number; // aportacion neta a categorias de ahorro
+  investmentContribCents: number; // aportacion neta a categorias de inversion
+  cumulativeSavingsContribCents: number; // ahorro aportado acumulado en la ventana
+  cumulativeInvestmentContribCents: number; // inversion aportada acumulada en la ventana
+  savingsRatePerMille: number | null; // tasa de ahorro del mes (null sin ingresos)
+}
+
+// Mejor mes de una metrica: clave de mes e importe. Solo se declara "mejor" un mes con
+// valor positivo (con todo negativo o cero no hay mejor mes que celebrar: null).
+export interface BestMonth {
+  month: string; // YYYY-MM
+  cents: number;
+}
+
+export interface SavingsInvestmentAnalysis {
+  months: SavingsInvestmentMonthPoint[]; // rejilla completa de la ventana, sin huecos
+  // Totales de la ventana analizada.
+  totalIncomeCents: number;
+  totalNetSavingsCents: number;
+  totalSavingsContribCents: number;
+  totalInvestmentContribCents: number;
+  // Tasa de ahorro agregada de la ventana: ahorro neto total sobre ingresos totales.
+  // null si no hubo ingresos en toda la ventana (no se divide por cero).
+  overallSavingsRatePerMille: number | null;
+  // Medias mensuales sobre los meses CON actividad (mismo criterio que la comparativa:
+  // un mes sin ingresos, sin gasto neto y sin aportaciones no diluye las medias).
+  activeMonths: number;
+  avgNetSavingsCents: number; // 0 si no hay meses activos
+  avgSavingsContribCents: number;
+  avgInvestmentContribCents: number;
+  // Mejores meses (entre los activos). null si ningun mes fue positivo en esa metrica.
+  bestNetSavingsMonth: BestMonth | null;
+  bestInvestmentMonth: BestMonth | null;
+  bestSavingsRateMonth: { month: string; perMille: number } | null;
+  // Rachas de meses CONSECUTIVOS con ahorro neto positivo dentro de la ventana. La racha
+  // actual termina en el ultimo mes de la ventana; si ese ultimo mes aun no tiene
+  // actividad (p. ej. un mes recien empezado) se ignora y la racha se mide hasta el
+  // anterior, para no romperla de forma artificial el dia 1 de cada mes.
+  currentStreakMonths: number;
+  longestStreakMonths: number;
+  // Acumulado HISTORICO del perfil (todos los movimientos, no solo la ventana).
+  allTimeSavingsContribCents: number;
+  allTimeInvestmentContribCents: number;
+  // Hay alguna aportacion (historica o de la ventana) a ahorro o inversion. La UI lo usa
+  // para explicar como activar el apartado cuando aun no se usan esas categorias.
+  hasAnyContrib: boolean;
+}
+
+// Actividad de un mes a efectos de medias y rachas: mismo criterio deliberado que
+// computeComparison (un mes donde todo queda a cero no cuenta), ampliado con las
+// aportaciones (un mes que solo tuvo un traspaso a ahorro SI es un mes activo).
+function isActiveMonth(p: SavingsInvestmentMonthPoint): boolean {
+  return (
+    p.incomeCents !== 0 ||
+    p.netSavingsCents !== 0 ||
+    p.savingsContribCents !== 0 ||
+    p.investmentContribCents !== 0
+  );
+}
+
+// Analitica de ahorro e inversion sobre una ventana de `monthsBack` meses que termina en
+// el mes de `anchorISO`. Un unico recorrido para bucketizar por mes (reutilizando
+// aggregatePeriod por bucket: identica semantica que el resumen del dashboard) mas un
+// recorrido para el acumulado historico. Pura y determinista.
+export function computeSavingsInvestment(
+  allTx: Transaction[],
+  anchorISO: string,
+  monthsBack: number,
+  ctx: StatsContext,
+): SavingsInvestmentAnalysis {
+  // Contrato explicito: la ventana necesita al menos un mes (sin errores silenciosos).
+  if (monthsBack < 1) {
+    throw new Error(`La ventana de la analitica de ahorro requiere al menos 1 mes (recibido: ${monthsBack}).`);
+  }
+  const keys = monthKeysEndingAt(anchorISO, monthsBack);
+  const first = keys[0]!;
+  const last = keys[keys.length - 1]!;
+
+  // Bucket por mes dentro de la ventana + acumulado historico en el mismo recorrido.
+  const byMonth = new Map<string, Transaction[]>();
+  let allTimeSavings = 0;
+  let allTimeInvestment = 0;
+  for (const t of allTx) {
+    if (!countsInStats(t)) continue;
+    // Acumulado historico de aportaciones netas (independiente de la ventana).
+    if (isSavingsMovement(t, ctx)) {
+      allTimeSavings += expenseMagnitude(t);
+    } else if (isInvestmentMovement(t, ctx)) {
+      allTimeInvestment += expenseMagnitude(t);
+    } else if (isRefund(t)) {
+      const refs = attributeRefundRefs(t, ctx);
+      if (refsAreSavings(refs.categoryId, refs.subcategoryId, ctx)) {
+        allTimeSavings -= Math.abs(t.amountCents);
+      } else if (refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)) {
+        allTimeInvestment -= Math.abs(t.amountCents);
+      }
+    }
+    const k = monthKey(t.date);
+    if (k < first || k > last) continue;
+    const bucket = byMonth.get(k);
+    if (bucket) bucket.push(t);
+    else byMonth.set(k, [t]);
+  }
+
+  // Serie mensual: cada mes se agrega con aggregatePeriod (misma semantica que el resumen
+  // del periodo: exclusiones, reembolsos, ahorro e inversion aparte del gasto).
+  let cumSavings = 0;
+  let cumInvestment = 0;
+  const months: SavingsInvestmentMonthPoint[] = keys.map((month) => {
+    const { summary } = aggregatePeriod(byMonth.get(month) ?? [], ctx);
+    cumSavings += summary.savingsContribCents;
+    cumInvestment += summary.investmentContribCents;
+    return {
+      month,
+      incomeCents: summary.incomeCents,
+      netSavingsCents: summary.netSavingsCents,
+      savingsContribCents: summary.savingsContribCents,
+      investmentContribCents: summary.investmentContribCents,
+      cumulativeSavingsContribCents: cumSavings,
+      cumulativeInvestmentContribCents: cumInvestment,
+      savingsRatePerMille: summary.savingsRatePerMille,
+    };
+  });
+
+  // Totales de la ventana y medias sobre meses activos.
+  const totalIncome = months.reduce((s, m) => s + m.incomeCents, 0);
+  const totalNetSavings = months.reduce((s, m) => s + m.netSavingsCents, 0);
+  const totalSavingsContrib = months.reduce((s, m) => s + m.savingsContribCents, 0);
+  const totalInvestmentContrib = months.reduce((s, m) => s + m.investmentContribCents, 0);
+  const active = months.filter(isActiveMonth);
+  const avg = (total: number): number =>
+    active.length > 0 ? Math.round(total / active.length) : 0;
+
+  // Mejores meses entre los activos; solo cuentan valores positivos (ver BestMonth).
+  let bestNet: BestMonth | null = null;
+  let bestInv: BestMonth | null = null;
+  let bestRate: { month: string; perMille: number } | null = null;
+  for (const m of active) {
+    if (m.netSavingsCents > 0 && (bestNet === null || m.netSavingsCents > bestNet.cents)) {
+      bestNet = { month: m.month, cents: m.netSavingsCents };
+    }
+    if (
+      m.investmentContribCents > 0 &&
+      (bestInv === null || m.investmentContribCents > bestInv.cents)
+    ) {
+      bestInv = { month: m.month, cents: m.investmentContribCents };
+    }
+    if (
+      m.savingsRatePerMille !== null &&
+      m.savingsRatePerMille > 0 &&
+      (bestRate === null || m.savingsRatePerMille > bestRate.perMille)
+    ) {
+      bestRate = { month: m.month, perMille: m.savingsRatePerMille };
+    }
+  }
+
+  // Rachas de meses consecutivos con ahorro neto positivo.
+  let longestStreak = 0;
+  let run = 0;
+  for (const m of months) {
+    run = m.netSavingsCents > 0 ? run + 1 : 0;
+    if (run > longestStreak) longestStreak = run;
+  }
+  // Racha actual: desde el final hacia atras; un ultimo mes sin actividad no la rompe.
+  let currentStreak = 0;
+  let i = months.length - 1;
+  if (i >= 0 && !isActiveMonth(months[i]!)) i--;
+  for (; i >= 0; i--) {
+    if (months[i]!.netSavingsCents > 0) currentStreak++;
+    else break;
+  }
+
+  return {
+    months,
+    totalIncomeCents: totalIncome,
+    totalNetSavingsCents: totalNetSavings,
+    totalSavingsContribCents: totalSavingsContrib,
+    totalInvestmentContribCents: totalInvestmentContrib,
+    overallSavingsRatePerMille: savingsRatePerMille(totalIncome, totalNetSavings),
+    activeMonths: active.length,
+    avgNetSavingsCents: avg(totalNetSavings),
+    avgSavingsContribCents: avg(totalSavingsContrib),
+    avgInvestmentContribCents: avg(totalInvestmentContrib),
+    bestNetSavingsMonth: bestNet,
+    bestInvestmentMonth: bestInv,
+    bestSavingsRateMonth: bestRate,
+    currentStreakMonths: currentStreak,
+    longestStreakMonths: longestStreak,
+    allTimeSavingsContribCents: allTimeSavings,
+    allTimeInvestmentContribCents: allTimeInvestment,
+    hasAnyContrib: allTimeSavings !== 0 || allTimeInvestment !== 0,
+  };
+}
+
 // --- Orquestador puro: todas las metricas del dashboard de una sola carga ---
 
 // Filtro cruzado del dashboard: al pulsar un elemento visual (p. ej. una barra de categoria)
@@ -857,6 +1061,10 @@ export interface DashboardData {
   recurring: RecurringExpense[];
   comparison: Comparison;
   forecast: Forecast;
+  // Analitica de ahorro e inversion de la ventana de evolucion. SIEMPRE sin filtro
+  // cruzado: el filtro apunta a categorias de gasto y las aportaciones a ahorro/inversion
+  // viven fuera del gasto, asi que filtrarla la dejaria a cero de forma enganosa.
+  savingsInvestment: SavingsInvestmentAnalysis;
 }
 
 // Categoria raiz atribuida a un movimiento a efectos del filtro cruzado: la del gasto
@@ -929,6 +1137,8 @@ export function computeDashboard(
     ),
     comparison: computeComparison(allTxFiltered, anchorISO, comparisonMonthsBack, ctx, today),
     forecast: computeForecast(allTxFiltered, anchorISO, ctx, today),
+    // Sin filtro cruzado a proposito (ver DashboardData.savingsInvestment).
+    savingsInvestment: computeSavingsInvestment(allTx, anchorISO, monthsBack, ctx),
   };
 }
 

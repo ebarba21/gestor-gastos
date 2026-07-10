@@ -12,6 +12,7 @@ import { CategorySpendChart } from './CategorySpendChart';
 import { IncomeExpenseChart } from './IncomeExpenseChart';
 import { TopExpensesCard } from './TopExpensesCard';
 import { RecurringCard } from './RecurringCard';
+import { SavingsInvestmentSection } from './SavingsInvestmentSection';
 
 // Tarjeta con titulo para envolver un grafico o lista.
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
@@ -33,10 +34,14 @@ export function DashboardSection() {
     referenceISO,
     setReferenceMonths,
     resetReference,
+    selectMonth,
     customFrom,
     customTo,
     setCustomFrom,
     setCustomTo,
+    filter,
+    toggleCategoryFilter,
+    clearFilter,
     data,
     categoryNames,
     categoryColors,
@@ -45,12 +50,21 @@ export function DashboardSection() {
     error,
   } = useDashboard();
 
+  // Nombre legible de la categoria del filtro activo (para el chip).
+  const activeFilterName =
+    filter === null
+      ? null
+      : filter.categoryId === null
+        ? 'Sin categoria'
+        : categoryNames.get(filter.categoryId) ?? 'Categoria';
+
   return (
     <section>
       <h2 className="text-xl font-semibold text-slate-100">Dashboard</h2>
       <p className="mt-1 text-sm text-slate-400">
         Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
-        cuentan por sus lineas y los reembolsos reducen el gasto.
+        cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa una categoria o un mes en
+        los graficos para filtrar el resto.
       </p>
 
       <div className="mt-4">
@@ -67,13 +81,30 @@ export function DashboardSection() {
         />
       </div>
 
+      {activeFilterName !== null && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-500">Filtrando por:</span>
+          <button
+            type="button"
+            onClick={clearFilter}
+            className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/40 bg-indigo-600/15 px-2.5 py-1 text-xs font-medium text-indigo-300 hover:bg-indigo-600/25"
+          >
+            {activeFilterName}
+            <span aria-hidden className="text-sm leading-none">
+              ×
+            </span>
+            <span className="sr-only">Quitar filtro</span>
+          </button>
+        </div>
+      )}
+
       {error && (
         <p className="mt-4 rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300">
           {error}
         </p>
       )}
 
-      {loading ? (
+      {loading && !data ? (
         <p className="mt-6 text-sm text-slate-500">Cargando...</p>
       ) : !data ? (
         <div className="mt-6">
@@ -96,16 +127,22 @@ export function DashboardSection() {
           <StatTiles summary={data.summary} />
           <ComparisonForecast comparison={data.comparison} forecast={data.forecast} />
 
-          <Card title="Evolucion mensual" subtitle="Ingresos, gasto neto y ahorro por mes">
-            <MonthlyEvolutionChart monthly={data.monthly} />
+          <Card title="Evolucion mensual" subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para verlo">
+            <MonthlyEvolutionChart
+              monthly={data.monthly}
+              activeMonth={data.anchorMonth}
+              onSelectMonth={selectMonth}
+            />
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title="Gasto por categoria" subtitle="Gasto neto del periodo por categoria">
+            <Card title="Gasto por categoria" subtitle="Pulsa una categoria para filtrar el resto">
               <CategorySpendChart
                 byCategory={data.byCategory}
                 categoryNames={categoryNames}
                 categoryColors={categoryColors}
+                activeCategoryId={filter?.categoryId}
+                onSelectCategory={toggleCategoryFilter}
               />
             </Card>
             <Card title="Ingresos vs gastos" subtitle="Comparativa del periodo seleccionado">
@@ -119,12 +156,18 @@ export function DashboardSection() {
                 topExpenses={data.topExpenses}
                 categoryNames={categoryNames}
                 accountNames={accountNames}
+                activeCategoryId={filter?.categoryId}
+                onSelectCategory={toggleCategoryFilter}
               />
             </Card>
             <Card title="Gastos recurrentes" subtitle="Conceptos repetidos en los ultimos meses">
               <RecurringCard recurring={data.recurring} />
             </Card>
           </div>
+
+          {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolucion completa,
+              sin filtro cruzado (ver DashboardData.savingsInvestment). */}
+          <SavingsInvestmentSection analysis={data.savingsInvestment} onSelectMonth={selectMonth} />
         </div>
       )}
     </section>

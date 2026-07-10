@@ -14,6 +14,7 @@ import {
   computeMonthlyEvolution,
   computeRecurringExpenses,
   computeSavingsCategoryIds,
+  computeSavingsInvestment,
   computeTopExpenses,
   isInvestmentMovement,
   isSavingsMovement,
@@ -604,6 +605,153 @@ describe('categorias de ahorro', () => {
     expect(rec).toEqual([]); // el traspaso mensual a ahorro no es un gasto recurrente
     const series = computeMonthlyEvolution(txs, '2026-09-15', 1, ctx);
     expect(series[0]!.expenseNetCents).toBe(1000); // solo el cafe, no la aportacion a ahorro
+  });
+});
+
+// --- Analitica de ahorro e inversion ---
+describe('computeSavingsInvestment', () => {
+  it('ventana vacia: rejilla completa a cero, sin mejores meses ni rachas', () => {
+    const a = computeSavingsInvestment([], '2026-07-15', 3, ctxFor([]));
+    expect(a.months.map((m) => m.month)).toEqual(['2026-05', '2026-06', '2026-07']);
+    expect(a.months.every((m) => m.savingsContribCents === 0 && m.netSavingsCents === 0)).toBe(true);
+    expect(a.totalNetSavingsCents).toBe(0);
+    expect(a.overallSavingsRatePerMille).toBeNull(); // sin ingresos: no divide por cero
+    expect(a.activeMonths).toBe(0);
+    expect(a.avgNetSavingsCents).toBe(0);
+    expect(a.bestNetSavingsMonth).toBeNull();
+    expect(a.bestInvestmentMonth).toBeNull();
+    expect(a.bestSavingsRateMonth).toBeNull();
+    expect(a.currentStreakMonths).toBe(0);
+    expect(a.longestStreakMonths).toBe(0);
+    expect(a.hasAnyContrib).toBe(false);
+  });
+
+  it('rechaza una ventana de menos de 1 mes (contrato explicito)', () => {
+    expect(() => computeSavingsInvestment([], '2026-07-15', 0, ctxFor([]))).toThrow();
+    expect(() => computeSavingsInvestment([], '2026-07-15', -3, ctxFor([]))).toThrow();
+  });
+
+  it('serie mensual con aportaciones, acumulados y acumulado historico fuera de ventana', () => {
+    const txs = [
+      // Fuera de la ventana (enero): solo cuenta en el acumulado historico.
+      tx({ date: '2026-01-10', type: 'expense', amountCents: -10000, categoryId: 'cat-ahorro' }),
+      // Junio: nomina, gasto, aportacion a ahorro y a inversion.
+      tx({ date: '2026-06-01', type: 'income', amountCents: 200000 }),
+      tx({ date: '2026-06-05', type: 'expense', amountCents: -50000, categoryId: 'cat-food' }),
+      tx({ date: '2026-06-10', type: 'expense', amountCents: -30000, categoryId: 'cat-ahorro' }),
+      tx({ date: '2026-06-15', type: 'expense', amountCents: -20000, categoryId: 'cat-invers' }),
+      // Julio: solo inversion (sub de inversion).
+      tx({ date: '2026-07-03', type: 'expense', amountCents: -15000, subcategoryId: 'sub-indexado' }),
+    ];
+    const a = computeSavingsInvestment(txs, '2026-07-15', 2, ctxFor(txs));
+    expect(a.months).toHaveLength(2);
+    const [jun, jul] = a.months;
+    expect(jun).toMatchObject({
+      month: '2026-06',
+      incomeCents: 200000,
+      netSavingsCents: 150000, // 200000 - 50000 (ahorro e inversion no son gasto)
+      savingsContribCents: 30000,
+      investmentContribCents: 20000,
+      cumulativeSavingsContribCents: 30000,
+      cumulativeInvestmentContribCents: 20000,
+      savingsRatePerMille: 750,
+    });
+    expect(jul).toMatchObject({
+      month: '2026-07',
+      incomeCents: 0,
+      netSavingsCents: 0,
+      savingsContribCents: 0,
+      investmentContribCents: 15000,
+      cumulativeSavingsContribCents: 30000, // acumulado de la ventana, no incluye enero
+      cumulativeInvestmentContribCents: 35000,
+      savingsRatePerMille: null,
+    });
+    // Totales de la ventana.
+    expect(a.totalIncomeCents).toBe(200000);
+    expect(a.totalNetSavingsCents).toBe(150000);
+    expect(a.totalSavingsContribCents).toBe(30000);
+    expect(a.totalInvestmentContribCents).toBe(35000);
+    expect(a.overallSavingsRatePerMille).toBe(750);
+    // Acumulado historico: SI incluye la aportacion de enero.
+    expect(a.allTimeSavingsContribCents).toBe(40000);
+    expect(a.allTimeInvestmentContribCents).toBe(35000);
+    expect(a.hasAnyContrib).toBe(true);
+    // Mejores meses.
+    expect(a.bestNetSavingsMonth).toEqual({ month: '2026-06', cents: 150000 });
+    expect(a.bestInvestmentMonth).toEqual({ month: '2026-06', cents: 20000 });
+    expect(a.bestSavingsRateMonth).toEqual({ month: '2026-06', perMille: 750 });
+    // Medias sobre meses activos (junio y julio: julio tiene aportacion, es activo).
+    expect(a.activeMonths).toBe(2);
+    expect(a.avgNetSavingsCents).toBe(75000);
+    expect(a.avgInvestmentContribCents).toBe(Math.round(35000 / 2));
+  });
+
+  it('una retirada (reembolso de aportacion) deja el mes y los acumulados en negativo', () => {
+    const original = tx({ id: 'ap', date: '2026-05-10', type: 'expense', amountCents: -10000, categoryId: 'cat-ahorro' });
+    const withdrawal = tx({ date: '2026-06-10', type: 'income', amountCents: 25000, refundOfId: 'ap', categoryId: null });
+    const txs = [original, withdrawal];
+    const a = computeSavingsInvestment(txs, '2026-06-15', 2, ctxFor(txs));
+    const [may, jun] = a.months;
+    expect(may!.savingsContribCents).toBe(10000);
+    expect(jun!.savingsContribCents).toBe(-25000); // retirada neta del mes
+    expect(jun!.cumulativeSavingsContribCents).toBe(-15000);
+    expect(jun!.incomeCents).toBe(0); // la retirada no es ingreso
+    expect(a.allTimeSavingsContribCents).toBe(-15000);
+    expect(a.hasAnyContrib).toBe(true); // hubo movimiento de ahorro, aunque el neto sea negativo
+  });
+
+  it('rachas: consecutivos con ahorro neto positivo; el ultimo mes sin actividad no rompe la racha actual', () => {
+    const txs = [
+      tx({ date: '2026-02-10', type: 'income', amountCents: 1000 }), // feb +
+      tx({ date: '2026-03-10', type: 'income', amountCents: 1000 }), // mar +
+      tx({ date: '2026-04-10', type: 'expense', amountCents: -500 }), // abr - (rompe)
+      tx({ date: '2026-05-10', type: 'income', amountCents: 1000 }), // may +
+      tx({ date: '2026-06-10', type: 'income', amountCents: 1000 }), // jun +
+      // jul: sin actividad (mes recien empezado)
+    ];
+    const a = computeSavingsInvestment(txs, '2026-07-15', 6, ctxFor(txs));
+    expect(a.longestStreakMonths).toBe(2);
+    expect(a.currentStreakMonths).toBe(2); // may+jun; jul vacio no la rompe
+  });
+
+  it('un ultimo mes ACTIVO con ahorro negativo si rompe la racha actual', () => {
+    const txs = [
+      tx({ date: '2026-05-10', type: 'income', amountCents: 1000 }),
+      tx({ date: '2026-06-10', type: 'income', amountCents: 1000 }),
+      tx({ date: '2026-07-05', type: 'expense', amountCents: -500 }), // julio activo y negativo
+    ];
+    const a = computeSavingsInvestment(txs, '2026-07-15', 6, ctxFor(txs));
+    expect(a.currentStreakMonths).toBe(0);
+    expect(a.longestStreakMonths).toBe(2);
+  });
+
+  it('ignora movimientos excluidos y transferencias (no cuentan como aportacion)', () => {
+    const txs = [
+      tx({ date: '2026-07-05', type: 'transfer', amountCents: -30000, excludedFromStats: true, statsFlag: 1 }),
+      tx({ date: '2026-07-06', type: 'expense', amountCents: -9999, categoryId: 'cat-ahorro', excludedFromStats: true, statsFlag: 1 }),
+    ];
+    const a = computeSavingsInvestment(txs, '2026-07-15', 1, ctxFor(txs));
+    expect(a.totalSavingsContribCents).toBe(0);
+    expect(a.allTimeSavingsContribCents).toBe(0);
+    expect(a.hasAnyContrib).toBe(false);
+    expect(a.activeMonths).toBe(0);
+  });
+
+  it('computeDashboard incluye la analitica SIN filtro cruzado (no se queda a cero al filtrar)', () => {
+    const txs = [
+      tx({ date: '2026-07-05', type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
+      tx({ date: '2026-07-10', type: 'expense', amountCents: -20000, categoryId: 'cat-ahorro' }),
+      tx({ date: '2026-07-11', type: 'income', amountCents: 100000 }),
+    ];
+    const data = computeDashboard(txs, CATEGORIES, {
+      range: { from: '2026-07-01', to: '2026-07-31' },
+      anchorISO: '2026-07-15',
+      today: '2026-07-15',
+      filter: { categoryId: 'cat-food' }, // filtro cruzado activo
+    });
+    // La analitica de ahorro ignora el filtro: sigue viendo la aportacion y los ingresos.
+    expect(data.savingsInvestment.totalSavingsContribCents).toBe(20000);
+    expect(data.savingsInvestment.totalIncomeCents).toBe(100000);
   });
 });
 
