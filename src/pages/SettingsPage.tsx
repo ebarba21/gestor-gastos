@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveProfile } from '../hooks/useProfiles';
 import { ProfileAvatar, ProfileFormModal, DeleteProfileModal } from '../components/profile';
+import { ThemeToggle } from '../components/common';
 
 export default function SettingsPage() {
   const profile = useActiveProfile();
@@ -34,6 +35,16 @@ export default function SettingsPage() {
           >
             Editar perfil
           </button>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Apariencia</h3>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-400">
+            Elige entre modo oscuro y modo claro. La preferencia se guarda en este dispositivo.
+          </p>
+          <ThemeToggle variant="segmented" />
         </div>
       </div>
 

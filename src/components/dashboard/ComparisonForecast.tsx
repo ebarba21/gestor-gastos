@@ -42,11 +42,17 @@ export function ComparisonForecast({ comparison, forecast }: ComparisonForecastP
           {arrow} {deltaLabel(comparison.deltaPerMille)}
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          {comparison.monthsCompared > 0
-            ? `Promedio ${formatCents(comparison.averageExpenseNetCents)} de ${comparison.monthsCompared} ${
-                comparison.monthsCompared === 1 ? 'mes anterior' : 'meses anteriores'
-              }`
-            : 'Aun no hay meses anteriores con actividad para comparar'}
+          {comparison.monthsCompared === 0
+            ? 'Aun no hay meses anteriores con actividad para comparar'
+            : comparison.prorated
+              ? `A estas alturas del mes (dia ${comparison.daysElapsed} de ${comparison.daysInMonth}) sueles llevar ${formatCents(
+                  comparison.averageComparedCents,
+                )}. Media mensual completa ${formatCents(comparison.averageExpenseNetCents)} de ${
+                  comparison.monthsCompared
+                } ${comparison.monthsCompared === 1 ? 'mes' : 'meses'}.`
+              : `Promedio ${formatCents(comparison.averageExpenseNetCents)} de ${comparison.monthsCompared} ${
+                  comparison.monthsCompared === 1 ? 'mes anterior' : 'meses anteriores'
+                }`}
         </p>
       </div>
 

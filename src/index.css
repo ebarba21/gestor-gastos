@@ -6,6 +6,89 @@ body,
   height: 100%;
 }
 
+/* Tema. La app se diseno en oscuro; ese es el modo por defecto (sin overrides = valores
+   reales de la paleta slate de Tailwind). El modo claro NO reescribe cada clase: reasigna
+   los tokens de color de Tailwind para el elemento raiz cuando lleva data-theme="light".
+   Como la app usa "slate" como escala neutra simetrica (mas oscuro = mas fondo, mas claro =
+   mas texto), invertir la escala convierte el modo oscuro en un modo claro coherente sin
+   tocar los componentes. Los acentos (indigo/emerald/orange/red/amber/violet) se ajustan solo
+   en las tonalidades usadas como texto (300/400 -> mas oscuras) o como fondos tenues
+   (800/900/950 -> tintes claros); las tonalidades solidas de boton (500/600) se conservan. */
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-100);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Escala neutra invertida: slate-950 (fondo mas oscuro) -> mas claro, y viceversa. */
+  --color-slate-50: #020617;
+  --color-slate-100: #0f172a;
+  --color-slate-200: #1e293b;
+  --color-slate-300: #334155;
+  --color-slate-400: #475569;
+  --color-slate-500: #64748b;
+  --color-slate-600: #94a3b8;
+  --color-slate-700: #cbd5e1;
+  --color-slate-800: #e2e8f0;
+  --color-slate-900: #f1f5f9;
+  --color-slate-950: #f8fafc;
+
+  /* Indigo (acento principal / botones). 500/600 se conservan para el texto blanco. */
+  --color-indigo-300: #4338ca;
+  --color-indigo-400: #4f46e5;
+  --color-indigo-700: #a5b4fc;
+  --color-indigo-800: #c7d2fe;
+  --color-indigo-900: #e0e7ff;
+  --color-indigo-950: #eef2ff;
+
+  /* Emerald (ingresos / positivo). */
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-900: #d1fae5;
+  --color-emerald-950: #ecfdf5;
+
+  /* Orange (gastos). */
+  --color-orange-300: #c2410c;
+  --color-orange-400: #ea580c;
+  --color-orange-700: #fdba74;
+  --color-orange-800: #fed7aa;
+  --color-orange-900: #ffedd5;
+  --color-orange-950: #fff7ed;
+
+  /* Red (peligro / negativo). */
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-red-700: #fca5a5;
+  --color-red-800: #fecaca;
+  --color-red-900: #fee2e2;
+  --color-red-950: #fef2f2;
+
+  /* Amber (avisos / estimaciones). */
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+  --color-amber-950: #fffbeb;
+
+  /* Violet (etiquetas). */
+  --color-violet-300: #6d28d9;
+  --color-violet-400: #7c3aed;
+  --color-violet-700: #c4b5fd;
+  --color-violet-800: #ddd6fe;
+  --color-violet-900: #ede9fe;
+  --color-violet-950: #f5f3ff;
+}
+
 /* En pantallas estrechas los controles de formulario usan al menos 16px:
    por debajo de ese tamano iOS hace zoom automatico al enfocar el campo. */
 @media (max-width: 640px) {

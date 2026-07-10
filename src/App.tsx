@@ -9,6 +9,7 @@ import BudgetsPage from './pages/BudgetsPage';
 import ExportPage from './pages/ExportPage';
 import SettingsPage from './pages/SettingsPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
+import { ThemeToggle } from './components/common';
 
 interface NavItem {
   to: string;
@@ -32,7 +33,7 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   return [
     'whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors',
     isActive
-      ? 'bg-slate-800 text-white'
+      ? 'bg-slate-800 text-slate-50'
       : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
   ].join(' ');
 }
@@ -44,7 +45,11 @@ function AppLayout() {
         {/* En movil, titulo y selector de perfil comparten fila para ahorrar altura;
             en PC vuelven a apilarse en la barra lateral. */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
-          <span className="text-lg font-bold">Gestor de Gastos</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold">Gestor de Gastos</span>
+            {/* Conmutador de tema, accesible desde cualquier seccion. */}
+            <ThemeToggle className="md:ml-auto" />
+          </div>
           {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
           <div className="w-44 shrink-0 md:mt-4 md:w-auto">
             <ProfileSwitcher />

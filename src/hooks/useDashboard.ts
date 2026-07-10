@@ -1,12 +1,13 @@
 // Hook del dashboard del perfil activo. Gestiona el selector de periodo (mes en curso por
-// defecto, navegacion entre meses y rango personalizado) y carga las metricas ya agregadas
-// desde statsService (toda la agregacion ocurre en el service, nunca en el render).
+// defecto, navegacion entre meses y rango personalizado), el filtro cruzado (al pulsar una
+// categoria en un visual, el resto se recalculan acotados a ella) y carga las metricas ya
+// agregadas desde statsService (toda la agregacion ocurre en el service, nunca en el render).
 //
 // Aislamiento por diseno: statsService.computeDashboard exige profileId y no cruza perfiles.
 // Las categorias y cuentas se cargan aparte solo para resolver nombres y colores en la UI.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActiveProfileId } from './useProfiles';
-import { statsService, type DashboardData } from '../services/statsService';
+import { statsService, type DashboardData, type DashboardFilter } from '../services/statsService';
 import { categoryService } from '../services/categoryService';
 import { accountService } from '../services/accountService';
 import type { Account, Category } from '../db/schema';
@@ -28,6 +29,8 @@ export interface UseDashboard {
   referenceISO: string;
   setReferenceMonths: (delta: number) => void;
   resetReference: () => void;
+  // Selecciona un mes concreto (YYYY-MM) como periodo, p. ej. al pulsar la evolucion mensual.
+  selectMonth: (monthKey: string) => void;
   // Modo rango personalizado.
   customFrom: string;
   customTo: string;
@@ -35,6 +38,10 @@ export interface UseDashboard {
   setCustomTo: (iso: string) => void;
   // Rango efectivo del periodo seleccionado (o null si el rango personalizado es invalido).
   range: DateRange | null;
+  // Filtro cruzado activo (null si ninguno) y acciones para cambiarlo.
+  filter: DashboardFilter | null;
+  toggleCategoryFilter: (categoryId: string | null) => void;
+  clearFilter: () => void;
   data: DashboardData | null;
   categories: Category[];
   accounts: Account[];
@@ -74,6 +81,7 @@ export function useDashboard(): UseDashboard {
   // Por defecto, el rango personalizado arranca en el mes en curso.
   const [customFrom, setCustomFrom] = useState<string>(() => monthRange(todayISO()).from);
   const [customTo, setCustomTo] = useState<string>(() => todayISO());
+  const [filter, setFilter] = useState<DashboardFilter | null>(null);
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -86,17 +94,38 @@ export function useDashboard(): UseDashboard {
     [mode, referenceISO, customFrom, customTo],
   );
 
+  // Al cambiar de perfil se descarta el filtro cruzado: nunca se arrastra entre perfiles.
+  useEffect(() => {
+    setFilter(null);
+  }, [profileId]);
+
+  // Nombres y colores para la UI. Solo dependen del perfil (no del periodo ni del filtro):
+  // asi cambiar el filtro no recarga estas listas ni provoca un parpadeo.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [cats, accs] = await Promise.all([
+          categoryService.listAll(profileId),
+          accountService.listAll(profileId),
+        ]);
+        if (cancelled) return;
+        setCategories(cats);
+        setAccounts(accs);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'No se pudieron cargar las categorias.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId]);
+
   const reload = useCallback(async () => {
+    // No se vacia `data` al recalcular (p. ej. al filtrar): se mantiene el ultimo resultado
+    // visible para que el cambio de filtro no parpadee. El spinner solo aparece sin datos.
     setLoading(true);
     try {
-      // Nombres y colores para la UI (cargados aparte del calculo). Aislados por profileId.
-      const [cats, accs] = await Promise.all([
-        categoryService.listAll(profileId),
-        accountService.listAll(profileId),
-      ]);
-      setCategories(cats);
-      setAccounts(accs);
-
       if (period === null) {
         // Rango personalizado invalido: no se calcula nada, se avisa sin romper la vista.
         setData(null);
@@ -106,6 +135,7 @@ export function useDashboard(): UseDashboard {
       const dashboard = await statsService.computeDashboard(profileId, {
         range: period.range,
         anchorISO: period.anchorISO,
+        filter: filter ?? undefined,
       });
       setData(dashboard);
       setError(null);
@@ -115,7 +145,7 @@ export function useDashboard(): UseDashboard {
     } finally {
       setLoading(false);
     }
-  }, [profileId, period]);
+  }, [profileId, period, filter]);
 
   useEffect(() => {
     void reload();
@@ -125,6 +155,19 @@ export function useDashboard(): UseDashboard {
     setReferenceISO((prev) => shiftMonths(prev, delta));
   }, []);
   const resetReference = useCallback(() => setReferenceISO(todayISO()), []);
+
+  // Pulsar un mes en la evolucion mensual: pasa a modo "mes" y fija ese mes como referencia.
+  // El dia 15 siempre existe, evita ajustes de fin de mes; el periodo es el mes natural.
+  const selectMonth = useCallback((monthKey: string) => {
+    setMode('month');
+    setReferenceISO(`${monthKey}-15`);
+  }, []);
+
+  // Alterna el filtro por categoria: si ya esta esa categoria, lo quita; si no, lo pone.
+  const toggleCategoryFilter = useCallback((categoryId: string | null) => {
+    setFilter((prev) => (prev && prev.categoryId === categoryId ? null : { categoryId }));
+  }, []);
+  const clearFilter = useCallback(() => setFilter(null), []);
 
   const categoryNames = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
   const categoryColors = useMemo(
@@ -140,11 +183,15 @@ export function useDashboard(): UseDashboard {
     referenceISO,
     setReferenceMonths,
     resetReference,
+    selectMonth,
     customFrom,
     customTo,
     setCustomFrom,
     setCustomTo,
     range: period?.range ?? null,
+    filter,
+    toggleCategoryFilter,
+    clearFilter,
     data,
     categories,
     accounts,

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { ProfileProvider } from './context/ProfileContext';
 import { ToastProvider } from './context/ToastContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { PwaReloadPrompt } from './pwa/PwaReloadPrompt';
 import './index.css';
 
@@ -15,15 +16,17 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <BrowserRouter>
-      <ToastProvider>
-        <ProfileProvider>
-          <App />
-        </ProfileProvider>
-        {/* Registro del SW + avisos de nueva version y de offline listo. Dentro del
-            ToastProvider porque usa toasts; fuera del gate de perfil para avisar
-            tambien en la pantalla de seleccion de perfil. */}
-        <PwaReloadPrompt />
-      </ToastProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <ProfileProvider>
+            <App />
+          </ProfileProvider>
+          {/* Registro del SW + avisos de nueva version y de offline listo. Dentro del
+              ToastProvider porque usa toasts; fuera del gate de perfil para avisar
+              tambien en la pantalla de seleccion de perfil. */}
+          <PwaReloadPrompt />
+        </ToastProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
 );

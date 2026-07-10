@@ -26,7 +26,7 @@ function monthLabel(referenceISO: string): string {
 function modeButtonClass(active: boolean): string {
   return [
     'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-    active ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
+    active ? 'bg-slate-800 text-slate-50' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
   ].join(' ');
 }
 

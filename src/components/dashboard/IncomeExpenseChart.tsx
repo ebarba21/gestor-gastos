@@ -4,7 +4,7 @@
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { IncomeExpenseSummary } from '../../services/statsService';
 import { formatCents } from '../../lib/money';
-import { CHART_COLORS, formatCompactEuros } from './chartTheme';
+import { formatCompactEuros, useChartColors } from './chartTheme';
 import { MoneyTooltip } from './MoneyTooltip';
 
 interface IncomeExpenseChartProps {
@@ -12,9 +12,10 @@ interface IncomeExpenseChartProps {
 }
 
 export function IncomeExpenseChart({ summary }: IncomeExpenseChartProps) {
+  const colors = useChartColors();
   const data = [
-    { name: 'Ingresos', value: summary.incomeCents, color: CHART_COLORS.income },
-    { name: 'Gastos', value: summary.expenseNetCents, color: CHART_COLORS.expense },
+    { name: 'Ingresos', value: summary.incomeCents, color: colors.income },
+    { name: 'Gastos', value: summary.expenseNetCents, color: colors.expense },
   ];
 
   return (
@@ -22,18 +23,18 @@ export function IncomeExpenseChart({ summary }: IncomeExpenseChartProps) {
       <BarChart data={data} margin={{ top: 20, right: 12, bottom: 4, left: 8 }}>
         <XAxis
           dataKey="name"
-          tick={{ fontSize: 12, fill: CHART_COLORS.axis }}
-          axisLine={{ stroke: CHART_COLORS.grid }}
+          tick={{ fontSize: 12, fill: colors.axis }}
+          axisLine={{ stroke: colors.grid }}
           tickLine={false}
         />
         <YAxis
           tickFormatter={formatCompactEuros}
-          tick={{ fontSize: 11, fill: CHART_COLORS.axis }}
+          tick={{ fontSize: 11, fill: colors.axis }}
           axisLine={false}
           tickLine={false}
           width={44}
         />
-        <Tooltip cursor={{ fill: CHART_COLORS.grid, opacity: 0.4 }} content={<MoneyTooltip />} />
+        <Tooltip cursor={{ fill: colors.grid, opacity: 0.4 }} content={<MoneyTooltip />} />
         <Bar dataKey="value" name="Importe" radius={[4, 4, 0, 0]} maxBarSize={90}>
           {data.map((d, i) => (
             <Cell key={i} fill={d.color} />
@@ -42,7 +43,7 @@ export function IncomeExpenseChart({ summary }: IncomeExpenseChartProps) {
             dataKey="value"
             position="top"
             formatter={(v: number) => formatCents(v)}
-            style={{ fontSize: 11, fill: CHART_COLORS.axis }}
+            style={{ fontSize: 11, fill: colors.axis }}
           />
         </Bar>
       </BarChart>
