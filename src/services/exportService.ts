@@ -303,6 +303,8 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
       ['Reembolsos', eur(s.refundCents)],
       ['Gasto neto', eur(s.expenseNetCents)],
       ['Ahorro neto', eur(s.netSavingsCents)],
+      ['Ahorrado (apartado a Ahorros)', eur(s.savingsContribCents)],
+      ['Invertido', eur(s.investmentContribCents)],
       ['Tasa de ahorro', ratio],
     ],
   };

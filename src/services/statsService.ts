@@ -36,6 +36,53 @@ import { requireProfileId } from '../lib/validation';
 export interface StatsContext {
   parentOf: Map<string, string | null>; // categoryId -> parentId (null para raices)
   txById: Map<string, Transaction>; // indice completo del perfil por id de movimiento
+  // Ids de categoria (raiz y sus subcategorias) consideradas de "ahorro": los gastos
+  // atribuidos a ellas NO se cuentan como gasto, sino como aportacion a ahorro. Ver
+  // savingsCategoryIds / isSavingsMovement.
+  savingsCategoryIds: Set<string>;
+  // Ids de categoria consideradas de "inversion". La inversion es un concepto DISTINTO del
+  // ahorro (se contabiliza y se muestra por separado, con enfasis propio), pero comparte una
+  // propiedad clave: un gasto a inversion NO es consumo (el dinero sigue siendo tuyo, solo
+  // cambia de forma), asi que tampoco infla el gasto ni reduce el ahorro neto. Ver
+  // investmentCategoryIds / isInvestmentMovement.
+  investmentCategoryIds: Set<string>;
+}
+
+// Nombres de categoria (ya normalizados: minusculas, sin acentos) que marcan una categoria
+// como de "ahorro". Un gasto en una de estas categorias es en realidad dinero apartado, no
+// consumo: debe tratarse como ahorro y no inflar el gasto ni reducir el ahorro neto.
+const SAVINGS_CATEGORY_NAMES = new Set(['ahorro', 'ahorros']);
+
+// Nombres de categoria que marcan una categoria como de "inversion" (analogo a ahorro pero
+// concepto separado). Un gasto a inversion es dinero que sigue siendo tuyo (cambia de forma),
+// no consumo: no infla el gasto y se contabiliza aparte, en su propia metrica.
+const INVESTMENT_CATEGORY_NAMES = new Set(['inversion', 'inversiones']);
+
+// Conjunto de ids cuyo nombre (normalizado, sin distinguir mayusculas ni acentos) esta en
+// `names`, mas TODAS sus subcategorias (un nivel en el MVP). Base comun de las categorias de
+// ahorro y de inversion: asi una subcategoria dentro de "Ahorros" (p. ej. "Fondo de
+// emergencia") o de "Inversiones" (p. ej. "Fondos indexados") hereda el tratamiento del padre
+// aunque su nombre no lo diga.
+function categoryIdsMatchingNames(categories: Category[], names: Set<string>): Set<string> {
+  const roots = new Set<string>();
+  for (const c of categories) {
+    if (names.has(normalizeConcept(c.name))) roots.add(c.id);
+  }
+  const all = new Set<string>(roots);
+  for (const c of categories) {
+    if (c.parentId !== null && roots.has(c.parentId)) all.add(c.id);
+  }
+  return all;
+}
+
+// Categorias de ahorro (raiz + subcategorias). Ver categoryIdsMatchingNames.
+export function computeSavingsCategoryIds(categories: Category[]): Set<string> {
+  return categoryIdsMatchingNames(categories, SAVINGS_CATEGORY_NAMES);
+}
+
+// Categorias de inversion (raiz + subcategorias). Analogo a computeSavingsCategoryIds.
+export function computeInvestmentCategoryIds(categories: Category[]): Set<string> {
+  return categoryIdsMatchingNames(categories, INVESTMENT_CATEGORY_NAMES);
 }
 
 // Construye el contexto a partir de las categorias y de TODOS los movimientos del perfil.
@@ -49,7 +96,12 @@ export function buildStatsContext(
   for (const c of categories) parentOf.set(c.id, c.parentId);
   const txById = new Map<string, Transaction>();
   for (const t of allTransactions) txById.set(t.id, t);
-  return { parentOf, txById };
+  return {
+    parentOf,
+    txById,
+    savingsCategoryIds: computeSavingsCategoryIds(categories),
+    investmentCategoryIds: computeInvestmentCategoryIds(categories),
+  };
 }
 
 // --- Predicados base ---
@@ -69,6 +121,51 @@ export function isRefund(t: Transaction): boolean {
 // Magnitud de gasto (entero positivo) de un movimiento de gasto; 0 si no es gasto.
 export function expenseMagnitude(t: Transaction): number {
   return t.type === 'expense' ? Math.abs(t.amountCents) : 0;
+}
+
+// True si un par de referencias de categoria apunta a una categoria de ahorro.
+function refsAreSavings(
+  categoryId: string | null,
+  subcategoryId: string | null,
+  ctx: StatsContext,
+): boolean {
+  return (
+    (categoryId !== null && ctx.savingsCategoryIds.has(categoryId)) ||
+    (subcategoryId !== null && ctx.savingsCategoryIds.has(subcategoryId))
+  );
+}
+
+// Un movimiento es una "aportacion a ahorro" si es un gasto cuya (sub)categoria es de ahorro.
+// Estos movimientos NO son consumo: se excluyen del gasto en todas las metricas y se
+// contabilizan aparte como ahorro. Solo aplica a gastos (un ingreso a una categoria de
+// ahorro sigue siendo un ingreso normal).
+export function isSavingsMovement(t: Transaction, ctx: StatsContext): boolean {
+  return t.type === 'expense' && refsAreSavings(t.categoryId, t.subcategoryId, ctx);
+}
+
+// True si un par de referencias de categoria apunta a una categoria de inversion.
+function refsAreInvestment(
+  categoryId: string | null,
+  subcategoryId: string | null,
+  ctx: StatsContext,
+): boolean {
+  return (
+    (categoryId !== null && ctx.investmentCategoryIds.has(categoryId)) ||
+    (subcategoryId !== null && ctx.investmentCategoryIds.has(subcategoryId))
+  );
+}
+
+// Un movimiento es una "aportacion a inversion" si es un gasto cuya (sub)categoria es de
+// inversion. Mismo tratamiento estructural que el ahorro (no es consumo), pero se contabiliza
+// en una metrica separada. Solo aplica a gastos.
+export function isInvestmentMovement(t: Transaction, ctx: StatsContext): boolean {
+  return t.type === 'expense' && refsAreInvestment(t.categoryId, t.subcategoryId, ctx);
+}
+
+// Un gasto que NO es consumo real: una aportacion a ahorro o a inversion. Se usa en las
+// metricas de gasto (evolucion, top, recurrentes) para dejar ambos conceptos fuera del gasto.
+export function isApartFromExpense(t: Transaction, ctx: StatsContext): boolean {
+  return isSavingsMovement(t, ctx) || isInvestmentMovement(t, ctx);
 }
 
 // --- Resolucion de la categoria/subcategoria a efectos de ambito (scope) ---
@@ -161,6 +258,13 @@ export interface Consumption {
 //    periodo se devuelve mas de lo gastado; se devuelve tal cual (la UI decide como pintarlo).
 //  - direccion 'income': suma los ingresos del ambito, EXCLUYENDO reembolsos (un reembolso
 //    no es un ingreso real; contarlo inflaria ingresos y ahorro).
+//
+// Aportaciones a ahorro: una aportacion a una categoria de ahorro NO es gasto (misma regla
+// que el dashboard), por lo que NO consume un presupuesto de gasto general (overall, cuenta u
+// otra categoria). La excepcion es un presupuesto de gasto cuyo ambito ES esa categoria de
+// ahorro (una meta de ahorro modelada como presupuesto): ahi si debe contar. Asi se preserva
+// el invariante "el consumo coincide con la suma de movimientos que cuentan en estadisticas"
+// para presupuestos de gasto normales, sin romper las metas de ahorro por categoria.
 export function computeConsumption(
   txsInPeriod: Transaction[],
   scope: BudgetScope,
@@ -171,13 +275,35 @@ export function computeConsumption(
   let gross = 0;
   let refund = 0;
 
+  // El ambito apunta explicitamente a una categoria de ahorro (meta de ahorro): en ese caso
+  // las aportaciones SI cuentan; en cualquier otro ambito de gasto se excluyen.
+  const savingsScoped =
+    (scope === 'category' || scope === 'subcategory') &&
+    scopeId !== null &&
+    ctx.savingsCategoryIds.has(scopeId);
+  // Analogo para inversion: una meta modelada sobre la categoria de inversion si cuenta sus
+  // aportaciones; cualquier otro presupuesto de gasto las excluye.
+  const investmentScoped =
+    (scope === 'category' || scope === 'subcategory') &&
+    scopeId !== null &&
+    ctx.investmentCategoryIds.has(scopeId);
+
   for (const t of txsInPeriod) {
     if (!countsInStats(t)) continue;
 
     if (direction === 'expense') {
       if (t.type === 'expense' && inScope(t, scope, scopeId, ctx, false)) {
+        // La aportacion a ahorro no consume un presupuesto de gasto que no sea de ahorro.
+        if (isSavingsMovement(t, ctx) && !savingsScoped) continue;
+        // Igual para inversion: no consume un presupuesto de gasto que no sea de inversion.
+        if (isInvestmentMovement(t, ctx) && !investmentScoped) continue;
         gross += expenseMagnitude(t);
       } else if (isRefund(t) && inScope(t, scope, scopeId, ctx, true)) {
+        const refs = attributeRefundRefs(t, ctx);
+        // Reembolso de una aportacion a ahorro: no altera un presupuesto de gasto normal.
+        if (refsAreSavings(refs.categoryId, refs.subcategoryId, ctx) && !savingsScoped) continue;
+        // Reembolso de una aportacion a inversion: idem para presupuestos de gasto normales.
+        if (refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx) && !investmentScoped) continue;
         refund += Math.abs(t.amountCents);
       }
     } else {
@@ -250,6 +376,16 @@ export interface IncomeExpenseSummary {
   refundCents: number; // reembolsos del periodo, entero >= 0
   expenseNetCents: number; // gasto neto = bruto - reembolsos (puede ser < 0)
   netSavingsCents: number; // ahorro neto = ingresos - gasto neto
+  // Aportacion neta a ahorro del periodo: suma de gastos en categorias de ahorro menos los
+  // reembolsos/retiradas atribuidos a ellas. Normalmente >= 0, pero puede ser NEGATIVO en un
+  // periodo con retirada neta de ahorro. Ya NO cuenta como gasto; es informativo para la UI
+  // (que solo lo muestra cuando es positivo). Su efecto sobre el ahorro neto es automatico.
+  savingsContribCents: number;
+  // Aportacion neta a inversion del periodo: analogo a savingsContribCents pero para las
+  // categorias de inversion. Concepto separado del ahorro, mostrado con enfasis propio en la
+  // UI. Tampoco cuenta como gasto; su efecto sobre el ahorro neto (dinero no consumido) es
+  // automatico. Puede ser NEGATIVO si en el periodo se retira mas de lo invertido.
+  investmentContribCents: number;
   // Tasa de ahorro en TANTO POR MIL entero (350 = 35,0%). null cuando no hay
   // ingresos en el periodo (no se divide por cero: la tasa no esta definida).
   savingsRatePerMille: number | null;
@@ -283,6 +419,8 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
   let income = 0;
   let expenseGross = 0;
   let refund = 0;
+  let savingsContrib = 0;
+  let investmentContrib = 0;
   const grossByCat = new Map<string | null, number>();
   const refundByCat = new Map<string | null, number>();
 
@@ -290,15 +428,35 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
     if (!countsInStats(t)) continue;
 
     if (t.type === 'expense') {
+      // Aportacion a ahorro: no es gasto ni entra en el desglose por categoria de gasto.
+      if (isSavingsMovement(t, ctx)) {
+        savingsContrib += expenseMagnitude(t);
+        continue;
+      }
+      // Aportacion a inversion: mismo tratamiento estructural, metrica separada.
+      if (isInvestmentMovement(t, ctx)) {
+        investmentContrib += expenseMagnitude(t);
+        continue;
+      }
       const mag = expenseMagnitude(t);
       expenseGross += mag;
       const root = rootCategoryIdOf(t.categoryId, t.subcategoryId, ctx.parentOf);
       grossByCat.set(root, (grossByCat.get(root) ?? 0) + mag);
     } else if (isRefund(t)) {
+      const refs = attributeRefundRefs(t, ctx);
       const amt = Math.abs(t.amountCents);
+      // Reembolso de una aportacion a ahorro: revierte ahorro, no reduce gasto.
+      if (refsAreSavings(refs.categoryId, refs.subcategoryId, ctx)) {
+        savingsContrib -= amt;
+        continue;
+      }
+      // Reembolso/retirada de una aportacion a inversion: revierte inversion, no reduce gasto.
+      if (refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)) {
+        investmentContrib -= amt;
+        continue;
+      }
       refund += amt;
       // Se atribuye a la categoria del gasto original (misma regla que presupuestos).
-      const refs = attributeRefundRefs(t, ctx);
       const root = rootCategoryIdOf(refs.categoryId, refs.subcategoryId, ctx.parentOf);
       refundByCat.set(root, (refundByCat.get(root) ?? 0) + amt);
     } else if (t.type === 'income') {
@@ -314,6 +472,8 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
     refundCents: refund,
     expenseNetCents: expenseNet,
     netSavingsCents: netSavings,
+    savingsContribCents: savingsContrib,
+    investmentContribCents: investmentContrib,
     savingsRatePerMille: savingsRatePerMille(income, netSavings),
   };
 
@@ -362,6 +522,7 @@ export function computeMonthlyEvolution(
   allTx: Transaction[],
   anchorISO: string,
   monthsBack: number,
+  ctx?: StatsContext,
 ): MonthPoint[] {
   const keys = monthKeysEndingAt(anchorISO, monthsBack);
   const first = keys[0]!;
@@ -373,9 +534,20 @@ export function computeMonthlyEvolution(
     if (!countsInStats(t)) continue;
     const k = monthKey(t.date);
     if (k < first || k > last) continue; // fuera de la ventana
+    // Las aportaciones a ahorro o a inversion no son gasto: no reducen el gasto neto mensual.
+    if (ctx && isApartFromExpense(t, ctx)) continue;
     if (t.type === 'expense') {
       expenseNet.set(k, (expenseNet.get(k) ?? 0) + expenseMagnitude(t));
     } else if (isRefund(t)) {
+      // El reembolso de una aportacion a ahorro o inversion no reduce el gasto del mes.
+      if (ctx) {
+        const refs = attributeRefundRefs(t, ctx);
+        if (
+          refsAreSavings(refs.categoryId, refs.subcategoryId, ctx) ||
+          refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)
+        )
+          continue;
+      }
       // El reembolso reduce el gasto del mes en que ocurre.
       expenseNet.set(k, (expenseNet.get(k) ?? 0) - Math.abs(t.amountCents));
     } else if (t.type === 'income') {
@@ -412,6 +584,8 @@ export function computeTopExpenses(
   const expenses: TopExpense[] = [];
   for (const t of txsInPeriod) {
     if (!countsInStats(t) || t.type !== 'expense') continue;
+    // Las aportaciones a ahorro o inversion no son gasto: no aparecen entre los mayores gastos.
+    if (isApartFromExpense(t, ctx)) continue;
     expenses.push({
       id: t.id,
       date: t.date,
@@ -448,6 +622,7 @@ export function computeRecurringExpenses(
   monthsBack: number,
   minMonths: number,
   limit: number,
+  ctx?: StatsContext,
 ): RecurringExpense[] {
   const keys = monthKeysEndingAt(anchorISO, monthsBack);
   const first = keys[0]!;
@@ -464,6 +639,8 @@ export function computeRecurringExpenses(
 
   for (const t of allTx) {
     if (!countsInStats(t) || t.type !== 'expense') continue;
+    // Las aportaciones a ahorro o inversion no son gasto: no se consideran recurrentes de gasto.
+    if (ctx && isApartFromExpense(t, ctx)) continue;
     const mk = monthKey(t.date);
     if (mk < first || mk > last) continue;
     const norm = normalizeConcept(t.concept);
@@ -505,30 +682,45 @@ export function computeRecurringExpenses(
 // --- Comparativa contra el promedio de meses anteriores ---
 
 export interface Comparison {
-  currentExpenseNetCents: number; // gasto neto del mes de referencia
-  averageExpenseNetCents: number; // media de gasto neto de los meses previos con actividad
+  currentExpenseNetCents: number; // gasto neto del mes de referencia (parcial si es el mes en curso)
+  averageExpenseNetCents: number; // media de gasto neto MENSUAL COMPLETO de los meses previos con actividad
   monthsCompared: number; // cuantos meses previos entraron en la media
-  deltaCents: number; // current - average
+  // Regla de 3: si el mes de referencia es el mes en curso, su gasto es PARCIAL (hasta hoy).
+  // Comparar ese parcial contra medias de meses completos no tiene sentido (el gap se cierra
+  // solo segun avanzan los dias). Por eso se prorratea la media completa a la misma porcion de
+  // mes transcurrida (media * diasTranscurridos / diasDelMes) y se compara contra ese valor.
+  prorated: boolean; // true si se ha prorrateado (mes en curso, parcial)
+  daysElapsed: number; // dias del mes de referencia considerados (todos si el mes esta cerrado)
+  daysInMonth: number; // dias del mes de referencia
+  averageComparedCents: number; // media contra la que se compara realmente (prorrateada si aplica)
+  deltaCents: number; // current - averageCompared
   // Variacion relativa en tanto por mil (entero). null si no hay meses previos con
-  // actividad o su media es 0 (no se divide por cero).
+  // actividad o la media comparada es 0 (no se divide por cero).
   deltaPerMille: number | null;
 }
 
 // Compara el gasto neto del mes de referencia contra la media de los `monthsBack`
 // meses anteriores QUE TUVIERON actividad (ingreso o gasto). Excluir los meses sin
 // actividad evita que un historial vacio (perfil nuevo) hunda la media a casi cero.
-// Nota: si el mes de referencia es el mes en curso, su gasto es PARCIAL (a fecha de
-// hoy) y se compara contra medias de meses completos; el delta queda sesgado a la baja.
-// La proyeccion a mes cerrado la da el forecast; la UI debe aclararlo cuando aplique.
-// Un mes con gasto y reembolso que se anulan (neto 0, ingreso 0) se considera sin
-// actividad y no entra en la media (criterio deliberado).
+//
+// Regla de 3 para el mes en curso: cuando el mes de referencia es el mes natural en curso,
+// su gasto es parcial (hasta `today`). Comparar ese parcial contra medias de meses completos
+// esta sesgado a la baja. Para que la comparativa sea justa se prorratea la media completa a
+// los dias transcurridos (media * diasTranscurridos / diasDelMes), de modo que ambos lados
+// cubren la misma fraccion del mes. En meses cerrados (pasados) no se prorratea: se compara
+// mes completo contra media de meses completos.
+//
+// Un mes con gasto y reembolso que se anulan (neto 0, ingreso 0) se considera sin actividad
+// y no entra en la media (criterio deliberado).
 export function computeComparison(
   allTx: Transaction[],
   anchorISO: string,
   monthsBack: number,
+  ctx?: StatsContext,
+  today: string = todayISO(),
 ): Comparison {
   // Ventana: mes de referencia + monthsBack previos.
-  const series = computeMonthlyEvolution(allTx, anchorISO, monthsBack + 1);
+  const series = computeMonthlyEvolution(allTx, anchorISO, monthsBack + 1, ctx);
   const current = series[series.length - 1]!;
   const previous = series.slice(0, series.length - 1);
   // Solo meses con actividad real (evita promediar meses vacios de un perfil nuevo).
@@ -538,12 +730,38 @@ export function computeComparison(
     monthsCompared > 0
       ? Math.round(active.reduce((s, m) => s + m.expenseNetCents, 0) / monthsCompared)
       : 0;
-  const delta = current.expenseNetCents - average;
-  const deltaPerMille = average > 0 ? Math.round((delta / average) * 1000) : null;
+
+  // Prorrateo (regla de 3) solo si el mes de referencia es el mes natural en curso y aun no
+  // ha terminado. daysElapsed nunca supera los dias del mes (por si `today` cae despues).
+  const anchor = parseISO(anchorISO);
+  const now = parseISO(today);
+  const dim = daysInMonth(anchor.y, anchor.m);
+  const isCurrentMonth = anchor.y === now.y && anchor.m === now.m;
+  const daysElapsed = isCurrentMonth ? Math.min(now.d, dim) : dim;
+  const prorated = isCurrentMonth && daysElapsed < dim;
+  const averageCompared = prorated ? Math.round((average * daysElapsed) / dim) : average;
+
+  // Gasto actual: en el mes en curso se acota HASTA hoy (igual que el forecast), para que el
+  // parcial cubra literalmente los dias transcurridos aunque existan movimientos con fecha
+  // futura ya registrados en el mes. Sin ctx (algunos tests) se usa el total del mes de la
+  // serie. La serie ya excluye ahorros; el recorte tambien via aggregatePeriod.
+  let currentExpenseNet = current.expenseNetCents;
+  if (isCurrentMonth && ctx) {
+    const monthToToday: DateRange = { from: toISO(anchor.y, anchor.m, 1), to: toISO(now.y, now.m, daysElapsed) };
+    const inMonthToToday = allTx.filter((t) => isWithinRange(t.date, monthToToday));
+    currentExpenseNet = aggregatePeriod(inMonthToToday, ctx).summary.expenseNetCents;
+  }
+
+  const delta = currentExpenseNet - averageCompared;
+  const deltaPerMille = averageCompared > 0 ? Math.round((delta / averageCompared) * 1000) : null;
   return {
-    currentExpenseNetCents: current.expenseNetCents,
+    currentExpenseNetCents: currentExpenseNet,
     averageExpenseNetCents: average,
     monthsCompared,
+    prorated,
+    daysElapsed,
+    daysInMonth: dim,
+    averageComparedCents: averageCompared,
     deltaCents: delta,
     deltaPerMille,
   };
@@ -604,10 +822,21 @@ export function computeForecast(
 
 // --- Orquestador puro: todas las metricas del dashboard de una sola carga ---
 
+// Filtro cruzado del dashboard: al pulsar un elemento visual (p. ej. una barra de categoria)
+// el resto de visuales se recalculan acotados a esa dimension. De momento la unica dimension
+// es la categoria raiz (categoryId = null representa el bucket "sin categoria"). El grafico de
+// gasto por categoria actua de control (se muestra siempre completo, resaltando el activo);
+// el resto de metricas se filtran. La navegacion por mes NO usa este filtro: pulsar un mes en
+// la evolucion cambia el periodo de referencia (mismo mecanismo que el selector de periodo).
+export interface DashboardFilter {
+  categoryId: string | null; // categoria raiz seleccionada; null = "sin categoria"
+}
+
 export interface DashboardParams {
   range: DateRange; // periodo seleccionado (mes en curso por defecto o rango personalizado)
   anchorISO: string; // fecha ancla del mes de referencia (evolucion, comparativa, forecast)
   today?: string; // hoy (inyectable en tests); por defecto el reloj local
+  filter?: DashboardFilter; // filtro cruzado activo (sin filtro si se omite)
   monthsBack?: number; // meses de la serie de evolucion (por defecto 12)
   topLimit?: number; // numero de top gastos (por defecto 5)
   recurringMonthsBack?: number; // ventana de recurrentes (por defecto 6)
@@ -619,14 +848,25 @@ export interface DashboardParams {
 export interface DashboardData {
   range: DateRange;
   anchorMonth: string; // YYYY-MM
-  hasData: boolean; // hay algun movimiento que cuente en el periodo seleccionado
+  hasData: boolean; // hay algun movimiento que cuente en el periodo seleccionado (sin filtro)
+  filter: DashboardFilter | null; // filtro cruzado aplicado (null si ninguno)
   summary: IncomeExpenseSummary;
-  byCategory: CategorySpend[];
+  byCategory: CategorySpend[]; // SIEMPRE completo (control del filtro), no acotado por filter
   monthly: MonthPoint[];
   topExpenses: TopExpense[];
   recurring: RecurringExpense[];
   comparison: Comparison;
   forecast: Forecast;
+}
+
+// Categoria raiz atribuida a un movimiento a efectos del filtro cruzado: la del gasto
+// original si es un reembolso (misma atribucion que en el desglose), la propia en otro caso.
+function filterRootCategoryId(t: Transaction, ctx: StatsContext): string | null {
+  if (isRefund(t)) {
+    const refs = attributeRefundRefs(t, ctx);
+    return rootCategoryIdOf(refs.categoryId, refs.subcategoryId, ctx.parentOf);
+  }
+  return rootCategoryIdOf(t.categoryId, t.subcategoryId, ctx.parentOf);
 }
 
 // Calcula TODAS las metricas del dashboard a partir de los movimientos y categorias
@@ -642,6 +882,7 @@ export function computeDashboard(
     range,
     anchorISO,
     today = todayISO(),
+    filter,
     monthsBack = 12,
     topLimit = 5,
     recurringMonthsBack = 6,
@@ -650,28 +891,44 @@ export function computeDashboard(
     comparisonMonthsBack = 3,
   } = params;
 
-  // Acotar una sola vez el conjunto del periodo seleccionado.
+  // Acotar una sola vez el conjunto del periodo seleccionado (sin filtro cruzado).
   const inPeriod = allTx.filter((t) => isWithinRange(t.date, range));
-  const { summary, byCategory } = aggregatePeriod(inPeriod, ctx);
+  // hasData refleja si hay datos en el periodo con independencia del filtro cruzado: asi el
+  // estado vacio solo aparece cuando de verdad no hay movimientos, no al filtrar por categoria.
   const hasData = inPeriod.some((t) => countsInStats(t));
+
+  // El desglose por categoria se calcula SIEMPRE completo: es el control del filtro y debe
+  // mostrar todas las categorias para poder cambiar la seleccion.
+  const { byCategory } = aggregatePeriod(inPeriod, ctx);
+
+  // Resto de metricas: acotadas al filtro cruzado (por categoria raiz) si esta activo. Sin
+  // filtro, `keep` es la identidad y el resultado es identico al comportamiento previo.
+  const keep = (list: Transaction[]): Transaction[] =>
+    filter === undefined ? list : list.filter((t) => filterRootCategoryId(t, ctx) === filter.categoryId);
+
+  const inPeriodFiltered = keep(inPeriod);
+  const allTxFiltered = keep(allTx);
+  const { summary } = aggregatePeriod(inPeriodFiltered, ctx);
 
   return {
     range,
     anchorMonth: monthKey(anchorISO),
     hasData,
+    filter: filter ?? null,
     summary,
     byCategory,
-    monthly: computeMonthlyEvolution(allTx, anchorISO, monthsBack),
-    topExpenses: computeTopExpenses(inPeriod, ctx, topLimit),
+    monthly: computeMonthlyEvolution(allTxFiltered, anchorISO, monthsBack, ctx),
+    topExpenses: computeTopExpenses(inPeriodFiltered, ctx, topLimit),
     recurring: computeRecurringExpenses(
-      allTx,
+      allTxFiltered,
       anchorISO,
       recurringMonthsBack,
       recurringMinMonths,
       recurringLimit,
+      ctx,
     ),
-    comparison: computeComparison(allTx, anchorISO, comparisonMonthsBack),
-    forecast: computeForecast(allTx, anchorISO, ctx, today),
+    comparison: computeComparison(allTxFiltered, anchorISO, comparisonMonthsBack, ctx, today),
+    forecast: computeForecast(allTxFiltered, anchorISO, ctx, today),
   };
 }
 

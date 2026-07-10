@@ -13,7 +13,10 @@ import {
   computeForecast,
   computeMonthlyEvolution,
   computeRecurringExpenses,
+  computeSavingsCategoryIds,
   computeTopExpenses,
+  isInvestmentMovement,
+  isSavingsMovement,
   monthKey,
   monthKeysEndingAt,
   rootCategoryIdOf,
@@ -52,11 +55,15 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
   };
 }
 
-// Alimentacion (raiz) -> Supermercado (sub). Ocio (raiz) suelta.
+// Alimentacion (raiz) -> Supermercado (sub). Ocio (raiz) suelta. Ahorros (raiz) -> Fondo (sub).
 const CATEGORIES: Category[] = [
   { id: 'cat-food', profileId: 'perfil-a', name: 'Alimentacion', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0, createdAt: 0, updatedAt: 0 },
   { id: 'sub-super', profileId: 'perfil-a', name: 'Supermercado', parentId: 'cat-food', kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0, createdAt: 0, updatedAt: 0 },
   { id: 'cat-ocio', profileId: 'perfil-a', name: 'Ocio', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 1, createdAt: 0, updatedAt: 0 },
+  { id: 'cat-ahorro', profileId: 'perfil-a', name: 'Ahorros', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 2, createdAt: 0, updatedAt: 0 },
+  { id: 'sub-fondo', profileId: 'perfil-a', name: 'Fondo de emergencia', parentId: 'cat-ahorro', kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0, createdAt: 0, updatedAt: 0 },
+  { id: 'cat-invers', profileId: 'perfil-a', name: 'Inversiones', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 3, createdAt: 0, updatedAt: 0 },
+  { id: 'sub-indexado', profileId: 'perfil-a', name: 'Fondos indexados', parentId: 'cat-invers', kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0, createdAt: 0, updatedAt: 0 },
 ];
 
 function ctxFor(txs: Transaction[]) {
@@ -100,6 +107,8 @@ describe('aggregatePeriod - resumen', () => {
       refundCents: 0,
       expenseNetCents: 0,
       netSavingsCents: 0,
+      savingsContribCents: 0,
+      investmentContribCents: 0,
       savingsRatePerMille: null,
     });
     expect(byCategory).toEqual([]);
@@ -221,20 +230,67 @@ describe('computeComparison', () => {
       // 2025-10 sin actividad: no debe entrar en la media
       tx({ date: '2026-01-10', type: 'expense', amountCents: -2500 }),
     ];
-    const cmp = computeComparison(txs, '2026-01-15', 3);
+    // `today` en otro mes: 2026-01 es un mes cerrado, sin prorrateo (mes completo vs media).
+    const cmp = computeComparison(txs, '2026-01-15', 3, undefined, '2026-07-10');
     expect(cmp.currentExpenseNetCents).toBe(2500);
     expect(cmp.monthsCompared).toBe(2); // 11 y 12; no el 10 vacio
     expect(cmp.averageExpenseNetCents).toBe(2000);
+    expect(cmp.prorated).toBe(false);
+    expect(cmp.averageComparedCents).toBe(2000);
     expect(cmp.deltaCents).toBe(500);
     expect(cmp.deltaPerMille).toBe(250);
   });
 
   it('sin historial previo con actividad: media 0 y variacion null (no divide por cero)', () => {
     const txs = [tx({ date: '2026-01-10', type: 'expense', amountCents: -2500 })];
-    const cmp = computeComparison(txs, '2026-01-15', 3);
+    const cmp = computeComparison(txs, '2026-01-15', 3, undefined, '2026-07-10');
     expect(cmp.monthsCompared).toBe(0);
     expect(cmp.averageExpenseNetCents).toBe(0);
+    expect(cmp.averageComparedCents).toBe(0);
     expect(cmp.deltaPerMille).toBeNull();
+  });
+
+  it('regla de 3: en el mes en curso prorratea la media a los dias transcurridos', () => {
+    const txs = [
+      // Dos meses previos completos con gasto neto 3000 cada uno -> media 3000.
+      tx({ date: '2026-05-10', type: 'expense', amountCents: -3000 }),
+      tx({ date: '2026-06-10', type: 'expense', amountCents: -3000 }),
+      // Mes en curso (julio), gasto parcial hasta hoy.
+      tx({ date: '2026-07-05', type: 'expense', amountCents: -1200 }),
+    ];
+    // Hoy es 15 de julio: han pasado 15 de 31 dias.
+    const cmp = computeComparison(txs, '2026-07-15', 2, undefined, '2026-07-15');
+    expect(cmp.prorated).toBe(true);
+    expect(cmp.daysElapsed).toBe(15);
+    expect(cmp.daysInMonth).toBe(31);
+    expect(cmp.averageExpenseNetCents).toBe(3000); // media mensual completa
+    expect(cmp.averageComparedCents).toBe(Math.round((3000 * 15) / 31)); // 1452, prorrateada
+    expect(cmp.currentExpenseNetCents).toBe(1200);
+    expect(cmp.deltaCents).toBe(1200 - Math.round((3000 * 15) / 31));
+  });
+
+  it('acota el gasto actual a hoy: un gasto con fecha futura del mes no infla el parcial', () => {
+    const txs = [
+      tx({ date: '2026-06-10', type: 'expense', amountCents: -3000 }),
+      tx({ date: '2026-07-05', type: 'expense', amountCents: -1000 }), // hasta hoy
+      tx({ date: '2026-07-25', type: 'expense', amountCents: -9000 }), // futuro, ya registrado
+    ];
+    // Con ctx, el actual se acota a hoy (dia 15): solo cuenta el gasto del dia 5.
+    const cmp = computeComparison(txs, '2026-07-15', 1, ctxFor(txs), '2026-07-15');
+    expect(cmp.currentExpenseNetCents).toBe(1000); // no incluye el gasto del dia 25
+    expect(cmp.prorated).toBe(true);
+    expect(cmp.daysElapsed).toBe(15);
+  });
+
+  it('el ultimo dia del mes en curso ya no prorratea (mes completo)', () => {
+    const txs = [
+      tx({ date: '2026-06-10', type: 'expense', amountCents: -3000 }),
+      tx({ date: '2026-07-10', type: 'expense', amountCents: -2000 }),
+    ];
+    const cmp = computeComparison(txs, '2026-07-31', 1, undefined, '2026-07-31');
+    expect(cmp.prorated).toBe(false);
+    expect(cmp.daysElapsed).toBe(31);
+    expect(cmp.averageComparedCents).toBe(3000);
   });
 });
 
@@ -365,7 +421,7 @@ describe('computeComparison - mes previo neutralizado por reembolso', () => {
       tx({ date: '2026-02-20', type: 'income', amountCents: 1000, refundOfId: 'gf' }),
       tx({ date: '2026-03-10', type: 'expense', amountCents: -500 }),
     ];
-    const cmp = computeComparison(txs, '2026-03-15', 2);
+    const cmp = computeComparison(txs, '2026-03-15', 2, undefined, '2026-07-10');
     // Solo enero cuenta como mes anterior con actividad.
     expect(cmp.monthsCompared).toBe(1);
     expect(cmp.averageExpenseNetCents).toBe(1000);
@@ -427,6 +483,158 @@ describe('computeDashboard (orquestador puro)', () => {
     });
     expect(data.hasData).toBe(true);
     expect(data.summary.expenseGrossCents).toBe(1000);
+  });
+});
+
+// --- Reclasificacion de movimientos de ahorro (categoria "Ahorros") ---
+describe('categorias de ahorro', () => {
+  it('computeSavingsCategoryIds detecta la raiz por nombre y arrastra sus subcategorias', () => {
+    const ids = computeSavingsCategoryIds(CATEGORIES);
+    expect(ids.has('cat-ahorro')).toBe(true); // "Ahorros" por nombre
+    expect(ids.has('sub-fondo')).toBe(true); // subcategoria de una de ahorro
+    expect(ids.has('cat-food')).toBe(false);
+    expect(ids.has('cat-ocio')).toBe(false);
+  });
+
+  it('reconoce el nombre sin distinguir mayusculas ni acentos, en singular o plural', () => {
+    const cats: Category[] = [
+      { ...CATEGORIES[0]!, id: 'a', name: 'AHÓRRO' },
+      { ...CATEGORIES[0]!, id: 'b', name: 'ahorros' },
+      { ...CATEGORIES[0]!, id: 'c', name: 'Ahorro para el coche' }, // NO coincide (no es exactamente ahorro/ahorros)
+    ];
+    const ids = computeSavingsCategoryIds(cats);
+    expect(ids.has('a')).toBe(true);
+    expect(ids.has('b')).toBe(true);
+    expect(ids.has('c')).toBe(false);
+  });
+
+  it('isSavingsMovement solo marca gastos de una categoria de ahorro', () => {
+    const ctx = ctxFor([]);
+    expect(isSavingsMovement(tx({ type: 'expense', categoryId: 'cat-ahorro' }), ctx)).toBe(true);
+    expect(isSavingsMovement(tx({ type: 'expense', subcategoryId: 'sub-fondo' }), ctx)).toBe(true);
+    expect(isSavingsMovement(tx({ type: 'expense', categoryId: 'cat-food' }), ctx)).toBe(false);
+    // Un ingreso a una categoria de ahorro sigue siendo ingreso normal.
+    expect(isSavingsMovement(tx({ type: 'income', amountCents: 1000, categoryId: 'cat-ahorro' }), ctx)).toBe(false);
+  });
+
+  it('un gasto a Ahorros no cuenta como gasto: sube el ahorro neto y se contabiliza aparte', () => {
+    const txs = [
+      tx({ type: 'income', amountCents: 200000 }),
+      tx({ type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
+      tx({ type: 'expense', amountCents: -50000, categoryId: 'cat-ahorro' }), // aportacion a ahorro
+      tx({ type: 'expense', amountCents: -2000, subcategoryId: 'sub-fondo' }), // sub de ahorro
+    ];
+    const { summary, byCategory } = aggregatePeriod(txs, ctxFor(txs));
+    // Solo el gasto de alimentacion cuenta como gasto.
+    expect(summary.expenseGrossCents).toBe(3000);
+    expect(summary.expenseNetCents).toBe(3000);
+    expect(summary.savingsContribCents).toBe(52000); // 50000 + 2000
+    // Ahorro neto = ingresos - gasto neto = 200000 - 3000 (el ahorro no resta).
+    expect(summary.netSavingsCents).toBe(197000);
+    // El desglose por categoria no incluye las de ahorro.
+    expect(byCategory.map((c) => c.categoryId)).toEqual(['cat-food']);
+  });
+
+  it('isInvestmentMovement solo marca gastos de una categoria de inversion', () => {
+    const ctx = ctxFor([]);
+    expect(isInvestmentMovement(tx({ type: 'expense', categoryId: 'cat-invers' }), ctx)).toBe(true);
+    expect(isInvestmentMovement(tx({ type: 'expense', subcategoryId: 'sub-indexado' }), ctx)).toBe(true);
+    expect(isInvestmentMovement(tx({ type: 'expense', categoryId: 'cat-ahorro' }), ctx)).toBe(false);
+    expect(isInvestmentMovement(tx({ type: 'expense', categoryId: 'cat-food' }), ctx)).toBe(false);
+    // Un ingreso a una categoria de inversion sigue siendo ingreso normal.
+    expect(isInvestmentMovement(tx({ type: 'income', amountCents: 1000, categoryId: 'cat-invers' }), ctx)).toBe(false);
+  });
+
+  it('un gasto a Inversiones no cuenta como gasto: sube el ahorro neto y se contabiliza en su metrica separada', () => {
+    const txs = [
+      tx({ type: 'income', amountCents: 200000 }),
+      tx({ type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
+      tx({ type: 'expense', amountCents: -50000, categoryId: 'cat-ahorro' }), // ahorro
+      tx({ type: 'expense', amountCents: -40000, categoryId: 'cat-invers' }), // inversion
+      tx({ type: 'expense', amountCents: -1000, subcategoryId: 'sub-indexado' }), // sub de inversion
+    ];
+    const { summary, byCategory } = aggregatePeriod(txs, ctxFor(txs));
+    // Ni ahorro ni inversion cuentan como gasto.
+    expect(summary.expenseGrossCents).toBe(3000);
+    expect(summary.expenseNetCents).toBe(3000);
+    // Ahorro e inversion viven en metricas distintas.
+    expect(summary.savingsContribCents).toBe(50000);
+    expect(summary.investmentContribCents).toBe(41000); // 40000 + 1000
+    // El dinero invertido tampoco resta del ahorro neto (no es consumo).
+    expect(summary.netSavingsCents).toBe(197000);
+    // El desglose por categoria no incluye ahorro ni inversion.
+    expect(byCategory.map((c) => c.categoryId)).toEqual(['cat-food']);
+  });
+
+  it('la retirada (reembolso) de una aportacion a inversion no toca gasto ni ingreso y deja investmentContrib negativo', () => {
+    const original = tx({ id: 'inv', type: 'expense', amountCents: -40000, categoryId: 'cat-invers' });
+    const withdrawal = tx({ type: 'income', amountCents: 15000, refundOfId: 'inv', categoryId: null });
+    const ctx = buildStatsContext(CATEGORIES, [original, withdrawal]);
+    const { summary } = aggregatePeriod([withdrawal], ctx);
+    expect(summary.expenseNetCents).toBe(0); // no reduce gasto
+    expect(summary.incomeCents).toBe(0); // no es ingreso
+    expect(summary.refundCents).toBe(0); // no es un reembolso de gasto
+    expect(summary.investmentContribCents).toBe(-15000); // retirada neta de inversion
+    expect(summary.savingsContribCents).toBe(0); // el ahorro no se ve afectado
+  });
+
+  it('la retirada (reembolso) de una aportacion a ahorro no toca gasto ni ingreso y deja savingsContrib negativo', () => {
+    const original = tx({ id: 'ap', type: 'expense', amountCents: -50000, categoryId: 'cat-ahorro' });
+    // Solo la retirada cae en el periodo (la aportacion es de otro mes, resoluble via txById).
+    const withdrawal = tx({ type: 'income', amountCents: 20000, refundOfId: 'ap', categoryId: null });
+    const ctx = buildStatsContext(CATEGORIES, [original, withdrawal]);
+    const { summary } = aggregatePeriod([withdrawal], ctx);
+    expect(summary.expenseNetCents).toBe(0); // no reduce gasto
+    expect(summary.incomeCents).toBe(0); // no es ingreso
+    expect(summary.refundCents).toBe(0); // no es un reembolso de gasto
+    expect(summary.savingsContribCents).toBe(-20000); // retirada neta de ahorro
+  });
+
+  it('no aparece en top gastos, recurrentes ni evolucion mensual', () => {
+    const txs = [
+      tx({ date: '2026-07-03', type: 'expense', amountCents: -50000, concept: 'Traspaso ahorro', categoryId: 'cat-ahorro' }),
+      tx({ date: '2026-08-03', type: 'expense', amountCents: -50000, concept: 'Traspaso ahorro', categoryId: 'cat-ahorro' }),
+      tx({ date: '2026-09-03', type: 'expense', amountCents: -50000, concept: 'Traspaso ahorro', categoryId: 'cat-ahorro' }),
+      tx({ date: '2026-09-04', type: 'expense', amountCents: -1000, concept: 'Cafe', categoryId: 'cat-food' }),
+    ];
+    const ctx = ctxFor(txs);
+    const top = computeTopExpenses(txs.filter((t) => t.date.startsWith('2026-09')), ctx, 5);
+    expect(top.map((t) => t.categoryId)).toEqual(['cat-food']); // el ahorro no esta
+    const rec = computeRecurringExpenses(txs, '2026-09-15', 6, 3, 8, ctx);
+    expect(rec).toEqual([]); // el traspaso mensual a ahorro no es un gasto recurrente
+    const series = computeMonthlyEvolution(txs, '2026-09-15', 1, ctx);
+    expect(series[0]!.expenseNetCents).toBe(1000); // solo el cafe, no la aportacion a ahorro
+  });
+});
+
+// --- Filtro cruzado por categoria ---
+describe('computeDashboard - filtro cruzado por categoria', () => {
+  const txs = [
+    tx({ date: '2026-07-05', type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
+    tx({ date: '2026-07-06', type: 'expense', amountCents: -1000, categoryId: 'cat-food', subcategoryId: 'sub-super' }),
+    tx({ date: '2026-07-07', type: 'expense', amountCents: -2500, categoryId: 'cat-ocio' }),
+    tx({ date: '2026-07-08', type: 'income', amountCents: 100000, categoryId: null }),
+  ];
+  const base = { range: { from: '2026-07-01', to: '2026-07-31' }, anchorISO: '2026-07-15', today: '2026-07-15' };
+
+  it('sin filtro agrega todo el periodo', () => {
+    const data = computeDashboard(txs, CATEGORIES, base);
+    expect(data.filter).toBeNull();
+    expect(data.summary.expenseNetCents).toBe(6500); // 3000 + 1000 + 2500
+    expect(data.summary.incomeCents).toBe(100000);
+  });
+
+  it('con filtro de categoria acota el resumen y el top pero deja el desglose completo', () => {
+    const data = computeDashboard(txs, CATEGORIES, { ...base, filter: { categoryId: 'cat-food' } });
+    expect(data.filter).toEqual({ categoryId: 'cat-food' });
+    // Resumen filtrado: solo Alimentacion (raiz + sub) = 4000; ingresos 0 (el ingreso no es de esa categoria).
+    expect(data.summary.expenseNetCents).toBe(4000);
+    expect(data.summary.incomeCents).toBe(0);
+    expect(data.topExpenses.every((t) => t.categoryId === 'cat-food')).toBe(true);
+    // El desglose por categoria sigue completo (es el control del filtro).
+    expect(data.byCategory.map((c) => c.categoryId).sort()).toEqual(['cat-food', 'cat-ocio']);
+    // hasData mira el periodo completo, no el filtro.
+    expect(data.hasData).toBe(true);
   });
 });
 

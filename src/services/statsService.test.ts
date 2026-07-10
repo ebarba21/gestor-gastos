@@ -82,6 +82,32 @@ const CATEGORIES: Category[] = [
     createdAt: 0,
     updatedAt: 0,
   },
+  {
+    id: 'cat-ahorro',
+    profileId: 'perfil-a',
+    name: 'Ahorros',
+    parentId: null,
+    kind: 'expense',
+    color: null,
+    icon: null,
+    archivedAt: null,
+    sortOrder: 2,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'cat-invers',
+    profileId: 'perfil-a',
+    name: 'Inversiones',
+    parentId: null,
+    kind: 'expense',
+    color: null,
+    icon: null,
+    archivedAt: null,
+    sortOrder: 3,
+    createdAt: 0,
+    updatedAt: 0,
+  },
 ];
 
 function ctxFor(txs: Transaction[]) {
@@ -125,6 +151,46 @@ describe('computeConsumption - direccion gasto (overall)', () => {
   it('sin datos, consumo cero', () => {
     const c = computeConsumption([], 'overall', null, 'expense', ctxFor([]));
     expect(c).toEqual({ grossCents: 0, refundCents: 0, consumedCents: 0 });
+  });
+});
+
+describe('computeConsumption - aportaciones a ahorro', () => {
+  const txs = [
+    tx({ type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
+    tx({ type: 'expense', amountCents: -50000, categoryId: 'cat-ahorro' }), // aportacion a ahorro
+  ];
+
+  it('no consume un presupuesto de gasto general (overall)', () => {
+    // La aportacion a ahorro no es gasto: solo cuenta el gasto de alimentacion.
+    expect(computeConsumption(txs, 'overall', null, 'expense', ctxFor(txs)).consumedCents).toBe(3000);
+  });
+
+  it('no consume un presupuesto de otra categoria de gasto', () => {
+    expect(computeConsumption(txs, 'category', 'cat-food', 'expense', ctxFor(txs)).consumedCents).toBe(3000);
+  });
+
+  it('SI consume un presupuesto cuyo ambito es la propia categoria de ahorro (meta de ahorro)', () => {
+    expect(computeConsumption(txs, 'category', 'cat-ahorro', 'expense', ctxFor(txs)).consumedCents).toBe(50000);
+  });
+});
+
+describe('computeConsumption - aportaciones a inversion', () => {
+  const txs = [
+    tx({ type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
+    tx({ type: 'expense', amountCents: -40000, categoryId: 'cat-invers' }), // aportacion a inversion
+  ];
+
+  it('no consume un presupuesto de gasto general (overall)', () => {
+    // La aportacion a inversion no es gasto: solo cuenta el gasto de alimentacion.
+    expect(computeConsumption(txs, 'overall', null, 'expense', ctxFor(txs)).consumedCents).toBe(3000);
+  });
+
+  it('no consume un presupuesto de otra categoria de gasto', () => {
+    expect(computeConsumption(txs, 'category', 'cat-food', 'expense', ctxFor(txs)).consumedCents).toBe(3000);
+  });
+
+  it('SI consume un presupuesto cuyo ambito es la propia categoria de inversion (meta de inversion)', () => {
+    expect(computeConsumption(txs, 'category', 'cat-invers', 'expense', ctxFor(txs)).consumedCents).toBe(40000);
   });
 });
 
