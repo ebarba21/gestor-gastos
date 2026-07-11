@@ -243,7 +243,8 @@ export function ExportSection() {
       <div>
         <h2 className="text-xl font-semibold text-slate-100">Exportaciones y backup</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Todo se genera en este dispositivo. Ningun dato sale de aqui.
+          El backup se genera en este dispositivo. Ningun archivo bancario original ni dato del
+          backup se sube de forma automatica: eres tu quien decide donde guardarlo.
         </p>
       </div>
 

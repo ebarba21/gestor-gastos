@@ -1,7 +1,7 @@
 // Repositorio de lotes de importacion (ImportBatch). Exige profileId.
 // Ver DATA_MODEL 2.10. Permite trazabilidad, atomicidad del commit y deshacer un lote.
 import type { ImportBatch, ImportBatchStatus, Transaction } from './schema';
-import { db, newId, now } from './index';
+import { db, newId, now, syncDefaults } from './index';
 import { createProfileRepo } from './baseRepo';
 import { buildTransactionEntity } from './transactionsRepo';
 import type { NewTransaction } from './transactionsRepo';
@@ -47,6 +47,7 @@ export const importBatchesRepo = {
     requireProfileId(profileId);
     const ts = now();
     const batch: ImportBatch = {
+      ...syncDefaults(),
       id: newId(),
       profileId,
       templateId: batchInput.templateId,

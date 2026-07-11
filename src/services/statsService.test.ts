@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Category, Transaction } from '../db/schema';
+import { syncDefaults } from '../db/index';
 import {
   buildStatsContext,
   computeConsumption,
@@ -13,6 +14,7 @@ import {
 // gasto normal que cuenta en estadisticas.
 function tx(overrides: Partial<Transaction> = {}): Transaction {
   return {
+    ...syncDefaults(),
     id: overrides.id ?? crypto.randomUUID(),
     profileId: 'perfil-a',
     date: '2026-07-10',

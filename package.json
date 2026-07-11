@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Gestor de gastos personales. PWA local-first, coste 0, multiusuario por perfiles locales.",
+  "description": "Gestor de gastos personales. PWA local-first, con sincronizacion privada opcional, multiusuario por perfiles locales.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -13,6 +13,7 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.2",
     "dexie": "^4.4.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

@@ -18,7 +18,7 @@ export default defineConfig({
       manifest: {
         name: 'Gestor de Gastos',
         short_name: 'Gastos',
-        description: 'Gestor de gastos personales local-first. Coste 0.',
+        description: 'Gestor de gastos personales local-first, con sincronizacion privada opcional.',
         lang: 'es',
         theme_color: '#0f172a',
         background_color: '#0f172a',

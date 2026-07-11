@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { filterTransactions, sortTransactions } from './transactionFilters';
 import type { Transaction } from '../db/schema';
+import { syncDefaults } from '../db/index';
 
 // Fabrica un movimiento completo con valores por defecto sobrescribibles.
 function tx(overrides: Partial<Transaction> = {}): Transaction {
   return {
+    ...syncDefaults(),
     id: overrides.id ?? crypto.randomUUID(),
     profileId: 'A',
     date: '2026-01-15',

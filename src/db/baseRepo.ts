@@ -4,20 +4,24 @@
 //   - toda lectura/escritura verifica que el registro pertenece al perfil.
 //   - profileId lo fija el repositorio, nunca se toma del payload del componente.
 import type { Table } from 'dexie';
-import { newId, now } from './index';
+import { newId, now, syncDefaults } from './index';
+import type { SyncMeta } from './schema';
 import { NotFoundError, requireId, requireProfileId } from '../lib/validation';
 
-// Toda entidad de datos comparte estos campos gestionados por el repositorio.
-export interface ProfileOwned {
+// Toda entidad de datos comparte estos campos gestionados por el repositorio. Incluye los
+// campos de sincronizacion (SyncMeta, DATA_MODEL seccion 9), que tambien fija el repositorio.
+export interface ProfileOwned extends SyncMeta {
   id: string;
   profileId: string;
   createdAt: number;
   updatedAt: number;
 }
 
+// La entrada del llamante nunca incluye campos gestionados por el repositorio: ni id,
+// profileId y timestamps, ni los campos de sincronizacion (los pone syncDefaults()).
 export type CreateInput<T extends ProfileOwned> = Omit<
   T,
-  'id' | 'profileId' | 'createdAt' | 'updatedAt'
+  'id' | 'profileId' | 'createdAt' | 'updatedAt' | keyof SyncMeta
 >;
 export type UpdateInput<T extends ProfileOwned> = Partial<CreateInput<T>>;
 
@@ -46,9 +50,11 @@ export function createProfileRepo<T extends ProfileOwned>(
     async create(profileId, input) {
       requireProfileId(profileId);
       const ts = now();
-      // input contiene todos los campos de T salvo los gestionados aqui.
+      // input contiene todos los campos de T salvo los gestionados aqui: id, profileId,
+      // timestamps y los campos de sincronizacion (syncDefaults, DATA_MODEL seccion 9).
       const entity = {
         ...input,
+        ...syncDefaults(),
         id: newId(),
         profileId,
         createdAt: ts,
