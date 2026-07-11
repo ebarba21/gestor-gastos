@@ -2,6 +2,8 @@
 
 Fecha de verificacion: 2026-07-09. Rama: `feat/dashboard`.
 
+> Alcance de este checklist: refleja el estado de la app en su version LOCAL (antes de la ampliacion cloud). Los resultados verificados siguen siendo ciertos para esa base local. La ampliacion en curso (ver `PROMPTS_AMPLIACION_APP_GASTOS.md` y `specs/IMPLEMENTATION_ROADMAP.md`) introduce una cuenta de sincronizacion privada OPCIONAL con Supabase, por lo que los puntos 16 ("sin llamadas de red innecesarias") y 17 ("coste 0") deben leerse asi: describen el modo local; con la cuenta activada, la app habla ademas con el endpoint de Supabase del usuario y opera dentro de los limites gratuitos actuales del proveedor (sin promesa de gratuidad perpetua). La sesion final de la ampliacion generara un `docs/CHECKLIST_AMPLIACION_FINAL.md` que verificara el nuevo comportamiento.
+
 ## Como se ha verificado
 
 Tres niveles de evidencia, del mas automatico al mas manual:
@@ -133,7 +135,7 @@ Estados posibles por punto:
 **COMPROBADO.**
 
 - `package.json`: todas las dependencias son open source gratuitas (react, react-router-dom, dexie, recharts, xlsx de SheetJS, tailwindcss, vite, vitest). El paquete xlsx se descarga del CDN de SheetJS solo al instalar dependencias en desarrollo, nunca en runtime.
-- Sin backend, sin claves de API, sin SDKs de servicios cloud, sin telemetria. La app es estatica: cualquier hosting gratuito o el propio dispositivo la sirve.
+- En su version LOCAL (la verificada aqui): sin backend, sin claves de API, sin SDKs de servicios cloud, sin telemetria. La app es estatica: cualquier hosting gratuito o el propio dispositivo la sirve. (Con la ampliacion, la cuenta opcional anade el SDK y el endpoint de Supabase del usuario; ver nota de alcance al inicio.)
 
 ## 18. La app explica como mover datos entre dispositivos con backup
 
@@ -163,7 +165,7 @@ Estados posibles por punto:
 | 14 | Instalable como PWA | COMPROBADO tecnico (manual: gesto de instalar) |
 | 15 | Movil y PC | COMPROBADO emulado (manual: movil fisico) |
 | 16 | Sin llamadas de red innecesarias | COMPROBADO |
-| 17 | Coste 0 | COMPROBADO |
+| 17 | Coste 0 (version local: sin APIs de pago) | COMPROBADO |
 | 18 | Guia de traslado entre dispositivos | COMPROBADO |
 
 ## Tus 4 pruebas manuales pendientes, en orden
