@@ -74,6 +74,18 @@ Dashboard > Authentication > URL configuration:
 - Site URL: URL publica de la PWA (desarrollo: `http://localhost:5173`).
 - Redirect URLs: incluir `<site-url>/cuenta`.
 
+## Notas operativas (tras aplicar por MCP)
+
+- **Realineado de `version`**: si las migraciones se aplican con la herramienta MCP, el
+  `version` registrado en `supabase_migrations.schema_migrations` puede ser el timestamp de
+  aplicacion en vez del prefijo del archivo. El CLI (`supabase db push`) compara por ese
+  `version`, asi que veria las migraciones como no aplicadas e intentaria re-ejecutarlas. Si se
+  va a usar el CLI, realinear los `version` al prefijo del archivo (UPDATE puntual sobre
+  `supabase_migrations.schema_migrations`). Si solo se usa el MCP, es cosmetico.
+- **Asesores**: tras aplicar, ejecutar los asesores de seguridad y rendimiento. La migracion
+  `20260711090200_advisors_hardening.sql` cierra los WARN de `function_search_path_mutable` y
+  `auth_rls_initplan`; los INFO restantes (`unused_index` en base vacia) son ignorables.
+
 ## Alcance del esquema (fase 1)
 
 Se representan las entidades locales actuales (`DATA_MODEL.md` secciones 1-8) mas los campos de

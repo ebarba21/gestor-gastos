@@ -1,23 +1,20 @@
 // Tipos de TRANSPORTE de la base remota (Supabase/Postgres). Espejo tipado del esquema
 // definido en `supabase/migrations`. Fuente de verdad del esquema: las migraciones SQL.
 //
-// Convenciones (identicas a las que produce `supabase gen types typescript`):
+// GENERADO desde el proyecto remoto (no editar a mano). Refleja el esquema ya aplicado por
+// las migraciones de `supabase/migrations`. Convenciones estandar de `supabase gen types`:
 //   - uuid, text, date, timestamptz -> string
 //   - bigint (centimos, revision), integer, smallint -> number
-//   - boolean -> boolean
-//   - jsonb -> Json
-//   - columnas nullables -> `| null`
-//   - Insert: las columnas con DEFAULT o nullables son opcionales.
+//   - boolean -> boolean; jsonb -> Json; columnas nullables -> `| null`
+//   - Insert: columnas con DEFAULT o nullables son opcionales.
 //
-// REGENERACION (cuando cambien las migraciones): ver README y `supabase/README.md`.
+// REGENERACION (cuando cambien las migraciones): via MCP (generate_typescript_types) o CLI:
 //   supabase gen types typescript --project-id skwhlbwpnsdgmdsfozcr --schema public > src/lib/supabase/database.types.ts
-// Este archivo esta hecho a mano de forma reproducible porque esta sesion no tiene acceso
-// al proyecto remoto; al regenerarlo debe coincidir campo a campo con estas migraciones.
 //
-// Nota de alcance (IMPLEMENTATION_ROADMAP fase 1): se preparan las entidades actuales y los
-// campos de sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at,
-// deleted_at, revision). Las columnas de fases posteriores (comercios, duplicados avanzados,
-// recurrencias, deudas) se anadiran en las migraciones de SUS fases, no aqui.
+// Nota de alcance (IMPLEMENTATION_ROADMAP fase 1): entidades actuales y campos de
+// sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at, deleted_at,
+// revision). Las columnas de fases posteriores (comercios, duplicados avanzados, recurrencias,
+// deudas) se anadiran en las migraciones de SUS fases, no aqui.
 
 export type Json =
   | string
@@ -25,578 +22,921 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
-// Campos comunes de sincronizacion presentes en toda tabla sincronizable.
-interface SyncRow {
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-  revision: number;
-}
-
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
-      profiles: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          name: string;
-          color: string;
-          avatar_emoji: string | null;
-          archived_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          owner_user_id: string;
-          name: string;
-          color: string;
-          avatar_emoji?: string | null;
-          archived_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Update: {
-          id?: string;
-          owner_user_id?: string;
-          name?: string;
-          color?: string;
-          avatar_emoji?: string | null;
-          archived_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
-      settings: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          currency: string;
-          locale: string;
-          week_start: string;
-          default_account_id: string | null;
-          encryption_enabled: boolean;
-        };
-        Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          currency?: string;
-          locale: string;
-          week_start: string;
-          default_account_id?: string | null;
-          encryption_enabled?: boolean;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          currency?: string;
-          locale?: string;
-          week_start?: string;
-          default_account_id?: string | null;
-          encryption_enabled?: boolean;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
       accounts: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          kind: string;
-          currency: string;
-          color: string | null;
-          opening_balance_cents: number;
-          archived_at: string | null;
-        };
+        Row: {
+          archived_at: string | null
+          color: string | null
+          created_at: string
+          currency: string
+          deleted_at: string | null
+          id: string
+          kind: string
+          name: string
+          opening_balance_cents: number
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          kind: string;
-          currency: string;
-          color?: string | null;
-          opening_balance_cents?: number;
-          archived_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          currency: string
+          deleted_at?: string | null
+          id?: string
+          kind: string
+          name: string
+          opening_balance_cents?: number
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          name?: string;
-          kind?: string;
-          currency?: string;
-          color?: string | null;
-          opening_balance_cents?: number;
-          archived_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          currency?: string
+          deleted_at?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          opening_balance_cents?: number
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      backup_metadata: {
+        Row: {
+          counts: Json
+          created_at: string
+          deleted_at: string | null
+          exported_at: string
+          id: string
+          note: string | null
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          schema_version: number
+          updated_at: string
+        }
+        Insert: {
+          counts?: Json
+          created_at?: string
+          deleted_at?: string | null
+          exported_at: string
+          id?: string
+          note?: string | null
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          schema_version: number
+          updated_at?: string
+        }
+        Update: {
+          counts?: Json
+          created_at?: string
+          deleted_at?: string | null
+          exported_at?: string
+          id?: string
+          note?: string | null
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          schema_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backup_metadata_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          custom_end: string | null
+          custom_start: string | null
+          deleted_at: string | null
+          direction: string
+          id: string
+          limit_cents: number
+          name: string
+          owner_user_id: string
+          period: string
+          profile_id: string
+          revision: number
+          rollover: boolean
+          scope: string
+          scope_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          custom_end?: string | null
+          custom_start?: string | null
+          deleted_at?: string | null
+          direction: string
+          id?: string
+          limit_cents: number
+          name: string
+          owner_user_id: string
+          period: string
+          profile_id: string
+          revision?: number
+          rollover?: boolean
+          scope: string
+          scope_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          custom_end?: string | null
+          custom_start?: string | null
+          deleted_at?: string | null
+          direction?: string
+          id?: string
+          limit_cents?: number
+          name?: string
+          owner_user_id?: string
+          period?: string
+          profile_id?: string
+          revision?: number
+          rollover?: boolean
+          scope?: string
+          scope_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          parent_id: string | null;
-          kind: string;
-          color: string | null;
-          icon: string | null;
-          archived_at: string | null;
-          sort_order: number;
-        };
+        Row: {
+          archived_at: string | null
+          color: string | null
+          created_at: string
+          deleted_at: string | null
+          icon: string | null
+          id: string
+          kind: string
+          name: string
+          owner_user_id: string
+          parent_id: string | null
+          profile_id: string
+          revision: number
+          sort_order: number
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          parent_id?: string | null;
-          kind: string;
-          color?: string | null;
-          icon?: string | null;
-          archived_at?: string | null;
-          sort_order?: number;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          icon?: string | null
+          id?: string
+          kind: string
+          name: string
+          owner_user_id: string
+          parent_id?: string | null
+          profile_id: string
+          revision?: number
+          sort_order?: number
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          name?: string;
-          parent_id?: string | null;
-          kind?: string;
-          color?: string | null;
-          icon?: string | null;
-          archived_at?: string | null;
-          sort_order?: number;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          icon?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          owner_user_id?: string
+          parent_id?: string | null
+          profile_id?: string
+          revision?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categories_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_batches: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          file_name: string
+          id: string
+          imported_at: string
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          rows_imported: number
+          rows_skipped_duplicate: number
+          rows_total: number
+          status: string
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          file_name: string
+          id?: string
+          imported_at: string
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          rows_imported?: number
+          rows_skipped_duplicate?: number
+          rows_total?: number
+          status: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          file_name?: string
+          id?: string
+          imported_at?: string
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          rows_imported?: number
+          rows_skipped_duplicate?: number
+          rows_total?: number
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batches_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "import_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_templates: {
+        Row: {
+          amount_strategy: string
+          column_map: Json
+          created_at: string
+          date_format: string
+          decimal_separator: string
+          default_account_id: string | null
+          deleted_at: string | null
+          has_header_row: boolean
+          id: string
+          name: string
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          source_format: string
+          thousand_separator: string
+          updated_at: string
+        }
+        Insert: {
+          amount_strategy: string
+          column_map?: Json
+          created_at?: string
+          date_format: string
+          decimal_separator: string
+          default_account_id?: string | null
+          deleted_at?: string | null
+          has_header_row?: boolean
+          id?: string
+          name: string
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          source_format: string
+          thousand_separator: string
+          updated_at?: string
+        }
+        Update: {
+          amount_strategy?: string
+          column_map?: Json
+          created_at?: string
+          date_format?: string
+          decimal_separator?: string
+          default_account_id?: string | null
+          deleted_at?: string | null
+          has_header_row?: boolean
+          id?: string
+          name?: string
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          source_format?: string
+          thousand_separator?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_templates_default_account_id_fkey"
+            columns: ["default_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_templates_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          archived_at: string | null
+          avatar_emoji: string | null
+          color: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          name: string
+          owner_user_id: string
+          revision: number
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          avatar_emoji?: string | null
+          color: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          name: string
+          owner_user_id: string
+          revision?: number
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          avatar_emoji?: string | null
+          color?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          owner_user_id?: string
+          revision?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rules: {
+        Row: {
+          action: Json
+          conditions: Json
+          created_at: string
+          deleted_at: string | null
+          enabled: boolean
+          id: string
+          match_mode: string
+          name: string
+          owner_user_id: string
+          priority: number
+          profile_id: string
+          revision: number
+          stop_on_match: boolean
+          updated_at: string
+        }
+        Insert: {
+          action?: Json
+          conditions?: Json
+          created_at?: string
+          deleted_at?: string | null
+          enabled?: boolean
+          id?: string
+          match_mode: string
+          name: string
+          owner_user_id: string
+          priority?: number
+          profile_id: string
+          revision?: number
+          stop_on_match?: boolean
+          updated_at?: string
+        }
+        Update: {
+          action?: Json
+          conditions?: Json
+          created_at?: string
+          deleted_at?: string | null
+          enabled?: boolean
+          id?: string
+          match_mode?: string
+          name?: string
+          owner_user_id?: string
+          priority?: number
+          profile_id?: string
+          revision?: number
+          stop_on_match?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rules_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      settings: {
+        Row: {
+          created_at: string
+          currency: string
+          default_account_id: string | null
+          deleted_at: string | null
+          encryption_enabled: boolean
+          id: string
+          locale: string
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          default_account_id?: string | null
+          deleted_at?: string | null
+          encryption_enabled?: boolean
+          id?: string
+          locale: string
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          default_account_id?: string | null
+          deleted_at?: string | null
+          encryption_enabled?: boolean
+          id?: string
+          locale?: string
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settings_default_account_fk"
+            columns: ["default_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settings_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tags: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          color: string | null;
-        };
+        Row: {
+          color: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          name: string
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          color?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
+          color?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          name: string
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          name?: string;
-          color?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
-      transactions: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          date: string;
-          amount_cents: number;
-          type: string;
-          concept: string;
-          notes: string | null;
-          account_id: string;
-          category_id: string | null;
-          subcategory_id: string | null;
-          status: string;
-          categorized_by: string;
-          rule_id: string | null;
-          transfer_group_id: string | null;
-          parent_id: string | null;
-          is_split_parent: boolean;
-          refund_of_id: string | null;
-          excluded_from_stats: boolean;
-          stats_flag: number;
-          import_batch_id: string | null;
-          dedupe_hash: string;
-        };
-        Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          date: string;
-          amount_cents: number;
-          type: string;
-          concept: string;
-          notes?: string | null;
-          account_id: string;
-          category_id?: string | null;
-          subcategory_id?: string | null;
-          status: string;
-          categorized_by: string;
-          rule_id?: string | null;
-          transfer_group_id?: string | null;
-          parent_id?: string | null;
-          is_split_parent?: boolean;
-          refund_of_id?: string | null;
-          excluded_from_stats?: boolean;
-          stats_flag?: number;
-          import_batch_id?: string | null;
-          dedupe_hash: string;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          date?: string;
-          amount_cents?: number;
-          type?: string;
-          concept?: string;
-          notes?: string | null;
-          account_id?: string;
-          category_id?: string | null;
-          subcategory_id?: string | null;
-          status?: string;
-          categorized_by?: string;
-          rule_id?: string | null;
-          transfer_group_id?: string | null;
-          parent_id?: string | null;
-          is_split_parent?: boolean;
-          refund_of_id?: string | null;
-          excluded_from_stats?: boolean;
-          stats_flag?: number;
-          import_batch_id?: string | null;
-          dedupe_hash?: string;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
+          color?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tags_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_tags: {
         Row: {
-          transaction_id: string;
-          tag_id: string;
-          owner_user_id: string;
-          profile_id: string;
-          created_at: string;
-        };
+          created_at: string
+          owner_user_id: string
+          profile_id: string
+          tag_id: string
+          transaction_id: string
+        }
         Insert: {
-          transaction_id: string;
-          tag_id: string;
-          owner_user_id: string;
-          profile_id: string;
-          created_at?: string;
-        };
+          created_at?: string
+          owner_user_id: string
+          profile_id: string
+          tag_id: string
+          transaction_id: string
+        }
         Update: {
-          transaction_id?: string;
-          tag_id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      rules: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          enabled: boolean;
-          priority: number;
-          match_mode: string;
-          conditions: Json;
-          action: Json;
-          stop_on_match: boolean;
-        };
+          created_at?: string
+          owner_user_id?: string
+          profile_id?: string
+          tag_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_tags_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_tags_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          account_id: string
+          amount_cents: number
+          categorized_by: string
+          category_id: string | null
+          concept: string
+          created_at: string
+          date: string
+          dedupe_hash: string
+          deleted_at: string | null
+          excluded_from_stats: boolean
+          id: string
+          import_batch_id: string | null
+          is_split_parent: boolean
+          notes: string | null
+          owner_user_id: string
+          parent_id: string | null
+          profile_id: string
+          refund_of_id: string | null
+          revision: number
+          rule_id: string | null
+          stats_flag: number
+          status: string
+          subcategory_id: string | null
+          transfer_group_id: string | null
+          type: string
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          enabled?: boolean;
-          priority?: number;
-          match_mode: string;
-          conditions: Json;
-          action: Json;
-          stop_on_match?: boolean;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
+          account_id: string
+          amount_cents: number
+          categorized_by: string
+          category_id?: string | null
+          concept: string
+          created_at?: string
+          date: string
+          dedupe_hash: string
+          deleted_at?: string | null
+          excluded_from_stats?: boolean
+          id?: string
+          import_batch_id?: string | null
+          is_split_parent?: boolean
+          notes?: string | null
+          owner_user_id: string
+          parent_id?: string | null
+          profile_id: string
+          refund_of_id?: string | null
+          revision?: number
+          rule_id?: string | null
+          stats_flag?: number
+          status: string
+          subcategory_id?: string | null
+          transfer_group_id?: string | null
+          type: string
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          name?: string;
-          enabled?: boolean;
-          priority?: number;
-          match_mode?: string;
-          conditions?: Json;
-          action?: Json;
-          stop_on_match?: boolean;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
-      budgets: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          scope: string;
-          scope_id: string | null;
-          direction: string;
-          limit_cents: number;
-          period: string;
-          custom_start: string | null;
-          custom_end: string | null;
-          rollover: boolean;
-          archived_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          scope: string;
-          scope_id?: string | null;
-          direction: string;
-          limit_cents: number;
-          period: string;
-          custom_start?: string | null;
-          custom_end?: string | null;
-          rollover?: boolean;
-          archived_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          name?: string;
-          scope?: string;
-          scope_id?: string | null;
-          direction?: string;
-          limit_cents?: number;
-          period?: string;
-          custom_start?: string | null;
-          custom_end?: string | null;
-          rollover?: boolean;
-          archived_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
-      import_templates: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          source_format: string;
-          column_map: Json;
-          date_format: string;
-          decimal_separator: string;
-          thousand_separator: string;
-          amount_strategy: string;
-          default_account_id: string | null;
-          has_header_row: boolean;
-        };
-        Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          name: string;
-          source_format: string;
-          column_map: Json;
-          date_format: string;
-          decimal_separator: string;
-          thousand_separator: string;
-          amount_strategy: string;
-          default_account_id?: string | null;
-          has_header_row?: boolean;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          name?: string;
-          source_format?: string;
-          column_map?: Json;
-          date_format?: string;
-          decimal_separator?: string;
-          thousand_separator?: string;
-          amount_strategy?: string;
-          default_account_id?: string | null;
-          has_header_row?: boolean;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
-      import_batches: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          template_id: string | null;
-          file_name: string;
-          imported_at: string;
-          rows_total: number;
-          rows_imported: number;
-          rows_skipped_duplicate: number;
-          status: string;
-        };
-        Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          template_id?: string | null;
-          file_name: string;
-          imported_at: string;
-          rows_total?: number;
-          rows_imported?: number;
-          rows_skipped_duplicate?: number;
-          status: string;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          template_id?: string | null;
-          file_name?: string;
-          imported_at?: string;
-          rows_total?: number;
-          rows_imported?: number;
-          rows_skipped_duplicate?: number;
-          status?: string;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
-      backup_metadata: {
-        Row: SyncRow & {
-          id: string;
-          owner_user_id: string;
-          profile_id: string;
-          exported_at: string;
-          schema_version: number;
-          counts: Json;
-          note: string | null;
-        };
-        Insert: {
-          id?: string;
-          owner_user_id: string;
-          profile_id: string;
-          exported_at: string;
-          schema_version: number;
-          counts: Json;
-          note?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Update: {
-          id?: string;
-          owner_user_id?: string;
-          profile_id?: string;
-          exported_at?: string;
-          schema_version?: number;
-          counts?: Json;
-          note?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-          revision?: number;
-        };
-        Relationships: [];
-      };
-    };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
-  };
+          account_id?: string
+          amount_cents?: number
+          categorized_by?: string
+          category_id?: string | null
+          concept?: string
+          created_at?: string
+          date?: string
+          dedupe_hash?: string
+          deleted_at?: string | null
+          excluded_from_stats?: boolean
+          id?: string
+          import_batch_id?: string | null
+          is_split_parent?: boolean
+          notes?: string | null
+          owner_user_id?: string
+          parent_id?: string | null
+          profile_id?: string
+          refund_of_id?: string | null
+          revision?: number
+          rule_id?: string | null
+          stats_flag?: number
+          status?: string
+          subcategory_id?: string | null
+          transfer_group_id?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_import_batch_fk"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_refund_of_id_fkey"
+            columns: ["refund_of_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_rule_fk"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      profile_is_owned: { Args: { p_profile_id: string }; Returns: boolean }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
 
-// Atajos de tipo por tabla (transporte). Utiles en la capa remota/mappers.
-export type Tables<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Row'];
-export type TablesInsert<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Insert'];
-export type TablesUpdate<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Update'];
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
