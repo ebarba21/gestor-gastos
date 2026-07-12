@@ -8,6 +8,7 @@ import AccountsPage from './pages/AccountsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import ExportPage from './pages/ExportPage';
 import SettingsPage from './pages/SettingsPage';
+import AccountPage from './pages/AccountPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
 import { ThemeToggle } from './components/common';
 
@@ -26,6 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/cuentas', label: 'Cuentas' },
   { to: '/presupuestos', label: 'Presupuestos' },
   { to: '/exportar', label: 'Exportar' },
+  { to: '/cuenta', label: 'Cuenta' },
   { to: '/ajustes', label: 'Ajustes' },
 ];
 
@@ -75,6 +77,7 @@ function AppLayout() {
           <Route path="/cuentas" element={<AccountsPage />} />
           <Route path="/presupuestos" element={<BudgetsPage />} />
           <Route path="/exportar" element={<ExportPage />} />
+          <Route path="/cuenta" element={<AccountPage />} />
           <Route path="/ajustes" element={<SettingsPage />} />
         </Routes>
       </main>

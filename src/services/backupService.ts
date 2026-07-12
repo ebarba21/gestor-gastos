@@ -14,7 +14,7 @@
 //  - Atomicidad: la escritura la hace backupRepo en una unica transaccion Dexie.
 import type { Profile } from '../db/schema';
 import { SCHEMA_VERSION } from '../db/index';
-import { newId } from '../db/index';
+import { newId, syncDefaults } from '../db/index';
 import { backupRepo, type ProfileDataTables } from '../db/backupRepo';
 import { profilesRepo } from '../db/profilesRepo';
 import { normalizeProfileName } from './profileService';
@@ -392,7 +392,11 @@ export async function restoreAsNewProfile(backup: ProfileBackup): Promise<Profil
   // el mismo dispositivo. Se normaliza (recorta al limite de longitud de perfil).
   const restoredName = deriveRestoredName(backup.profile.name);
   const profile: Profile = {
+    ...syncDefaults(),
     id: newProfileId,
+    // Un perfil restaurado como nuevo es local (sin cuenta vinculada). La vinculacion a una
+    // cuenta es un paso explicito de la fase 2, nunca implicito al restaurar.
+    ownerUserId: null,
     name: restoredName,
     color: typeof backup.profile.color === 'string' ? backup.profile.color : '#6366f1',
     avatarEmoji: backup.profile.avatarEmoji ?? null,

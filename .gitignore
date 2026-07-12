@@ -6,6 +6,10 @@ dist/
 dist-ssr/
 coverage/
 
+# Supabase CLI (estado local del stack, no se versiona)
+supabase/.branches/
+supabase/.temp/
+
 # Entorno
 .env
 .env.*

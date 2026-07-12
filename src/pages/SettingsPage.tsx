@@ -53,8 +53,13 @@ export default function SettingsPage() {
           Mover tus datos entre dispositivos
         </h3>
         <p className="mt-2 text-sm text-slate-400">
-          Esta app guarda todo en este dispositivo, sin nube. Para llevar tus datos de un PC a un
-          movil (o al reves) usa el backup del perfil:
+          De forma predeterminada tus datos se guardan en este dispositivo. Para llevarlos de un PC
+          a un movil (o al reves) sin activar cuenta, usa el backup del perfil. Si prefieres
+          sincronizarlos entre dispositivos, puedes activar una{' '}
+          <Link to="/cuenta" className="font-medium text-indigo-400 hover:text-indigo-300">
+            cuenta
+          </Link>{' '}
+          (opcional).
         </p>
         <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-300">
           <li>

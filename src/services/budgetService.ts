@@ -9,6 +9,7 @@
 // reembolsos.
 import type { Budget, BudgetDirection, BudgetPeriod, BudgetScope, Transaction } from '../db/schema';
 import { budgetsRepo } from '../db/budgetsRepo';
+import type { CreateInput } from '../db/baseRepo';
 import { categoriesRepo } from '../db/categoriesRepo';
 import { accountsRepo } from '../db/accountsRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
@@ -200,7 +201,7 @@ async function validateInput(profileId: string, input: BudgetInput): Promise<voi
 }
 
 // Normaliza los campos derivados de la entrada a la forma persistida.
-function toPersisted(input: BudgetInput): Omit<Budget, 'id' | 'profileId' | 'createdAt' | 'updatedAt'> {
+function toPersisted(input: BudgetInput): CreateInput<Budget> {
   return {
     name: normalizeBudgetName(input.name),
     scope: input.scope,

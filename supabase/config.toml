@@ -1,0 +1,20 @@
+# Configuracion de Supabase CLI. Solo referencia el proyecto y parametros no secretos.
+# NUNCA contiene claves ni secretos (esos van en el entorno del propietario, no en el repo).
+#
+# Proyecto remoto (entorno de desarrollo, sin datos reales):
+project_id = "skwhlbwpnsdgmdsfozcr"
+
+[db]
+# Version mayor de Postgres del proyecto (informativo para el entorno local del CLI).
+major_version = 15
+
+[auth]
+# URL del sitio para los enlaces de correo (verificacion, recuperacion de contrasena).
+# En local suele ser http://localhost:5173 (puerto por defecto de Vite). En produccion,
+# la URL publica de la PWA. Configurar tambien en el Dashboard (Authentication > URL config).
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+
+[auth.email]
+# Verificacion de email activada: el registro deja la cuenta "pendiente de verificar".
+enable_confirmations = true

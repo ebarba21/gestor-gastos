@@ -1,10 +1,14 @@
 // Repositorio de configuracion por perfil (Setting). Relacion 1:1 con Profile.
 // Exige profileId. Ver DATA_MODEL 2.2.
-import type { Setting } from './schema';
-import { db, newId, now } from './index';
+import type { Setting, SyncMeta } from './schema';
+import { db, newId, now, syncDefaults } from './index';
 import { requireProfileId } from '../lib/validation';
 
-export type SettingInput = Omit<Setting, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>;
+// Los campos de sincronizacion los fija el repositorio (syncDefaults), no el llamante.
+export type SettingInput = Omit<
+  Setting,
+  'id' | 'profileId' | 'createdAt' | 'updatedAt' | keyof SyncMeta
+>;
 export type SettingPatch = Partial<SettingInput>;
 
 // Valores por defecto de un perfil nuevo (una sola moneda por perfil en el MVP).
@@ -35,6 +39,7 @@ export const settingsRepo = {
     const ts = now();
     const entity: Setting = {
       ...input,
+      ...syncDefaults(),
       id: newId(),
       profileId,
       createdAt: ts,

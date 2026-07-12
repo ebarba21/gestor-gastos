@@ -1,18 +1,28 @@
 // Repositorio de perfiles (Profile). Raiz del aislamiento: no tiene profileId propio.
 // Ver DATA_MODEL 2.1 y seccion 4 (borrado en cascada). Unico acceso a Dexie para perfiles.
-import type { Profile } from './schema';
-import { childTables, db, newId, now } from './index';
+import type { Profile, SyncMeta } from './schema';
+import { childTables, db, newId, now, syncDefaults } from './index';
 import { NotFoundError, requireId } from '../lib/validation';
 
-export type ProfileInput = Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt'> &
-  Partial<Pick<Profile, 'archivedAt'>>;
-export type ProfilePatch = Partial<Omit<Profile, 'id' | 'createdAt' | 'updatedAt'>>;
+// La entrada del llamante solo aporta los campos visibles del perfil. ownerUserId, archivedAt
+// y los campos de sincronizacion los gestiona el repositorio (ownerUserId por defecto null:
+// perfil local sin cuenta; DATA_MODEL 2.1). ownerUserId es opcional para permitir vincular un
+// perfil a una cuenta en la fase 2.
+export type ProfileInput = Pick<Profile, 'name' | 'color' | 'avatarEmoji'> &
+  Partial<Pick<Profile, 'archivedAt' | 'ownerUserId'>>;
+// El patch nunca cambia id ni timestamps ni los campos de sincronizacion (los gestiona el
+// motor de sync). Si permite cambiar ownerUserId (vinculacion de cuenta, fase 2).
+export type ProfilePatch = Partial<
+  Omit<Profile, 'id' | 'createdAt' | 'updatedAt' | keyof SyncMeta>
+>;
 
 export const profilesRepo = {
   async create(input: ProfileInput): Promise<Profile> {
     const ts = now();
     const entity: Profile = {
+      ...syncDefaults(),
       id: newId(),
+      ownerUserId: input.ownerUserId ?? null,
       name: input.name,
       color: input.color,
       avatarEmoji: input.avatarEmoji,

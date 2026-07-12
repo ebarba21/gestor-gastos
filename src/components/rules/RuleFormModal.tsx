@@ -17,6 +17,7 @@ import type {
   TransactionType,
 } from '../../db/schema';
 import { Modal } from '../common';
+import { syncDefaults } from '../../db/index';
 import { useToast } from '../../context/ToastContext';
 import {
   ruleService,
@@ -276,6 +277,7 @@ export function RuleFormModal({
       const input = validateRuleInput(buildInput());
       // Regla candidata (forzada activa) para evaluar aunque se vaya a guardar desactivada.
       const candidate: Rule = {
+        ...syncDefaults(),
         id: rule?.id ?? 'candidate',
         profileId,
         name: input.name,

@@ -3,8 +3,8 @@
 //   - mantener statsFlag como espejo indexable de excludedFromStats,
 //   - validar la coherencia entre type y signo del importe,
 //   - validar la relacion categorizedBy <-> ruleId.
-import type { Transaction } from './schema';
-import { db, newId, now } from './index';
+import type { Transaction, SyncMeta } from './schema';
+import { db, newId, now, syncDefaults } from './index';
 import {
   NotFoundError,
   ValidationError,
@@ -14,10 +14,11 @@ import {
 } from '../lib/validation';
 import { assertCents } from '../lib/money';
 
-// Campos que fija/deriva el repositorio y no forman parte de la entrada del llamante.
+// Campos que fija/deriva el repositorio y no forman parte de la entrada del llamante:
+// id, profileId, timestamps, statsFlag (espejo) y los campos de sincronizacion (SyncMeta).
 export type NewTransaction = Omit<
   Transaction,
-  'id' | 'profileId' | 'createdAt' | 'updatedAt' | 'statsFlag'
+  'id' | 'profileId' | 'createdAt' | 'updatedAt' | 'statsFlag' | keyof SyncMeta
 >;
 export type TransactionPatch = Partial<NewTransaction>;
 
@@ -62,6 +63,7 @@ export function buildTransactionEntity(profileId: string, input: NewTransaction)
   const ts = now();
   return {
     ...input,
+    ...syncDefaults(),
     id: newId(),
     profileId,
     statsFlag: statsFlagFor(input.excludedFromStats),
