@@ -252,3 +252,105 @@ export interface ImportBatch extends SyncMeta {
   createdAt: number;
   updatedAt: number;
 }
+
+// --- Ampliacion fase 2: estructuras de sincronizacion (DATA_MODEL secciones 11-13) ---
+//
+// Las entidades de esta seccion son DEVICE-LOCAL: viven solo en Dexie, NUNCA se sincronizan a
+// Supabase y NUNCA se incluyen en los backups. Registran el estado de la sincronizacion en el
+// dispositivo (cola de salida, conflictos, migracion inicial y cursores de descarga).
+
+// Tipo de entidad sincronizable. Une el nombre logico local con su tabla remota (ver src/sync).
+export type SyncEntityType =
+  | 'profile'
+  | 'setting'
+  | 'account'
+  | 'category'
+  | 'tag'
+  | 'transaction'
+  | 'rule'
+  | 'budget'
+  | 'importTemplate'
+  | 'importBatch';
+
+export type MutationOperation = 'insert' | 'update' | 'delete';
+
+// Estado de una mutacion en la cola de salida.
+export type MutationStatus = 'queued' | 'inflight' | 'failed' | 'done' | 'conflict';
+
+// Cola de salida (outbox). Persiste cada mutacion pendiente de enviar (DATA_MODEL seccion 11).
+// Garantiza escritura local primero, funcionamiento offline e idempotencia: el `mutationId` es la
+// clave de idempotencia y el `entityId` (mismo UUID local y remoto) permite upsert por PK.
+export interface OutboxMutation {
+  // UUID unico. Clave de idempotencia de la mutacion.
+  mutationId: string;
+  // Propietario (auth.users.id). La cola nunca mezcla usuarios.
+  userId: string;
+  profileId: string;
+  entityType: SyncEntityType;
+  // Id de la fila afectada (UUID reutilizado local y remoto).
+  entityId: string;
+  operation: MutationOperation;
+  // Snapshot local (camelCase) de la entidad tras la escritura. El motor de push lo mapea a la
+  // fila remota. Para `delete` incluye `deletedAt`. Nunca contiene PIN, tokens ni secretos.
+  payload: Record<string, unknown>;
+  // Revision remota conocida al crear la mutacion. Base para detectar conflicto.
+  baseRevision: number;
+  createdAt: number;
+  attempts: number;
+  lastAttemptAt: number | null;
+  // Mensaje de error corto (sin datos financieros completos).
+  lastError: string | null;
+  status: MutationStatus;
+}
+
+export type ConflictStatus = 'open' | 'resolved';
+export type ConflictResolution = 'keepLocal' | 'keepRemote' | 'merged';
+
+// Conflicto de sincronizacion (DATA_MODEL seccion 12). Se materializa cuando el `baseRevision` de
+// una mutacion ya no es la revision remota vigente. Ningun conflicto financiero se resuelve en
+// silencio: lo decide la persona (invariante 11).
+export interface Conflict {
+  id: string;
+  userId: string;
+  profileId: string;
+  entityType: SyncEntityType;
+  entityId: string;
+  // Version local (la que intentaba subir) y version remota vigente (camelCase, tal como las ve
+  // la app). Se conservan ambas para mostrar diferencias.
+  localPayload: Record<string, unknown>;
+  remotePayload: Record<string, unknown>;
+  baseRevision: number;
+  remoteRevision: number;
+  status: ConflictStatus;
+  resolution: ConflictResolution | null;
+  createdAt: number;
+  resolvedAt: number | null;
+}
+
+export type MigrationStatus = 'pending' | 'inProgress' | 'verified' | 'failed';
+
+// Estado de la migracion inicial de un perfil local a la cuenta (DATA_MODEL seccion 13.2).
+// Idempotente y reanudable: solo `verified` marca el perfil como migrado.
+export interface ProfileMigration {
+  id: string;
+  profileId: string;
+  userId: string;
+  status: MigrationStatus;
+  // Recuentos esperados por entidad (para validar tras subir) y confirmados en remoto.
+  counts: Record<string, number>;
+  uploadedCounts: Record<string, number>;
+  startedAt: number | null;
+  finishedAt: number | null;
+  lastError: string | null;
+}
+
+// Cursor de descarga (PULL) por (profileId, entityType): ultimo `updated_at` remoto ya traido.
+// Evita descargar todo en cada sincronizacion (DATA_MODEL seccion 9, CLOUD_SYNC_SECURITY 6).
+export interface SyncState {
+  profileId: string;
+  entityType: SyncEntityType;
+  // ISO timestamptz remoto del ultimo cambio descargado, o null si nunca se descargo.
+  lastPulledUpdatedAt: string | null;
+  // epoch ms local de la ultima descarga.
+  lastPulledAt: number | null;
+}

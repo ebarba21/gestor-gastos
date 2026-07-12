@@ -18,6 +18,7 @@ import type {
   Transaction,
 } from './schema';
 import { childTables, db } from './index';
+import { isAlive } from './baseRepo';
 import { NotFoundError, requireProfileId } from '../lib/validation';
 
 // Conjunto completo de datos hijos de un perfil (todo menos la fila Profile). El orden de
@@ -61,15 +62,15 @@ export const backupRepo = {
         importTemplates,
         importBatches,
       ] = await Promise.all([
-        db.settings.where('profileId').equals(profileId).toArray(),
-        db.accounts.where('profileId').equals(profileId).toArray(),
-        db.categories.where('profileId').equals(profileId).toArray(),
-        db.tags.where('profileId').equals(profileId).toArray(),
-        db.transactions.where('profileId').equals(profileId).toArray(),
-        db.rules.where('profileId').equals(profileId).toArray(),
-        db.budgets.where('profileId').equals(profileId).toArray(),
-        db.importTemplates.where('profileId').equals(profileId).toArray(),
-        db.importBatches.where('profileId').equals(profileId).toArray(),
+        db.settings.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.accounts.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.categories.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.tags.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.transactions.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.rules.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.budgets.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.importTemplates.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.importBatches.where('profileId').equals(profileId).filter(isAlive).toArray(),
       ]);
 
       return {

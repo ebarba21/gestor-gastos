@@ -72,6 +72,48 @@ export interface RemoteRepo<T extends RemoteTableName> {
   insert(profileId: string, values: RemoteInsertInput<T>): Promise<RowOf<T>>;
   update(profileId: string, id: string, patch: RemoteUpdateInput<T>): Promise<RowOf<T>>;
   softDelete(profileId: string, id: string): Promise<void>;
+
+  // --- Metodos de SINCRONIZACION (fase 2). `row` es la salida del mapper (columnas de negocio +
+  // auditoria en snake_case, sin owner/profile/revision/last_mutation_id). Estos metodos fijan
+  // owner_user_id (sesion), profile_id (contexto) y last_mutation_id (mutacion en curso). ---
+
+  // Insert IDEMPOTENTE por PK: upsert con ignoreDuplicates. Devuelve la fila creada, o null si el
+  // id ya existia (reejecucion): el llamante releera con getById para conocer la revision.
+  upsertInsert(
+    profileId: string,
+    row: Record<string, unknown>,
+    lastMutationId: string,
+  ): Promise<RowOf<T> | null>;
+
+  // Update/soft-delete GUARDADO por revision. Aplica la fila solo si revision == baseRevision.
+  // Devuelve la fila actualizada, o null si afecto 0 filas (conflicto o reejecucion; lo distingue
+  // el motor de push comparando last_mutation_id con getById).
+  guardedUpdate(
+    profileId: string,
+    id: string,
+    row: Record<string, unknown>,
+    baseRevision: number,
+    lastMutationId: string,
+  ): Promise<RowOf<T> | null>;
+
+  // Numero de filas vivas del perfil (para validar recuentos de migracion). No cuenta tombstones.
+  count(profileId: string): Promise<number>;
+
+  // Descarga cambios: filas con updated_at >= since (INCLUYE tombstones para propagar bajas),
+  // ordenadas por updated_at ascendente, hasta `limit`. Cursor de PULL.
+  pullSince(profileId: string, sinceIso: string | null, limit: number): Promise<RowOf<T>[]>;
+}
+
+// Columnas que nunca se envian en un UPDATE (las controla el servidor o son inmutables). A
+// diferencia del insert, tampoco se reescribe created_at.
+function buildUpdatePatch(
+  row: Record<string, unknown>,
+  lastMutationId: string,
+): Record<string, unknown> {
+  const patch = stripOwnershipKeys(row);
+  delete (patch as Record<string, unknown>).created_at;
+  (patch as Record<string, unknown>).last_mutation_id = lastMutationId;
+  return patch;
 }
 
 // Interfaz minima del constructor de consultas de PostgREST. Se usa para puentear la
@@ -81,38 +123,54 @@ export interface RemoteRepo<T extends RemoteTableName> {
 interface RemoteResult {
   data: unknown;
   error: unknown;
+  count?: number | null;
 }
 interface RemoteQuery extends PromiseLike<RemoteResult> {
-  select(columns?: string): RemoteQuery;
+  select(columns?: string, options?: { count?: 'exact'; head?: boolean }): RemoteQuery;
   insert(row: unknown): RemoteQuery;
+  upsert(row: unknown, options?: { onConflict?: string; ignoreDuplicates?: boolean }): RemoteQuery;
   update(patch: unknown): RemoteQuery;
   eq(column: string, value: unknown): RemoteQuery;
   is(column: string, value: unknown): RemoteQuery;
+  gte(column: string, value: unknown): RemoteQuery;
+  order(column: string, options?: { ascending?: boolean }): RemoteQuery;
+  limit(count: number): RemoteQuery;
   single(): PromiseLike<RemoteResult>;
   maybeSingle(): PromiseLike<RemoteResult>;
 }
 
 // Crea un repositorio remoto para una tabla, ligado al usuario autenticado (ownerUserId).
 // El ownerUserId proviene de la sesion de Supabase, nunca de la UI.
+export interface RemoteRepoOptions {
+  // La tabla raiz `profiles` NO tiene columna profile_id: su aislamiento es solo por
+  // owner_user_id. Para ella se pasa hasProfileId=false y el parametro profileId se ignora en el
+  // filtrado (el id del perfil es su propia PK). Por defecto true (tablas hijas).
+  hasProfileId?: boolean;
+}
+
 export function createRemoteRepo<T extends RemoteTableName>(
   client: AppSupabaseClient,
   table: T,
   ownerUserId: string,
+  options: RemoteRepoOptions = {},
 ): RemoteRepo<T> {
   if (!ownerUserId) {
     throw new RemoteError('REMOTE_AUTH', 'Falta el usuario de la sesion para operar en remoto.');
   }
+  const hasProfileId = options.hasProfileId ?? true;
 
   // Punto unico donde se acota el tipado del constructor de consultas para una tabla generica.
   const q = (): RemoteQuery => client.from(table) as unknown as RemoteQuery;
 
-  // Filtro base comun a toda consulta de lectura: propietario + perfil + no borrada logicamente.
+  // Aplica el aislamiento por propietario y, para tablas hijas, tambien por perfil.
+  const withOwner = (query: RemoteQuery, profileId: string): RemoteQuery => {
+    const scopedQuery = query.eq('owner_user_id', ownerUserId);
+    return hasProfileId ? scopedQuery.eq('profile_id', profileId) : scopedQuery;
+  };
+
+  // Filtro base comun a toda consulta de lectura: propietario (+ perfil) + no borrada logicamente.
   const scoped = (profileId: string): RemoteQuery =>
-    q()
-      .select('*')
-      .eq('owner_user_id', ownerUserId)
-      .eq('profile_id', profileId)
-      .is('deleted_at', null);
+    withOwner(q().select('*'), profileId).is('deleted_at', null);
 
   return {
     async list(profileId) {
@@ -122,10 +180,7 @@ export function createRemoteRepo<T extends RemoteTableName>(
     },
 
     async getById(profileId, id) {
-      const { data, error } = await q()
-        .select('*')
-        .eq('owner_user_id', ownerUserId)
-        .eq('profile_id', profileId)
+      const { data, error } = await withOwner(q().select('*'), profileId)
         .eq('id', id)
         .maybeSingle();
       if (error) throw toRemoteError(error, 'lectura');
@@ -159,6 +214,63 @@ export function createRemoteRepo<T extends RemoteTableName>(
         .eq('profile_id', profileId)
         .eq('id', id);
       if (error) throw toRemoteError(error, 'borrado');
+    },
+
+    async upsertInsert(profileId, row, lastMutationId) {
+      // A diferencia de un insert clasico (donde el servidor genera el id), la SINCRONIZACION
+      // REUTILIZA el UUID local como PK remota (idempotencia). Por eso se CONSERVA `id` y solo se
+      // descartan owner/profile/revision (los fija el servidor o este metodo).
+      const clean = { ...row };
+      delete clean.owner_user_id;
+      delete clean.profile_id;
+      delete clean.revision;
+      const ownership: Record<string, unknown> = {
+        owner_user_id: ownerUserId,
+        last_mutation_id: lastMutationId,
+      };
+      if (hasProfileId) ownership.profile_id = profileId;
+      const insertRow = { ...clean, ...ownership };
+      const { data, error } = await q()
+        .upsert(insertRow, { onConflict: 'id', ignoreDuplicates: true })
+        .select();
+      if (error) throw toRemoteError(error, 'creacion');
+      const rows = (data ?? []) as RowOf<T>[];
+      // ignoreDuplicates: la reejecucion de un insert ya aplicado no devuelve fila.
+      return rows.length > 0 ? rows[0] : null;
+    },
+
+    async guardedUpdate(profileId, id, row, baseRevision, lastMutationId) {
+      const patch = buildUpdatePatch(row, lastMutationId);
+      const { data, error } = await withOwner(q().update(patch), profileId)
+        .eq('id', id)
+        .eq('revision', baseRevision)
+        .select();
+      if (error) throw toRemoteError(error, 'actualizacion');
+      const rows = (data ?? []) as RowOf<T>[];
+      // 0 filas: revision remota distinta de baseRevision (conflicto) o reejecucion ya aplicada.
+      return rows.length > 0 ? rows[0] : null;
+    },
+
+    async count(profileId) {
+      const { count, error } = await withOwner(
+        q().select('id', { count: 'exact', head: true }),
+        profileId,
+      ).is('deleted_at', null);
+      if (error) throw toRemoteError(error, 'recuento');
+      return count ?? 0;
+    },
+
+    async pullSince(profileId, sinceIso, limit) {
+      // Incluye tombstones (no filtra deleted_at) para propagar bajas a este dispositivo.
+      let query = withOwner(q().select('*'), profileId);
+      if (sinceIso !== null) {
+        query = query.gte('updated_at', sinceIso);
+      }
+      const { data, error } = await query
+        .order('updated_at', { ascending: true })
+        .limit(limit);
+      if (error) throw toRemoteError(error, 'descarga');
+      return (data ?? []) as RowOf<T>[];
     },
   };
 }

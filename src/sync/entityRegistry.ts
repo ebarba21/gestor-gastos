@@ -1,0 +1,121 @@
+// Registro central de entidades sincronizables (fase 2). Une el nombre logico local
+// (SyncEntityType), la tabla remota (RemoteTableName) y el ORDEN de dependencias para el push.
+//
+// El orden respeta las claves foraneas: una cuenta antes que sus movimientos, categorias y
+// reglas antes que los movimientos que las referencian, plantillas antes que lotes, etc. Dentro
+// de `transaction` el orden por createdAt coloca normalmente el padre de un split antes que sus
+// hijas; si una hija llegara antes, la FK compuesta la rechaza y se reintenta tras el padre.
+import type { RemoteTableName } from '../remote';
+import type { SyncEntityType } from '../db/schema';
+
+interface EntityInfo {
+  entityType: SyncEntityType;
+  remoteTable: RemoteTableName;
+  // Nombre del store Dexie local (camelCase, difiere del remoto snake_case).
+  localTable: string;
+  // Menor = se sube antes (dependencias). Ver nota de cabecera.
+  order: number;
+  // La raiz `profile` no tiene profileId propio (su id ES el profileId de sus hijos).
+  hasProfileId: boolean;
+  // Entidad financiera: los conflictos se resuelven SIEMPRE de forma explicita por la persona
+  // (invariante 11). Las no financieras (setting) admiten last-write-wins documentado.
+  financial: boolean;
+}
+
+export const ENTITY_REGISTRY: Record<SyncEntityType, EntityInfo> = {
+  profile: {
+    entityType: 'profile',
+    remoteTable: 'profiles',
+    localTable: 'profiles',
+    order: 0,
+    hasProfileId: false,
+    financial: true,
+  },
+  account: {
+    entityType: 'account',
+    remoteTable: 'accounts',
+    localTable: 'accounts',
+    order: 1,
+    hasProfileId: true,
+    financial: true,
+  },
+  category: {
+    entityType: 'category',
+    remoteTable: 'categories',
+    localTable: 'categories',
+    order: 2,
+    hasProfileId: true,
+    financial: true,
+  },
+  tag: {
+    entityType: 'tag',
+    remoteTable: 'tags',
+    localTable: 'tags',
+    order: 3,
+    hasProfileId: true,
+    financial: true,
+  },
+  rule: {
+    entityType: 'rule',
+    remoteTable: 'rules',
+    localTable: 'rules',
+    order: 4,
+    hasProfileId: true,
+    financial: true,
+  },
+  importTemplate: {
+    entityType: 'importTemplate',
+    remoteTable: 'import_templates',
+    localTable: 'importTemplates',
+    order: 5,
+    hasProfileId: true,
+    financial: true,
+  },
+  importBatch: {
+    entityType: 'importBatch',
+    remoteTable: 'import_batches',
+    localTable: 'importBatches',
+    order: 6,
+    hasProfileId: true,
+    financial: true,
+  },
+  setting: {
+    entityType: 'setting',
+    remoteTable: 'settings',
+    localTable: 'settings',
+    order: 7,
+    hasProfileId: true,
+    // No financiera: last-write-wins documentado, sin conflicto visible (DATA_MODEL 12).
+    financial: false,
+  },
+  budget: {
+    entityType: 'budget',
+    remoteTable: 'budgets',
+    localTable: 'budgets',
+    order: 8,
+    hasProfileId: true,
+    financial: true,
+  },
+  transaction: {
+    entityType: 'transaction',
+    remoteTable: 'transactions',
+    localTable: 'transactions',
+    order: 9,
+    hasProfileId: true,
+    financial: true,
+  },
+};
+
+// Orden de dependencias para el PUSH (ascendente) y para la subida en migracion/reconstruccion.
+export const PUSH_ORDER: SyncEntityType[] = (
+  Object.values(ENTITY_REGISTRY) as EntityInfo[]
+)
+  .slice()
+  .sort((a, b) => a.order - b.order)
+  .map((info) => info.entityType);
+
+// Entidades hijas (con profileId), en orden de dependencias. Se usa para descargar/subir todo un
+// perfil sin la raiz.
+export const CHILD_PUSH_ORDER: SyncEntityType[] = PUSH_ORDER.filter(
+  (type) => ENTITY_REGISTRY[type].hasProfileId,
+);

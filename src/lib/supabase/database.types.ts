@@ -11,10 +11,12 @@
 // REGENERACION (cuando cambien las migraciones): via MCP (generate_typescript_types) o CLI:
 //   supabase gen types typescript --project-id skwhlbwpnsdgmdsfozcr --schema public > src/lib/supabase/database.types.ts
 //
-// Nota de alcance (IMPLEMENTATION_ROADMAP fase 1): entidades actuales y campos de
+// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2): entidades actuales, campos de
 // sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at, deleted_at,
-// revision). Las columnas de fases posteriores (comercios, duplicados avanzados, recurrencias,
-// deudas) se anadiran en las migraciones de SUS fases, no aqui.
+// revision), la columna de idempotencia `last_mutation_id` y `transactions.tag_ids` (fuente de
+// verdad de las etiquetas; `transaction_tags` es proyeccion derivada). Las columnas de fases
+// posteriores (comercios, duplicados avanzados, recurrencias, deudas) se anadiran en las
+// migraciones de SUS fases, no aqui.
 
 export type Json =
   | string
@@ -41,6 +43,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           kind: string
+          last_mutation_id: string | null
           name: string
           opening_balance_cents: number
           owner_user_id: string
@@ -56,6 +59,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           kind: string
+          last_mutation_id?: string | null
           name: string
           opening_balance_cents?: number
           owner_user_id: string
@@ -71,6 +75,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           kind?: string
+          last_mutation_id?: string | null
           name?: string
           opening_balance_cents?: number
           owner_user_id?: string
@@ -95,6 +100,7 @@ export type Database = {
           deleted_at: string | null
           exported_at: string
           id: string
+          last_mutation_id: string | null
           note: string | null
           owner_user_id: string
           profile_id: string
@@ -108,6 +114,7 @@ export type Database = {
           deleted_at?: string | null
           exported_at: string
           id?: string
+          last_mutation_id?: string | null
           note?: string | null
           owner_user_id: string
           profile_id: string
@@ -121,6 +128,7 @@ export type Database = {
           deleted_at?: string | null
           exported_at?: string
           id?: string
+          last_mutation_id?: string | null
           note?: string | null
           owner_user_id?: string
           profile_id?: string
@@ -147,6 +155,7 @@ export type Database = {
           deleted_at: string | null
           direction: string
           id: string
+          last_mutation_id: string | null
           limit_cents: number
           name: string
           owner_user_id: string
@@ -166,6 +175,7 @@ export type Database = {
           deleted_at?: string | null
           direction: string
           id?: string
+          last_mutation_id?: string | null
           limit_cents: number
           name: string
           owner_user_id: string
@@ -185,6 +195,7 @@ export type Database = {
           deleted_at?: string | null
           direction?: string
           id?: string
+          last_mutation_id?: string | null
           limit_cents?: number
           name?: string
           owner_user_id?: string
@@ -215,6 +226,7 @@ export type Database = {
           icon: string | null
           id: string
           kind: string
+          last_mutation_id: string | null
           name: string
           owner_user_id: string
           parent_id: string | null
@@ -231,6 +243,7 @@ export type Database = {
           icon?: string | null
           id?: string
           kind: string
+          last_mutation_id?: string | null
           name: string
           owner_user_id: string
           parent_id?: string | null
@@ -247,6 +260,7 @@ export type Database = {
           icon?: string | null
           id?: string
           kind?: string
+          last_mutation_id?: string | null
           name?: string
           owner_user_id?: string
           parent_id?: string | null
@@ -258,10 +272,10 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "categories_parent_id_fkey"
-            columns: ["parent_id"]
+            columns: ["parent_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "categories"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "categories_profile_id_fkey"
@@ -279,6 +293,7 @@ export type Database = {
           file_name: string
           id: string
           imported_at: string
+          last_mutation_id: string | null
           owner_user_id: string
           profile_id: string
           revision: number
@@ -295,6 +310,7 @@ export type Database = {
           file_name: string
           id?: string
           imported_at: string
+          last_mutation_id?: string | null
           owner_user_id: string
           profile_id: string
           revision?: number
@@ -311,6 +327,7 @@ export type Database = {
           file_name?: string
           id?: string
           imported_at?: string
+          last_mutation_id?: string | null
           owner_user_id?: string
           profile_id?: string
           revision?: number
@@ -331,10 +348,10 @@ export type Database = {
           },
           {
             foreignKeyName: "import_batches_template_id_fkey"
-            columns: ["template_id"]
+            columns: ["template_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "import_templates"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
         ]
       }
@@ -349,6 +366,7 @@ export type Database = {
           deleted_at: string | null
           has_header_row: boolean
           id: string
+          last_mutation_id: string | null
           name: string
           owner_user_id: string
           profile_id: string
@@ -367,6 +385,7 @@ export type Database = {
           deleted_at?: string | null
           has_header_row?: boolean
           id?: string
+          last_mutation_id?: string | null
           name: string
           owner_user_id: string
           profile_id: string
@@ -385,6 +404,7 @@ export type Database = {
           deleted_at?: string | null
           has_header_row?: boolean
           id?: string
+          last_mutation_id?: string | null
           name?: string
           owner_user_id?: string
           profile_id?: string
@@ -396,10 +416,10 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "import_templates_default_account_id_fkey"
-            columns: ["default_account_id"]
+            columns: ["default_account_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "accounts"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "import_templates_profile_id_fkey"
@@ -418,6 +438,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           id: string
+          last_mutation_id: string | null
           name: string
           owner_user_id: string
           revision: number
@@ -430,6 +451,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
+          last_mutation_id?: string | null
           name: string
           owner_user_id: string
           revision?: number
@@ -442,6 +464,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
+          last_mutation_id?: string | null
           name?: string
           owner_user_id?: string
           revision?: number
@@ -457,6 +480,7 @@ export type Database = {
           deleted_at: string | null
           enabled: boolean
           id: string
+          last_mutation_id: string | null
           match_mode: string
           name: string
           owner_user_id: string
@@ -473,6 +497,7 @@ export type Database = {
           deleted_at?: string | null
           enabled?: boolean
           id?: string
+          last_mutation_id?: string | null
           match_mode: string
           name: string
           owner_user_id: string
@@ -489,6 +514,7 @@ export type Database = {
           deleted_at?: string | null
           enabled?: boolean
           id?: string
+          last_mutation_id?: string | null
           match_mode?: string
           name?: string
           owner_user_id?: string
@@ -516,6 +542,7 @@ export type Database = {
           deleted_at: string | null
           encryption_enabled: boolean
           id: string
+          last_mutation_id: string | null
           locale: string
           owner_user_id: string
           profile_id: string
@@ -530,6 +557,7 @@ export type Database = {
           deleted_at?: string | null
           encryption_enabled?: boolean
           id?: string
+          last_mutation_id?: string | null
           locale: string
           owner_user_id: string
           profile_id: string
@@ -544,6 +572,7 @@ export type Database = {
           deleted_at?: string | null
           encryption_enabled?: boolean
           id?: string
+          last_mutation_id?: string | null
           locale?: string
           owner_user_id?: string
           profile_id?: string
@@ -554,10 +583,10 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "settings_default_account_fk"
-            columns: ["default_account_id"]
+            columns: ["default_account_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "accounts"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "settings_profile_id_fkey"
@@ -574,6 +603,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           id: string
+          last_mutation_id: string | null
           name: string
           owner_user_id: string
           profile_id: string
@@ -585,6 +615,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
+          last_mutation_id?: string | null
           name: string
           owner_user_id: string
           profile_id: string
@@ -596,6 +627,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: string
+          last_mutation_id?: string | null
           name?: string
           owner_user_id?: string
           profile_id?: string
@@ -673,6 +705,7 @@ export type Database = {
           id: string
           import_batch_id: string | null
           is_split_parent: boolean
+          last_mutation_id: string | null
           notes: string | null
           owner_user_id: string
           parent_id: string | null
@@ -683,6 +716,7 @@ export type Database = {
           stats_flag: number
           status: string
           subcategory_id: string | null
+          tag_ids: string[]
           transfer_group_id: string | null
           type: string
           updated_at: string
@@ -701,6 +735,7 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           is_split_parent?: boolean
+          last_mutation_id?: string | null
           notes?: string | null
           owner_user_id: string
           parent_id?: string | null
@@ -711,6 +746,7 @@ export type Database = {
           stats_flag?: number
           status: string
           subcategory_id?: string | null
+          tag_ids?: string[]
           transfer_group_id?: string | null
           type: string
           updated_at?: string
@@ -729,6 +765,7 @@ export type Database = {
           id?: string
           import_batch_id?: string | null
           is_split_parent?: boolean
+          last_mutation_id?: string | null
           notes?: string | null
           owner_user_id?: string
           parent_id?: string | null
@@ -739,6 +776,7 @@ export type Database = {
           stats_flag?: number
           status?: string
           subcategory_id?: string | null
+          tag_ids?: string[]
           transfer_group_id?: string | null
           type?: string
           updated_at?: string
@@ -746,31 +784,31 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "transactions_account_id_fkey"
-            columns: ["account_id"]
+            columns: ["account_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "accounts"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "transactions_category_id_fkey"
-            columns: ["category_id"]
+            columns: ["category_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "categories"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "transactions_import_batch_fk"
-            columns: ["import_batch_id"]
+            columns: ["import_batch_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "import_batches"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "transactions_parent_id_fkey"
-            columns: ["parent_id"]
+            columns: ["parent_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "transactions_profile_id_fkey"
@@ -781,24 +819,24 @@ export type Database = {
           },
           {
             foreignKeyName: "transactions_refund_of_id_fkey"
-            columns: ["refund_of_id"]
+            columns: ["refund_of_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "transactions_rule_fk"
-            columns: ["rule_id"]
+            columns: ["rule_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "rules"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
           {
             foreignKeyName: "transactions_subcategory_id_fkey"
-            columns: ["subcategory_id"]
+            columns: ["subcategory_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "categories"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "profile_id"]
           },
         ]
       }

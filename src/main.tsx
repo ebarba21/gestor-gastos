@@ -6,6 +6,7 @@ import { ProfileProvider } from './context/ProfileContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './auth';
+import { SyncProvider } from './sync/SyncContext';
 import { PwaReloadPrompt } from './pwa/PwaReloadPrompt';
 import './index.css';
 
@@ -24,7 +25,12 @@ createRoot(rootElement).render(
               estado de sesion esten disponibles con o sin perfil activo. */}
           <AuthProvider>
             <ProfileProvider>
-              <App />
+              {/* SyncProvider dentro de Auth (necesita el usuario) y de Profile; envuelve la app
+                  para que el estado de sincronizacion este disponible en toda la UI. La cuenta es
+                  opcional: sin sesion, el proveedor queda deshabilitado (modo local puro). */}
+              <SyncProvider>
+                <App />
+              </SyncProvider>
             </ProfileProvider>
           </AuthProvider>
           {/* Registro del SW + avisos de nueva version y de offline listo. Dentro del

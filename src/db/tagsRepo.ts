@@ -2,11 +2,11 @@
 // Nombre unico por perfil (normalizado).
 import type { Tag } from './schema';
 import { db } from './index';
-import { createProfileRepo } from './baseRepo';
+import { createProfileRepo, isAlive } from './baseRepo';
 import type { CreateInput } from './baseRepo';
 import { assert, requireProfileId } from '../lib/validation';
 
-const base = createProfileRepo<Tag>(db.tags, 'Tag');
+const base = createProfileRepo<Tag>(db.tags, 'Tag', 'tag');
 
 // Normaliza para comparar unicidad: minusculas, trim, espacios colapsados.
 export function normalizeTagName(name: string): string {
@@ -15,7 +15,7 @@ export function normalizeTagName(name: string): string {
 
 async function findByNormalizedName(profileId: string, name: string): Promise<Tag | undefined> {
   const target = normalizeTagName(name);
-  const all = await db.tags.where('profileId').equals(profileId).toArray();
+  const all = await db.tags.where('profileId').equals(profileId).filter(isAlive).toArray();
   return all.find((t) => normalizeTagName(t.name) === target);
 }
 

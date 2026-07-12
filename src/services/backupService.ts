@@ -24,8 +24,13 @@ import { requireProfileId } from '../lib/validation';
 export const BACKUP_APP = 'gestor-gastos';
 export const BACKUP_KIND = 'profile-backup';
 // Version del FORMATO del envelope de backup (independiente de la version del esquema de
-// datos). Se incrementa si cambia la estructura del envelope, no las entidades.
-export const BACKUP_FORMAT_VERSION = 1;
+// datos). v2 (fase 2): el backup excluye tombstones (bajas logicas) y device-local (outbox,
+// conflictos, migracion, cursores), y la restauracion resetea los campos de sincronizacion a
+// local (revision 0, syncStatus 'local'). La estructura del envelope no cambia respecto a v1, por
+// lo que los backups v1 siguen siendo restaurables.
+export const BACKUP_FORMAT_VERSION = 2;
+// Version minima de formato que esta app sabe leer (los envelopes v1 y v2 son compatibles).
+const MIN_BACKUP_FORMAT_VERSION = 1;
 
 export interface ProfileBackup {
   app: typeof BACKUP_APP;
@@ -141,9 +146,13 @@ export function parseBackup(text: string): ProfileBackup {
   if (raw.app !== BACKUP_APP || raw.kind !== BACKUP_KIND) {
     throw new BackupError('El archivo no es un backup de perfil de Gestor de Gastos.');
   }
-  if (typeof raw.backupFormatVersion !== 'number' || raw.backupFormatVersion !== BACKUP_FORMAT_VERSION) {
+  if (
+    typeof raw.backupFormatVersion !== 'number' ||
+    raw.backupFormatVersion < MIN_BACKUP_FORMAT_VERSION ||
+    raw.backupFormatVersion > BACKUP_FORMAT_VERSION
+  ) {
     throw new BackupError(
-      `Formato de backup incompatible (${String(raw.backupFormatVersion)}). Esta version de la app usa el formato ${BACKUP_FORMAT_VERSION}.`,
+      `Formato de backup incompatible (${String(raw.backupFormatVersion)}). Esta version de la app admite del formato ${MIN_BACKUP_FORMAT_VERSION} al ${BACKUP_FORMAT_VERSION}.`,
     );
   }
   const schemaVersion = raw.schemaVersion;
@@ -353,16 +362,23 @@ export function remapProfileData(
     templateId: remapRef(templateMap, batch.templateId),
   }));
 
+  // Restaurar = datos FRESCOS en local: se resetean los campos de sincronizacion (revision 0,
+  // syncStatus 'local', deletedAt null, lastSyncedAt null). Un perfil restaurado es local hasta que
+  // el usuario lo migre a una cuenta de forma explicita (fase 2). Ningun tombstone llega aqui (el
+  // backup ya los excluye), pero el reset garantiza consistencia aunque el backup fuera v1 synced.
+  const resetSync = <T extends object>(rows: T[]): T[] =>
+    rows.map((row) => ({ ...row, ...syncDefaults() }));
+
   return {
-    settings,
-    accounts,
-    categories,
-    tags,
-    transactions,
-    rules,
-    budgets,
-    importTemplates,
-    importBatches,
+    settings: resetSync(settings),
+    accounts: resetSync(accounts),
+    categories: resetSync(categories),
+    tags: resetSync(tags),
+    transactions: resetSync(transactions),
+    rules: resetSync(rules),
+    budgets: resetSync(budgets),
+    importTemplates: resetSync(importTemplates),
+    importBatches: resetSync(importBatches),
   };
 }
 

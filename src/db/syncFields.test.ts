@@ -10,8 +10,8 @@ beforeEach(async () => {
 });
 
 describe('campos de sincronizacion (DATA_MODEL seccion 9)', () => {
-  it('SCHEMA_VERSION es 2 (esquema con campos de sync)', () => {
-    expect(SCHEMA_VERSION).toBe(2);
+  it('SCHEMA_VERSION es 3 (esquema con campos de sync + tablas de sincronizacion)', () => {
+    expect(SCHEMA_VERSION).toBe(3);
   });
 
   it('syncDefaults describe una fila solo local sin revision remota', () => {

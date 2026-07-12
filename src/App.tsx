@@ -9,8 +9,10 @@ import BudgetsPage from './pages/BudgetsPage';
 import ExportPage from './pages/ExportPage';
 import SettingsPage from './pages/SettingsPage';
 import AccountPage from './pages/AccountPage';
+import SyncPage from './pages/SyncPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
 import { ThemeToggle } from './components/common';
+import { SyncBadge } from './components/sync';
 
 interface NavItem {
   to: string;
@@ -28,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/presupuestos', label: 'Presupuestos' },
   { to: '/exportar', label: 'Exportar' },
   { to: '/cuenta', label: 'Cuenta' },
+  { to: '/sincronizacion', label: 'Sincronizacion' },
   { to: '/ajustes', label: 'Ajustes' },
 ];
 
@@ -49,6 +52,8 @@ function AppLayout() {
         <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold">Gestor de Gastos</span>
+            {/* Insignia de estado de sincronizacion (solo con cuenta activa). */}
+            <SyncBadge />
             {/* Conmutador de tema, accesible desde cualquier seccion. */}
             <ThemeToggle className="md:ml-auto" />
           </div>
@@ -78,6 +83,7 @@ function AppLayout() {
           <Route path="/presupuestos" element={<BudgetsPage />} />
           <Route path="/exportar" element={<ExportPage />} />
           <Route path="/cuenta" element={<AccountPage />} />
+          <Route path="/sincronizacion" element={<SyncPage />} />
           <Route path="/ajustes" element={<SettingsPage />} />
         </Routes>
       </main>
