@@ -14,5 +14,7 @@ major_version = 15
 # la URL publica de la PWA. Configurar tambien en el Dashboard (Authentication > URL config).
 site_url = "http://localhost:5173"
 additional_redirect_urls = ["http://localhost:5173"]
+
+[auth.email]
 # Verificacion de email activada: el registro deja la cuenta "pendiente de verificar".
 enable_confirmations = true

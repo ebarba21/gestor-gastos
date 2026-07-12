@@ -16,6 +16,9 @@
 begin;
 select plan(12);
 
+-- Esquema para las funciones auxiliares del test (no lo crea el CLI por defecto).
+create schema if not exists tests;
+
 -- Identificadores fijos para los dos usuarios de prueba y sus perfiles.
 \set user_a '11111111-1111-1111-1111-111111111111'
 \set user_b '22222222-2222-2222-2222-222222222222'
@@ -49,6 +52,11 @@ begin
   perform set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
 end;
 $$;
+
+-- Los helpers se invocan tambien cuando el rol activo ya es authenticated/anon; por eso
+-- necesitan USAGE del esquema y EXECUTE (si no, "permission denied for schema tests").
+grant usage on schema tests to public;
+grant execute on all functions in schema tests to public;
 
 -- =========================================================================
 -- Usuario A crea su perfil y una cuenta hija.
@@ -135,11 +143,12 @@ $$, '42501', null, 'No se permite DELETE fisico (borrado logico via deleted_at)'
 -- =========================================================================
 -- Anonimo: sin acceso.
 -- =========================================================================
+-- Un anonimo no tiene ni privilegio SELECT (grants solo a authenticated): el acceso se
+-- deniega de raiz, garantia mas fuerte que un RLS que devolveria 0 filas.
 select tests.authenticate_anon();
-select is(
-  (select count(*)::int from public.profiles),
-  0,
-  'Un usuario anonimo no lee ningun perfil'
+select throws_ok(
+  'select count(*) from public.profiles',
+  '42501', null, 'Un usuario anonimo no puede leer perfiles (sin privilegios)'
 );
 
 select * from finish();
