@@ -80,7 +80,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               'pointer-events-auto max-w-md rounded-lg px-4 py-2 text-sm font-medium shadow-lg',
               toast.kind === 'success' && 'bg-emerald-600 text-white',
               toast.kind === 'error' && 'bg-red-600 text-white',
-              toast.kind === 'info' && 'bg-slate-700 text-white',
+              toast.kind === 'info' && 'bg-slate-700 text-slate-50',
             ]
               .filter(Boolean)
               .join(' ')}

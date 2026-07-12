@@ -5,6 +5,7 @@ import App from './App';
 import { db } from './db';
 import { ProfileProvider } from './context/ProfileContext';
 import { ToastProvider } from './context/ToastContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { profileService } from './services/profileService';
 
 beforeEach(async () => {
@@ -14,13 +15,15 @@ beforeEach(async () => {
 
 function renderApp() {
   return render(
-    <ToastProvider>
-      <ProfileProvider>
-        <MemoryRouter initialEntries={['/']}>
-          <App />
-        </MemoryRouter>
-      </ProfileProvider>
-    </ToastProvider>,
+    <ThemeProvider>
+      <ToastProvider>
+        <ProfileProvider>
+          <MemoryRouter initialEntries={['/']}>
+            <App />
+          </MemoryRouter>
+        </ProfileProvider>
+      </ToastProvider>
+    </ThemeProvider>,
   );
 }
 

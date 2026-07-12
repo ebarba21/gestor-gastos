@@ -6,3 +6,4 @@ export type { DialogButton } from './ConfirmDialog';
 export { ColorPicker } from './ColorPicker';
 export { IconPicker } from './IconPicker';
 export { VirtualList } from './VirtualList';
+export { ThemeToggle } from './ThemeToggle';

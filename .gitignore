@@ -14,6 +14,13 @@ coverage/
 # Claude Code (configuracion personal local, no compartir)
 .claude/settings.local.json
 
+# Datos personales locales (extractos bancarios y backups reales): NUNCA suben al repo.
+# Invariante de privacidad: ningun dato financiero sale del dispositivo.
+/*.xlsx
+/*.csv
+/demo-backup.json
+/historico/
+
 # Sistema
 .DS_Store
 Thumbs.db

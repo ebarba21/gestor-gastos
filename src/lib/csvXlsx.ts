@@ -141,6 +141,46 @@ export function formatFromFileName(fileName: string): SourceFormat {
   return /\.xlsx?$/i.test(fileName) ? 'xlsx' : 'csv';
 }
 
+// --- Escritura de XLSX (exportaciones) ---
+
+// Valor que puede ir en una celda de exportacion. Los importes se escriben como numero
+// (euros) para que el usuario pueda operarlos en la hoja; null deja la celda vacia.
+export type ExportCell = string | number | null;
+
+// Una hoja de calculo con nombre y filas (matriz de celdas). La primera fila suele ser la
+// cabecera de columnas. El nombre se sanea al escribir (limite de 31 chars de Excel).
+export interface SheetSpec {
+  name: string;
+  rows: ExportCell[][];
+}
+
+// Excel limita el nombre de hoja a 31 caracteres y prohibe []:*?/\ . Se sanea sin fallar.
+function sanitizeSheetName(name: string, fallback: string): string {
+  const cleaned = name.replace(/[[\]:*?/\\]/g, ' ').trim();
+  const base = cleaned.length > 0 ? cleaned : fallback;
+  return base.slice(0, 31);
+}
+
+// Genera un XLSX (bytes) a partir de una o varias hojas. Todo ocurre en el navegador con
+// SheetJS (import dinamico, misma politica que la lectura): ningun byte sale del dispositivo.
+// Devuelve los bytes del libro; el disparo de la descarga es responsabilidad de la UI
+// (lib/download), para mantener este wrapper testeable y sin acceso al DOM.
+export async function writeXlsx(sheets: SheetSpec[]): Promise<Uint8Array> {
+  const XLSX = await import('xlsx');
+  const wb = XLSX.utils.book_new();
+  const usedNames = new Set<string>();
+  sheets.forEach((sheet, index) => {
+    const ws = XLSX.utils.aoa_to_sheet(sheet.rows);
+    // Nombre unico y valido: si colisiona tras sanear, se sufija con el indice.
+    let name = sanitizeSheetName(sheet.name, `Hoja${index + 1}`);
+    if (usedNames.has(name)) name = sanitizeSheetName(`${name} ${index + 1}`, `Hoja${index + 1}`);
+    usedNames.add(name);
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  });
+  const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+  return new Uint8Array(out);
+}
+
 // Lee un File (input del usuario) en el navegador. CSV se lee como texto (control total de
 // separadores); XLSX como binario via SheetJS. No hay ninguna llamada de red.
 export async function readImportFile(file: File): Promise<ParsedWorkbook> {

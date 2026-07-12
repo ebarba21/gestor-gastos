@@ -6,9 +6,16 @@ Documento de producto. Define objetivo, alcance, casos de uso, requisitos y road
 
 ## 1. Objetivo y vision
 
-Aplicacion personal de gestion de gastos, **local-first** y de **coste 0 euros**, que permite importar movimientos bancarios, categorizarlos automaticamente con reglas, fijar presupuestos y entender las finanzas mediante un dashboard, garantizando que **ningun dato financiero sale del dispositivo**. Multiusuario mediante **perfiles locales aislados** en el mismo dispositivo.
+Aplicacion personal de gestion de gastos, **local-first**, que permite importar movimientos bancarios, categorizarlos automaticamente con reglas, fijar presupuestos y entender las finanzas mediante un dashboard. Multiusuario mediante **perfiles locales aislados** en el mismo dispositivo. Sin cuenta, funciona 100% en local y ningun dato financiero sale del dispositivo. De forma **opcional**, el usuario puede activar una **cuenta privada** para **sincronizar sus perfiles entre dispositivos** con Supabase, protegido por autenticacion y Row Level Security.
 
-Vision: una herramienta rapida, privada y gratuita para siempre, que sustituya a hojas de calculo manuales y a apps de finanzas de pago o que suben datos a la nube.
+Vision: una herramienta rapida, privada y sin APIs de pago para lo esencial, que sustituya a hojas de calculo manuales y a apps de finanzas de pago; que funcione siempre offline con una copia local y que, si el usuario quiere, mantenga una copia remota privada para usarla en varios dispositivos. No se promete "coste cero perpetuo" ni "privacidad total": la sincronizacion depende de un proveedor (Supabase) con sus limites, y la app describe con precision que protege y que no (ver `CLOUD_SYNC_SECURITY.md`).
+
+### 1.1 Cuenta autenticada frente a perfil financiero (concepto clave)
+
+- **Cuenta autenticada** (Supabase Auth): identifica a la PERSONA (email + contrasena). Es opcional. Sirve para sincronizar y recuperar datos en otro dispositivo.
+- **Perfil financiero** (local): organiza los DATOS (yo, pareja, hogar). Existe con o sin cuenta.
+- Una cuenta puede poseer varios perfiles (`Profile.ownerUserId`). No hay perfiles compartidos entre cuentas.
+- El aislamiento por `profileId` se mantiene siempre; con cuenta se anade aislamiento por `ownerUserId` en todas las capas, incluida RLS.
 
 ---
 
@@ -22,7 +29,7 @@ Vision: una herramienta rapida, privada y gratuita para siempre, que sustituya a
 - Las hojas de calculo manuales son tediosas: categorizar a mano, sin reglas, sin dashboard fiable.
 - Compartir un dispositivo mezcla las finanzas de varias personas.
 
-**Como lo resuelve**: todo local en IndexedDB, sin backend, con importacion desde extractos, autocategorizacion por reglas, perfiles aislados y backups manuales para mover datos entre dispositivos.
+**Como lo resuelve**: base operativa local en IndexedDB (sin backend para el uso basico), con importacion desde extractos, autocategorizacion por reglas, perfiles aislados y backups manuales; y, de forma opcional, una cuenta privada con sincronizacion entre dispositivos protegida por autenticacion y RLS.
 
 ---
 
@@ -63,6 +70,8 @@ Los 10 puntos de fase 2 del BRIEF. Se deja la arquitectura preparada (campos y c
 10. Multiusuario cloud real.
 
 Justificacion de mover a fase 2: son funcionalidades que multiplican la complejidad (matching, recurrencia, criptografia, red) sin ser necesarias para el flujo central "importar -> categorizar -> entender -> exportar". El modelo de datos ya reserva los campos, asi que activarlas despues es aditivo, no un rediseño.
+
+Nota (actualizacion): varios de estos puntos de fase 2 (recurrentes avanzados, reembolsos/splits avanzados, transferencias inteligentes, forecast avanzado, sincronizacion cloud opcional y una parte del acceso seguro) se planifican ahora en la ampliacion descrita en la seccion 10 y en `IMPLEMENTATION_ROADMAP.md`. La sincronizacion cloud pasa de "opcional futura" a diseñada por fases, siempre como opcion sobre una base local-first. El cifrado de la base local completa y el multiusuario cloud real siguen fuera de alcance (ver seccion 12).
 
 ---
 
@@ -144,14 +153,18 @@ Gasto por categoria; evolucion mensual; ingresos vs gastos; ahorro neto; tasa de
 
 ## 6. Requisitos no funcionales
 
-### 6.1 Privacidad
-- Ningun dato financiero sale del dispositivo, nunca. Sin llamadas de red en runtime salvo assets propios de la PWA.
-- Aislamiento por perfil garantizado por diseño (ver `DATA_MODEL.md` seccion 4).
+### 6.1 Privacidad (redaccion honesta)
+- **Sin cuenta (modo local)**: ningun dato financiero sale del dispositivo. Sin llamadas de red en runtime salvo los assets propios de la PWA.
+- **Con cuenta (sincronizacion opcional)**: solo los datos procesados sincronizados salen del dispositivo hacia el proyecto Supabase del usuario, cifrados en transito (HTTPS) y protegidos por autenticacion y RLS. Los archivos bancarios ORIGINALES no se suben por defecto. La disponibilidad y los limites remotos dependen del proveedor.
+- No se afirma "privacidad total": la app no protege frente a un dispositivo comprometido, ni frente al propio proveedor de infraestructura, ni frente al robo de la contrasena de cuenta. Ver amenazas y mitigaciones en `CLOUD_SYNC_SECURITY.md`.
+- Aislamiento por perfil (y por propietario con cuenta) garantizado por diseno en todas las capas (ver `DATA_MODEL.md` secciones 4 y 23).
 - Sin telemetria ni analytics de ningun tipo.
+- Biometria: cuando se use passkey, la verificacion la realiza el sistema operativo (WebAuthn); la app nunca recibe datos biometricos.
 
-### 6.2 Coste 0
-- Sin backend, sin APIs de pago, sin BBDD cloud, sin auth cloud, sin IA externa, sin suscripciones, sin free tiers de los que dependa funcionalidad esencial.
-- Hosting (fase 7) solo estatico y gratuito (p. ej. GitHub Pages) para instalabilidad PWA.
+### 6.2 Coste
+- Sin IA externa y sin APIs de pago para las funciones esenciales, que operan sin cuenta y sin red.
+- La sincronizacion usa Supabase dentro de su plan gratuito actual. No se promete gratuidad perpetua: los limites y precios los fija el proveedor. Si se superan los limites del plan gratuito, seguir sincronizando podria requerir un plan de pago; el modo local nunca deja de ser gratuito.
+- Hosting estatico gratuito (p. ej. GitHub Pages) para instalabilidad PWA. El hosting estatico no anade coste.
 
 ### 6.3 Offline y PWA
 - Funcionamiento offline completo tras la primera carga.
@@ -183,13 +196,13 @@ Gasto por categoria; evolucion mensual; ingresos vs gastos; ahorro neto; tasa de
 - **Presupuestos**: el consumo mostrado coincide con la suma de movimientos del periodo que cuentan en estadisticas.
 - **Dashboard**: las metricas excluyen transferencias, respetan exclusiones, cuentan lineas de split y aplican reembolsos como reduccion de gasto. Verificado por `finance-auditor`.
 - **Exportacion/backup**: un backup exportado y restaurado en un dispositivo limpio reproduce el perfil identico.
-- **Coste 0 / privacidad**: no existe ninguna peticion de red a dominios externos en runtime. Verificado por `privacy-auditor` y `/audit-coste-cero`.
+- **Coste / privacidad**: en modo local (sin cuenta) no existe ninguna peticion de red a dominios externos en runtime. Con cuenta activada, la unica red externa admitida es el endpoint de Supabase del propio usuario (ver §6.1 y §11). Verificado por `privacy-auditor` y `/audit-coste-cero`.
 
 ---
 
 ## 8. Definicion del MVP
 
-El MVP esta completo cuando un usuario puede, en un dispositivo y sin coste ni red externa:
+El MVP local esta completo cuando un usuario puede, en un dispositivo, sin pagar por lo esencial y (en modo local) sin red externa:
 1. Crear y cambiar entre perfiles locales aislados.
 2. Importar sus movimientos desde CSV/XLSX con plantillas, preview y aviso de duplicados.
 3. Gestionar movimientos (CRUD, masivo, filtros) con categorias, subcategorias, etiquetas y cuentas.
@@ -213,3 +226,59 @@ Con transferencias, reembolsos, splits y exclusiones en su version basica (model
 7. **PWA, responsive y pulido**: service worker, manifest, instalabilidad, responsive final, rendimiento (virtualizacion), accesibilidad y detalles de UX.
 
 Regla: no se implementa una fase posterior si la anterior no esta completa y con tests en verde. Al cerrar cada fase: `privacy-auditor` y, si toca calculos, `finance-auditor`. El dashboard (fase 5) no se construye antes de resolver categorizacion, exclusiones, splits, reembolsos y perfiles, para que los graficos sean fiables.
+
+---
+
+# 10. Ampliacion: cuenta, sincronizacion, seguridad y nuevas funciones financieras
+
+Ampliacion planificada sobre el MVP local ya completo. Orden y dependencias en `IMPLEMENTATION_ROADMAP.md`. El modo local sin cuenta sigue siendo de primera clase.
+
+## 10.1 Cuenta y sincronizacion privada
+- **Cuenta autenticada opcional** (Supabase Auth): registro con email y contrasena, login, restauracion y cierre de sesion, recuperacion y cambio de contrasena, estado de email por verificar.
+- **Sincronizacion privada entre dispositivos**: IndexedDB es la base operativa; Supabase es la copia remota. Escritura local primero + cola de salida idempotente + sincronizacion por lotes.
+- **Funcionamiento offline**: crear/editar/borrar sin conexion; se sincroniza al recuperar red.
+- **Estados de sincronizacion** visibles: sincronizado, cambios pendientes, sincronizando, sin conexion, conflicto, error.
+- **Conflictos entre dispositivos**: se conservan ambas versiones; los financieros los resuelve la persona (nunca merge silencioso).
+- **Migracion de perfiles locales existentes**: asistente que sube los perfiles ya creados a la cuenta sin perder ni duplicar datos, con backup previo y verificacion.
+
+## 10.2 Seguridad de acceso
+- **PIN local** opcional (min. 6 digitos), bloqueo automatico configurable, bloqueo al volver del segundo plano, espera progresiva, recuperacion via cuenta. Sesion cifrada con clave derivada del PIN.
+- **Passkeys y desbloqueo por el sistema del dispositivo**: WebAuthn oficial, tras feature flag; la biometria la gestiona el SO. Siempre hay fallback por contrasena/PIN.
+
+## 10.3 Comercios y calidad de datos
+- **Comercios normalizados**: distintos conceptos bancarios del mismo comercio se agrupan sin perder el texto original (`rawConcept` inmutable). Alias por comercio, fusion y reasignacion.
+- **Duplicados con niveles de confianza**: motor multinivel explicable (exacto, normalizado fuerte, posible, debil, pendiente->confirmado) con razones y acciones; decision de "no duplicado" persistente.
+- **Bandeja de revision**: cola unificada de excepciones (sin categorizar, baja confianza, duplicado, transferencia/reembolso candidato, pendiente antiguo, comercio nuevo, error de importacion, conflicto de sync).
+- **Conciliacion bancaria**: saldo de extracto vs saldo calculado, diferencia e historial por cuenta.
+
+## 10.4 Analisis avanzado
+- **Recurrencias avanzadas**: series confirmables (semanal, mensual, trimestral, anual, con intervalos), tolerancias, deteccion de subidas de precio y de cobros ausentes.
+- **Forecast por rango**: gasto realizado + recurrentes pendientes + gasto variable restante, con rango inferior/central/superior derivado del historico, no un porcentaje fijo.
+- **Modulo de deudas**: registro de deudas, calendario de amortizacion, simulacion de amortizaciones anticipadas (reducir plazo o reducir cuota).
+- **Escenarios Snowball y Avalanche**: comparador de estrategias de pago (base, Snowball, Avalanche, personalizada) con fecha de liberacion, meses, intereses y ahorro; sin declarar una universalmente mejor. No es asesoramiento financiero personalizado.
+
+## 11. Criterios de aceptacion de la ampliacion
+
+- **Cuenta**: registro y login funcionan; una ruta privada no es accesible sin sesion; recuperar/cambiar contrasena funciona; los errores no revelan innecesariamente si una cuenta existe.
+- **RLS / aislamiento**: dos usuarios distintos no ven datos del otro ni por API directa; un usuario no puede insertar filas para otro propietario ni cambiar el propietario; un anonimo no lee nada. Verificado con pruebas de RLS.
+- **Sincronizacion**: crear offline y sincronizar no duplica; reenviar una mutacion es idempotente; una edicion simultanea en dos dispositivos produce un conflicto explicito, no una sobrescritura silenciosa; los importes nunca se pierden ni se duplican en reintentos, conflictos, restauraciones ni migraciones.
+- **Migracion**: migrar un perfil local conserva recuentos y relaciones exactos, no borra datos locales y solo marca migrado tras verificar; repetirla no duplica.
+- **Dispositivo nuevo**: iniciar sesion en un dispositivo vacio reconstruye los perfiles remotos y queda operativo offline; no se muestra un dashboard vacio mientras carga.
+- **PIN / sesion**: con PIN activo, la sesion persistida no es legible sin desbloquear y no existe copia sin cifrar; fallar el PIN aplica espera progresiva; el PIN desbloquea offline; al bloquear no se sincroniza.
+- **Passkeys**: la app funciona con passkeys desactivadas y en navegadores sin WebAuthn; nadie se queda sin metodo de acceso valido; la UI no llama "biometria" a cualquier passkey.
+- **Comercios**: tres conceptos distintos de Amazon pueden asociarse a un comercio; `rawConcept` permanece intacto; fusionar es transaccional y reversible cuando aplica; aislamiento por perfil.
+- **Duplicados**: el mismo fichero con otro nombre se detecta; dos compras reales iguales no se bloquean; un confirmado puede sustituir a un pendiente sin duplicar saldo; "no duplicado" impide que reaparezca la misma pareja sin cambios.
+- **Bandeja / conciliacion**: la generacion de tareas es idempotente; resolver/reabrir/masivas/deshacer funcionan; una conciliacion que cuadra da diferencia 0; una con diferencia se puede aceptar dejando constancia; saldo y estadisticas no se alteran dos veces.
+- **Recurrencias / forecast**: se detectan frecuencias semanal/mensual/trimestral/anual; una subida de precio y un cobro ausente generan tarea; el forecast no mezcla transferencias ni reembolsos, no duplica recurrentes ya cobrados y no usa floats; con poco historico lo explica.
+- **Deudas**: calendario, cuota, principal, intereses y ultimo pago cuadran con formulas de referencia; cuota insuficiente y cero interes se detectan; Snowball y Avalanche son deterministas; vincular pagos no produce doble conteo; los escenarios no modifican datos reales.
+- **Privacidad / coste (revisados)**: ningun texto afirma "privacidad total", "coste cero perpetuo", "sin backend", "ningun dato sale" ni "sin red" de forma absoluta; se explica el modelo local-first + sync opcional, RLS, PIN, passkeys, backup y recuperacion; no hay `service_role` en frontend; toda tabla remota expuesta lleva RLS.
+
+## 12. Fuera de alcance (expresamente)
+
+- Perfiles compartidos entre varias cuentas y multiusuario cloud colaborativo en tiempo real.
+- Sincronizacion en tiempo real por defecto (la sincronizacion es por lotes y bajo disparadores).
+- Subida automatica de los archivos bancarios originales (solo datos procesados y hashes).
+- Cifrado extremo a extremo de la base remota (el proveedor puede acceder a la infraestructura).
+- Cifrado de la base LOCAL completa (mas alla de la sesion protegida por PIN).
+- Prediccion de indices de tipos variables futuros; asesoramiento financiero personalizado.
+- App desktop (Tauri) y autohosting gestionado.

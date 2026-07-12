@@ -34,6 +34,8 @@ import {
 } from '../lib/importParsing';
 import { computeDedupeHash, normalizeConcept } from '../lib/dedupe';
 import { ValidationError, requireProfileId, requireId, assert } from '../lib/validation';
+import { rulesRepo } from '../db/rulesRepo';
+import { applyRulesToDraft } from './ruleService';
 
 // Limite de longitud de concepto, coherente con la entrada manual (transactionService).
 // Los conceptos de banca pueden ser largos; se truncan en lugar de rechazar la fila.
@@ -292,6 +294,14 @@ export const importService = {
     const included = params.preview.rows.filter((r) => r.include && r.transaction !== null);
     assert(included.length > 0, 'No hay ninguna fila seleccionada para importar.');
     const transactions = included.map((r) => r.transaction as NewTransaction);
+    // Auto-categorizacion por reglas de los movimientos importados (ARCHITECTURE 5.2): se
+    // cargan una vez las reglas activas del perfil y se aplican a cada borrador antes del
+    // commit atomico, de modo que quedan categorizados (categorizedBy='rule', ruleId) desde
+    // el primer momento y en la misma transaccion. Si no hay reglas, no cambia nada.
+    const enabledRules = await rulesRepo.listEnabledByPriority(profileId);
+    if (enabledRules.length > 0) {
+      for (const draft of transactions) applyRulesToDraft(enabledRules, draft);
+    }
     const rowsSkippedDuplicate = params.preview.rows.filter(
       (r) => r.duplicate && !r.include,
     ).length;

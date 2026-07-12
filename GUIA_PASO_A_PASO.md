@@ -2,6 +2,8 @@
 
 Sigue las fases en orden. No saltes ninguna. Los comandos se escriben en la terminal integrada de VS Code (se abre con Ctrl+` o desde el menu Terminal > New Terminal).
 
+> Nota de actualizacion: esta guia describe la construccion del MVP LOCAL. La app se esta ampliando con una cuenta de sincronizacion privada OPCIONAL (Supabase), PIN, passkeys y nuevas funciones financieras; ver `PROMPTS_AMPLIACION_APP_GASTOS.md` y `specs/IMPLEMENTATION_ROADMAP.md`. Por eso ya no aplica literalmente "coste 0 para siempre": lo correcto es que las funciones esenciales no requieren APIs de pago y operan dentro de los limites gratuitos actuales del proveedor de sincronizacion.
+
 ---
 
 ## FASE 0: instalar las herramientas (solo se hace una vez)
@@ -290,7 +292,7 @@ Con el PC y el movil en la misma wifi:
 npm run dev -- --host
 ```
 
-La terminal mostrara una URL de red tipo http://192.168.1.XX:5173. Abrela desde el navegador del movil. Nota: la instalacion como PWA real requiere HTTPS; para eso, cuando la app este madura, puedes publicarla gratis en GitHub Pages (es hosting estatico gratuito y no rompe el coste 0; pidele a Claude Code que configure el deploy cuando llegues a la fase 7).
+La terminal mostrara una URL de red tipo http://192.168.1.XX:5173. Abrela desde el navegador del movil. Nota: la instalacion como PWA real requiere HTTPS; para eso, cuando la app este madura, puedes publicarla gratis en GitHub Pages (es hosting estatico gratuito y no anade coste; pidele a Claude Code que configure el deploy cuando llegues a la fase 7). Si activas la sincronizacion (ampliacion), esa parte si requiere conexion a tu proyecto Supabase y esta sujeta a los limites de su plan.
 
 ## Problemas tipicos
 

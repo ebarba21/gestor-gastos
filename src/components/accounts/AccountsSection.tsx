@@ -95,7 +95,9 @@ export function AccountsSection() {
               <div
                 key={acc.id}
                 className={[
-                  'flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5',
+                  // En movil las acciones bajan a una segunda linea (flex-wrap) para que el
+                  // nombre de la cuenta no quede comprimido por los botones secundarios.
+                  'flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2.5',
                   archived ? 'opacity-60' : '',
                 ].join(' ')}
               >
@@ -117,7 +119,9 @@ export function AccountsSection() {
                     Archivada
                   </span>
                 )}
-                <div className="flex shrink-0 gap-1 text-xs">
+                {/* En movil el grupo de acciones ocupa toda la fila inferior y se alinea a la
+                    derecha; en PC vuelve a su ancho natural en la misma linea. */}
+                <div className="flex w-full shrink-0 justify-end gap-1 text-xs sm:w-auto">
                   {!archived ? (
                     <>
                       <button
