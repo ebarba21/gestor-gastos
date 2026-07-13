@@ -11,12 +11,14 @@
 // REGENERACION (cuando cambien las migraciones): via MCP (generate_typescript_types) o CLI:
 //   supabase gen types typescript --project-id skwhlbwpnsdgmdsfozcr --schema public > src/lib/supabase/database.types.ts
 //
-// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2): entidades actuales, campos de
+// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2 y fase 4): entidades actuales, campos de
 // sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at, deleted_at,
-// revision), la columna de idempotencia `last_mutation_id` y `transactions.tag_ids` (fuente de
-// verdad de las etiquetas; `transaction_tags` es proyeccion derivada). Las columnas de fases
-// posteriores (comercios, duplicados avanzados, recurrencias, deudas) se anadiran en las
-// migraciones de SUS fases, no aqui.
+// revision), la columna de idempotencia `last_mutation_id`, `transactions.tag_ids` (fuente de
+// verdad de las etiquetas; `transaction_tags` es proyeccion derivada) y, desde fase 4, los
+// campos de comercio de `transactions` (raw_concept, normalized_concept,
+// normalization_version, merchant_id, merchant_match_source, merchant_match_confidence) y las
+// tablas `merchants`/`merchant_aliases`. Las columnas de fases posteriores (duplicados
+// avanzados, recurrencias, deudas) se anadiran en las migraciones de SUS fases, no aqui.
 
 export type Json =
   | string
@@ -430,6 +432,148 @@ export type Database = {
           },
         ]
       }
+      merchant_aliases: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          enabled: boolean
+          id: string
+          last_mutation_id: string | null
+          match_type: string
+          merchant_id: string
+          normalized_alias: string
+          owner_user_id: string
+          priority: number
+          profile_id: string
+          raw_alias: string
+          revision: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          enabled?: boolean
+          id?: string
+          last_mutation_id?: string | null
+          match_type: string
+          merchant_id: string
+          normalized_alias: string
+          owner_user_id: string
+          priority?: number
+          profile_id: string
+          raw_alias: string
+          revision?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          enabled?: boolean
+          id?: string
+          last_mutation_id?: string | null
+          match_type?: string
+          merchant_id?: string
+          normalized_alias?: string
+          owner_user_id?: string
+          priority?: number
+          profile_id?: string
+          raw_alias?: string
+          revision?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_aliases_merchant_fk"
+            columns: ["merchant_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "merchant_aliases_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      merchants: {
+        Row: {
+          archived_at: string | null
+          canonical_name: string
+          created_at: string
+          default_category_id: string | null
+          default_subcategory_id: string | null
+          default_tag_ids: string[]
+          deleted_at: string | null
+          id: string
+          last_mutation_id: string | null
+          normalized_name: string
+          notes: string | null
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          canonical_name: string
+          created_at?: string
+          default_category_id?: string | null
+          default_subcategory_id?: string | null
+          default_tag_ids?: string[]
+          deleted_at?: string | null
+          id?: string
+          last_mutation_id?: string | null
+          normalized_name: string
+          notes?: string | null
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          canonical_name?: string
+          created_at?: string
+          default_category_id?: string | null
+          default_subcategory_id?: string | null
+          default_tag_ids?: string[]
+          deleted_at?: string | null
+          id?: string
+          last_mutation_id?: string | null
+          normalized_name?: string
+          notes?: string | null
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchants_default_category_fk"
+            columns: ["default_category_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "merchants_default_subcategory_fk"
+            columns: ["default_subcategory_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "merchants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           archived_at: string | null
@@ -706,10 +850,16 @@ export type Database = {
           import_batch_id: string | null
           is_split_parent: boolean
           last_mutation_id: string | null
+          merchant_id: string | null
+          merchant_match_confidence: number
+          merchant_match_source: string
+          normalization_version: number
+          normalized_concept: string
           notes: string | null
           owner_user_id: string
           parent_id: string | null
           profile_id: string
+          raw_concept: string
           refund_of_id: string | null
           revision: number
           rule_id: string | null
@@ -736,10 +886,16 @@ export type Database = {
           import_batch_id?: string | null
           is_split_parent?: boolean
           last_mutation_id?: string | null
+          merchant_id?: string | null
+          merchant_match_confidence?: number
+          merchant_match_source?: string
+          normalization_version?: number
+          normalized_concept: string
           notes?: string | null
           owner_user_id: string
           parent_id?: string | null
           profile_id: string
+          raw_concept: string
           refund_of_id?: string | null
           revision?: number
           rule_id?: string | null
@@ -766,10 +922,16 @@ export type Database = {
           import_batch_id?: string | null
           is_split_parent?: boolean
           last_mutation_id?: string | null
+          merchant_id?: string | null
+          merchant_match_confidence?: number
+          merchant_match_source?: string
+          normalization_version?: number
+          normalized_concept?: string
           notes?: string | null
           owner_user_id?: string
           parent_id?: string | null
           profile_id?: string
+          raw_concept?: string
           refund_of_id?: string | null
           revision?: number
           rule_id?: string | null
@@ -801,6 +963,13 @@ export type Database = {
             columns: ["import_batch_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "import_batches"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "transactions_merchant_id_fkey"
+            columns: ["merchant_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
             referencedColumns: ["id", "profile_id"]
           },
           {
@@ -972,9 +1141,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const

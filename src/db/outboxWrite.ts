@@ -20,6 +20,8 @@ export const STORE_TO_ENTITY: Record<string, SyncEntityType> = {
   accounts: 'account',
   categories: 'category',
   tags: 'tag',
+  merchants: 'merchant',
+  merchantAliases: 'merchantAlias',
   transactions: 'transaction',
   rules: 'rule',
   budgets: 'budget',

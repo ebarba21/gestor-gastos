@@ -33,9 +33,13 @@ import {
   type AmountFormat,
 } from '../lib/importParsing';
 import { computeDedupeHash, normalizeConcept } from '../lib/dedupe';
+import { normalizeConceptV1, NORMALIZATION_VERSION } from '../lib/normalization';
 import { ValidationError, requireProfileId, requireId, assert } from '../lib/validation';
 import { rulesRepo } from '../db/rulesRepo';
 import { applyRulesToDraft } from './ruleService';
+import { merchantsRepo } from '../db/merchantsRepo';
+import { merchantAliasesRepo } from '../db/merchantAliasesRepo';
+import { matchMerchant } from './merchantService';
 
 // Limite de longitud de concepto, coherente con la entrada manual (transactionService).
 // Los conceptos de banca pueden ser largos; se truncan en lugar de rechazar la fila.
@@ -302,6 +306,29 @@ export const importService = {
     if (enabledRules.length > 0) {
       for (const draft of transactions) applyRulesToDraft(enabledRules, draft);
     }
+    // Asociacion de comercios (fase 4): se cargan una vez los comercios y alias activos del
+    // perfil y se aplica el motor a cada borrador antes del commit atomico. Igual que las
+    // reglas, nunca sobreescribe una asociacion manual (los borradores de import nunca la
+    // llevan) y respeta el orden de asociacion determinista (alias exacto > configurable >
+    // sugerencia por similitud > sin comercio).
+    const [merchants, aliases] = await Promise.all([
+      merchantsRepo.list(profileId),
+      merchantAliasesRepo.listEnabledByPriority(profileId),
+    ]);
+    if (merchants.length > 0 || aliases.length > 0) {
+      for (const draft of transactions) {
+        const result = matchMerchant(
+          { normalizedConcept: draft.normalizedConcept, rawConcept: draft.rawConcept },
+          merchants,
+          aliases,
+        );
+        if (result.merchantId !== null) {
+          draft.merchantId = result.merchantId;
+          draft.merchantMatchSource = result.source;
+          draft.merchantMatchConfidence = result.confidence;
+        }
+      }
+    }
     const rowsSkippedDuplicate = params.preview.rows.filter(
       (r) => r.duplicate && !r.include,
     ).length;
@@ -513,6 +540,14 @@ function buildPreviewRow(
       excludedFromStats: false,
       importBatchId: null,
       dedupeHash: computeDedupeHash({ profileId, accountId, date, amountCents, concept }),
+      // El concepto bancario original es inmutable; el motor de asociacion de comercios
+      // (aplicado en importService.commit, junto con las reglas) rellena merchantId despues.
+      rawConcept: concept,
+      normalizedConcept: normalizeConceptV1(concept),
+      normalizationVersion: NORMALIZATION_VERSION,
+      merchantId: null,
+      merchantMatchSource: 'none',
+      merchantMatchConfidence: 0,
     };
   }
 

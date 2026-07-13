@@ -10,7 +10,8 @@ import { useActiveProfileId } from './useProfiles';
 import { statsService, type DashboardData, type DashboardFilter } from '../services/statsService';
 import { categoryService } from '../services/categoryService';
 import { accountService } from '../services/accountService';
-import type { Account, Category } from '../db/schema';
+import { merchantService } from '../services/merchantService';
+import type { Account, Category, Merchant } from '../db/schema';
 import {
   customRange,
   monthRange,
@@ -48,6 +49,7 @@ export interface UseDashboard {
   categoryNames: Map<string, string>;
   categoryColors: Map<string, string>;
   accountNames: Map<string, string>;
+  merchantNames: Map<string, string>;
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
@@ -86,6 +88,7 @@ export function useDashboard(): UseDashboard {
   const [data, setData] = useState<DashboardData | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,13 +108,15 @@ export function useDashboard(): UseDashboard {
     let cancelled = false;
     void (async () => {
       try {
-        const [cats, accs] = await Promise.all([
+        const [cats, accs, merchs] = await Promise.all([
           categoryService.listAll(profileId),
           accountService.listAll(profileId),
+          merchantService.list(profileId),
         ]);
         if (cancelled) return;
         setCategories(cats);
         setAccounts(accs);
+        setMerchants(merchs);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'No se pudieron cargar las categorias.');
       }
@@ -175,6 +180,10 @@ export function useDashboard(): UseDashboard {
     [categories],
   );
   const accountNames = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+  const merchantNames = useMemo(
+    () => new Map(merchants.map((m) => [m.id, m.canonicalName])),
+    [merchants],
+  );
 
   return {
     profileId,
@@ -198,6 +207,7 @@ export function useDashboard(): UseDashboard {
     categoryNames,
     categoryColors,
     accountNames,
+    merchantNames,
     loading,
     error,
     reload,

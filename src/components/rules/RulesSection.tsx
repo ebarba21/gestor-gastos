@@ -21,6 +21,7 @@ const FIELD_LABELS: Record<RuleCondition['field'], string> = {
   date: 'fecha',
   account: 'cuenta',
   type: 'tipo',
+  merchant: 'comercio',
 };
 const OPERATOR_LABELS: Record<RuleCondition['operator'], string> = {
   contains: 'contiene',
@@ -48,6 +49,7 @@ interface NameMaps {
   accountNames: Map<string, string>;
   categoryNames: Map<string, string>;
   tagNames: Map<string, string>;
+  merchantNames: Map<string, string>;
 }
 
 function formatConditionValue(c: RuleCondition, maps: NameMaps): string {
@@ -60,6 +62,9 @@ function formatConditionValue(c: RuleCondition, maps: NameMaps): string {
   }
   if (c.field === 'account') {
     return maps.accountNames.get(String(c.value)) ?? '(cuenta)';
+  }
+  if (c.field === 'merchant') {
+    return maps.merchantNames.get(String(c.value)) ?? '(comercio)';
   }
   if (c.field === 'type') {
     return TYPE_LABELS[String(c.value)] ?? String(c.value);
@@ -99,15 +104,17 @@ export function RulesSection() {
     accounts,
     categories,
     tags,
+    merchants,
     loading,
     error,
     reload,
     accountNames,
     categoryNames,
     tagNames,
+    merchantNames,
   } = useRules();
   const { showToast } = useToast();
-  const maps: NameMaps = { accountNames, categoryNames, tagNames };
+  const maps: NameMaps = { accountNames, categoryNames, tagNames, merchantNames };
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
@@ -323,6 +330,7 @@ export function RulesSection() {
         accounts={accounts}
         categories={categories}
         tags={tags}
+        merchants={merchants}
         onSaved={reload}
       />
       <RuleFormModal
@@ -332,6 +340,7 @@ export function RulesSection() {
         accounts={accounts}
         categories={categories}
         tags={tags}
+        merchants={merchants}
         onSaved={reload}
         rule={editing}
       />

@@ -51,6 +51,12 @@ function txInput(overrides: Partial<NewTransaction> = {}): NewTransaction {
     excludedFromStats: false,
     importBatchId: null,
     dedupeHash: 'hash',
+    rawConcept: 'Compra',
+    normalizedConcept: 'compra',
+    normalizationVersion: 1,
+    merchantId: null,
+    merchantMatchSource: 'none',
+    merchantMatchConfidence: 0,
     ...overrides,
   };
 }

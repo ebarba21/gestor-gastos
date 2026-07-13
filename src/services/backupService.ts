@@ -64,6 +64,8 @@ export interface BackupSummary {
     accounts: number;
     categories: number;
     tags: number;
+    merchants: number;
+    merchantAliases: number;
     rules: number;
     budgets: number;
     importTemplates: number;
@@ -76,6 +78,8 @@ const TABLE_KEYS: readonly (keyof ProfileDataTables)[] = [
   'accounts',
   'categories',
   'tags',
+  'merchants',
+  'merchantAliases',
   'transactions',
   'rules',
   'budgets',
@@ -179,6 +183,8 @@ export function parseBackup(text: string): ProfileBackup {
     accounts: [],
     categories: [],
     tags: [],
+    merchants: [],
+    merchantAliases: [],
     transactions: [],
     rules: [],
     budgets: [],
@@ -226,6 +232,8 @@ export function summarizeBackup(backup: ProfileBackup): BackupSummary {
       accounts: d.accounts.length,
       categories: d.categories.length,
       tags: d.tags.length,
+      merchants: d.merchants.length,
+      merchantAliases: d.merchantAliases.length,
       rules: d.rules.length,
       budgets: d.budgets.length,
       importTemplates: d.importTemplates.length,
@@ -265,6 +273,8 @@ export function remapProfileData(
   const accountMap = buildIdMap(data.accounts, makeId);
   const categoryMap = buildIdMap(data.categories, makeId);
   const tagMap = buildIdMap(data.tags, makeId);
+  const merchantMap = buildIdMap(data.merchants, makeId);
+  const merchantAliasMap = buildIdMap(data.merchantAliases, makeId);
   const ruleMap = buildIdMap(data.rules, makeId);
   const templateMap = buildIdMap(data.importTemplates, makeId);
   const batchMap = buildIdMap(data.importBatches, makeId);
@@ -307,6 +317,22 @@ export function remapProfileData(
     profileId: targetProfileId,
   }));
 
+  const merchants = data.merchants.map((m) => ({
+    ...m,
+    id: merchantMap.get(m.id)!,
+    profileId: targetProfileId,
+    defaultCategoryId: remapRef(categoryMap, m.defaultCategoryId),
+    defaultSubcategoryId: remapRef(categoryMap, m.defaultSubcategoryId),
+    defaultTagIds: m.defaultTagIds.map((id) => tagMap.get(id) ?? id),
+  }));
+
+  const merchantAliases = data.merchantAliases.map((a) => ({
+    ...a,
+    id: merchantAliasMap.get(a.id)!,
+    profileId: targetProfileId,
+    merchantId: merchantMap.get(a.merchantId) ?? a.merchantId,
+  }));
+
   const transactions = data.transactions.map((t) => ({
     ...t,
     id: txMap.get(t.id)!,
@@ -321,18 +347,23 @@ export function remapProfileData(
     parentId: remapRef(txMap, t.parentId),
     refundOfId: remapRef(txMap, t.refundOfId),
     importBatchId: remapRef(batchMap, t.importBatchId),
+    merchantId: remapRef(merchantMap, t.merchantId),
   }));
 
   const rules = data.rules.map((r) => ({
     ...r,
     id: ruleMap.get(r.id)!,
     profileId: targetProfileId,
-    // Condiciones sobre cuenta: su value es un accountId y debe remapearse.
-    conditions: r.conditions.map((cond) =>
-      cond.field === 'account' && typeof cond.value === 'string'
-        ? { ...cond, value: accountMap.get(cond.value) ?? cond.value }
-        : { ...cond },
-    ),
+    // Condiciones sobre cuenta/comercio: su value es un id y debe remapearse.
+    conditions: r.conditions.map((cond) => {
+      if (cond.field === 'account' && typeof cond.value === 'string') {
+        return { ...cond, value: accountMap.get(cond.value) ?? cond.value };
+      }
+      if (cond.field === 'merchant' && typeof cond.value === 'string') {
+        return { ...cond, value: merchantMap.get(cond.value) ?? cond.value };
+      }
+      return { ...cond };
+    }),
     action: {
       ...r.action,
       setCategoryId: remapRef(categoryMap, r.action.setCategoryId),
@@ -374,6 +405,8 @@ export function remapProfileData(
     accounts: resetSync(accounts),
     categories: resetSync(categories),
     tags: resetSync(tags),
+    merchants: resetSync(merchants),
+    merchantAliases: resetSync(merchantAliases),
     transactions: resetSync(transactions),
     rules: resetSync(rules),
     budgets: resetSync(budgets),

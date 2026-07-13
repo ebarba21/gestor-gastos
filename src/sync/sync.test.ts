@@ -61,6 +61,12 @@ function txInput(accountId: string, overrides: Partial<NewTransaction> = {}): Ne
     excludedFromStats: false,
     importBatchId: null,
     dedupeHash: `h-${Math.random()}`,
+    rawConcept: 'Compra',
+    normalizedConcept: 'compra',
+    normalizationVersion: 1,
+    merchantId: null,
+    merchantMatchSource: 'none',
+    merchantMatchConfidence: 0,
     ...overrides,
   };
 }

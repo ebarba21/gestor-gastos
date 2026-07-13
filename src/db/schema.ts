@@ -39,7 +39,7 @@ export interface SyncMeta {
 }
 
 export type RuleMatchMode = 'all' | 'any';
-export type RuleConditionField = 'concept' | 'amount' | 'date' | 'account' | 'type';
+export type RuleConditionField = 'concept' | 'amount' | 'date' | 'account' | 'type' | 'merchant';
 export type RuleConditionOperator =
   // texto (concept)
   | 'contains'
@@ -68,6 +68,12 @@ export type AmountStrategy = 'signed' | 'debitCredit';
 export type DecimalSeparator = ',' | '.';
 export type ThousandSeparator = ',' | '.' | '';
 export type ImportBatchStatus = 'committed' | 'undone';
+
+// Comercios normalizados (ampliacion, fase 4). Ver DATA_MODEL seccion 14.
+export type MerchantMatchType = 'exact' | 'contains' | 'startsWith' | 'regex';
+// Como se asocio un movimiento a un comercio (orden determinista, DATA_MODEL 14.3):
+// manual > alias exacto/configurable > regla > sugerencia por similitud > sin comercio.
+export type MerchantMatchSource = 'manual' | 'alias' | 'rule' | 'import' | 'suggested' | 'none';
 
 // --- Entidades ---
 
@@ -161,6 +167,19 @@ export interface Transaction extends SyncMeta {
   statsFlag: StatsFlag;
   importBatchId: string | null;
   dedupeHash: string;
+  // --- Comercio normalizado (ampliacion, fase 4; DATA_MODEL seccion 14.3) ---
+  // Concepto original del banco. INMUTABLE tras importar (invariante 12 de CLAUDE.md); para
+  // altas manuales es igual a `concept`. `concept` sigue siendo el campo editable.
+  rawConcept: string;
+  // Concepto normalizado (normalizeConceptV1, src/lib/normalization.ts), misma funcion que
+  // los alias de comercio.
+  normalizedConcept: string;
+  // Version del algoritmo de normalizacion con el que se calculo normalizedConcept.
+  normalizationVersion: number;
+  merchantId: string | null;
+  merchantMatchSource: MerchantMatchSource;
+  // Confianza orientativa por mil (0..1000). No es una probabilidad real.
+  merchantMatchConfidence: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -253,6 +272,37 @@ export interface ImportBatch extends SyncMeta {
   updatedAt: number;
 }
 
+// Comercio normalizado (ampliacion, fase 4). Reconoce que conceptos bancarios distintos
+// ("AMZN Mktp ES", "AMAZON EU", "Amazon.es*1234") son el mismo comercio. Ver DATA_MODEL 14.1.
+export interface Merchant extends SyncMeta {
+  id: string;
+  profileId: string;
+  canonicalName: string;
+  normalizedName: string;
+  defaultCategoryId: string | null;
+  defaultSubcategoryId: string | null;
+  defaultTagIds: string[];
+  notes: string | null;
+  archivedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Alias de comercio: patron que reconoce un texto bancario concreto como perteneciente a un
+// Merchant. Ver DATA_MODEL 14.2.
+export interface MerchantAlias extends SyncMeta {
+  id: string;
+  merchantId: string;
+  profileId: string;
+  rawAlias: string;
+  normalizedAlias: string;
+  matchType: MerchantMatchType;
+  priority: number;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // --- Ampliacion fase 2: estructuras de sincronizacion (DATA_MODEL secciones 11-13) ---
 //
 // Las entidades de esta seccion son DEVICE-LOCAL: viven solo en Dexie, NUNCA se sincronizan a
@@ -270,7 +320,9 @@ export type SyncEntityType =
   | 'rule'
   | 'budget'
   | 'importTemplate'
-  | 'importBatch';
+  | 'importBatch'
+  | 'merchant'
+  | 'merchantAlias';
 
 export type MutationOperation = 'insert' | 'update' | 'delete';
 

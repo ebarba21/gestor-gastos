@@ -45,11 +45,13 @@ export function TransactionsSection() {
     accounts,
     categories,
     tags,
+    merchants,
     loading,
     error,
     reload,
     accountNames,
     categoryNames,
+    merchantNames,
   } = useTransactions();
   const { showToast } = useToast();
 
@@ -240,6 +242,7 @@ export function TransactionsSection() {
                   onActions={setActionsFor}
                   accountNames={accountNames}
                   categoryNames={categoryNames}
+                  merchantNames={merchantNames}
                   locale={LOCALE}
                   currency={CURRENCY}
                 />
@@ -342,6 +345,8 @@ export function TransactionsSection() {
         profileId={profileId}
         tx={actionsFor}
         accounts={accounts}
+        merchants={merchants}
+        merchantNames={merchantNames}
         onEdit={(t) => {
           setActionsFor(null);
           setEditing(t);

@@ -21,6 +21,7 @@ import {
   type NameLookups,
 } from '../../services/exportService';
 import { ruleService } from '../../services/ruleService';
+import { merchantService } from '../../services/merchantService';
 import { budgetService } from '../../services/budgetService';
 import { statsService } from '../../services/statsService';
 import {
@@ -53,6 +54,7 @@ export function ExportSection() {
     accountNames,
     categoryNames,
     tagNames,
+    merchantNames,
   } = useTransactions();
   const { activeProfile, reload: reloadProfiles, switchProfile } = useProfiles();
   const { showToast } = useToast();
@@ -69,8 +71,8 @@ export function ExportSection() {
   const [restore, setRestore] = useState<RestoreState | null>(null);
 
   const names: NameLookups = useMemo(
-    () => ({ accountNames, categoryNames, tagNames }),
-    [accountNames, categoryNames, tagNames],
+    () => ({ accountNames, categoryNames, tagNames, merchantNames }),
+    [accountNames, categoryNames, tagNames, merchantNames],
   );
 
   // Descarga un libro XLSX (una o varias hojas) con manejo de errores explicito.
@@ -110,6 +112,24 @@ export function ExportSection() {
 
   const exportCategories = () =>
     void exportWorkbook([exportService.buildCategoriesSheet(categories)], EXPORT_LABELS.categories);
+
+  const exportMerchants = async () => {
+    try {
+      const [merchants, aliases] = await Promise.all([
+        merchantService.list(profileId),
+        merchantService.listAllAliases(profileId),
+      ]);
+      await exportWorkbook(
+        [
+          exportService.buildMerchantsSheet(merchants, names),
+          exportService.buildMerchantAliasesSheet(aliases, merchantNames),
+        ],
+        EXPORT_LABELS.merchants,
+      );
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudieron cargar los comercios.', 'error');
+    }
+  };
 
   const exportRules = async () => {
     try {
@@ -288,6 +308,9 @@ export function ExportSection() {
           <button type="button" disabled={busy} onClick={() => void exportRules()} className={exportBtn}>
             Reglas
           </button>
+          <button type="button" disabled={busy} onClick={() => void exportMerchants()} className={exportBtn}>
+            Comercios
+          </button>
           <button type="button" disabled={busy} onClick={() => void exportBudgets()} className={exportBtn}>
             Metas
           </button>
@@ -372,8 +395,9 @@ export function ExportSection() {
               <p className="text-slate-400">
                 Contiene {restore.summary.counts.transactions} movimientos,{' '}
                 {restore.summary.counts.accounts} cuentas, {restore.summary.counts.categories}{' '}
-                categorias, {restore.summary.counts.rules} reglas y{' '}
-                {restore.summary.counts.budgets} metas.
+                categorias, {restore.summary.counts.merchants} comercios (
+                {restore.summary.counts.merchantAliases} alias), {restore.summary.counts.rules}{' '}
+                reglas y {restore.summary.counts.budgets} metas.
               </p>
               <p className="text-amber-300">
                 <strong>Sobrescribir este perfil</strong> borra por completo los datos actuales de{' '}

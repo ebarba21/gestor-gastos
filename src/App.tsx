@@ -3,6 +3,7 @@ import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
 import ImportPage from './pages/ImportPage';
 import RulesPage from './pages/RulesPage';
+import MerchantsPage from './pages/MerchantsPage';
 import CategoriesPage from './pages/CategoriesPage';
 import AccountsPage from './pages/AccountsPage';
 import BudgetsPage from './pages/BudgetsPage';
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/movimientos', label: 'Movimientos' },
   { to: '/importar', label: 'Importar' },
   { to: '/reglas', label: 'Reglas' },
+  { to: '/comercios', label: 'Comercios' },
   { to: '/categorias', label: 'Categorias' },
   { to: '/cuentas', label: 'Cuentas' },
   { to: '/presupuestos', label: 'Presupuestos' },
@@ -81,6 +83,7 @@ function AppLayout() {
           <Route path="/movimientos" element={<TransactionsPage />} />
           <Route path="/importar" element={<ImportPage />} />
           <Route path="/reglas" element={<RulesPage />} />
+          <Route path="/comercios" element={<MerchantsPage />} />
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/cuentas" element={<AccountsPage />} />
           <Route path="/presupuestos" element={<BudgetsPage />} />

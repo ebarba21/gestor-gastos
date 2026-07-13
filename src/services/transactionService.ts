@@ -16,6 +16,7 @@ import type {
 import { transactionsRepo } from '../db/transactionsRepo';
 import type { NewTransaction, TransactionPatch } from '../db/transactionsRepo';
 import { computeDedupeHash } from '../lib/dedupe';
+import { normalizeConceptV1, NORMALIZATION_VERSION } from '../lib/normalization';
 import { assert, ValidationError, requireId, requireProfileId } from '../lib/validation';
 import { assertCents } from '../lib/money';
 
@@ -114,6 +115,13 @@ function buildNewTransaction(profileId: string, input: TransactionInput): NewTra
       amountCents: input.amountCents,
       concept,
     }),
+    // Alta manual: no hay concepto bancario distinto del editado por el usuario.
+    rawConcept: concept,
+    normalizedConcept: normalizeConceptV1(concept),
+    normalizationVersion: NORMALIZATION_VERSION,
+    merchantId: null,
+    merchantMatchSource: 'none',
+    merchantMatchConfidence: 0,
   };
 }
 
@@ -442,6 +450,13 @@ export const transactionService = {
       excludedFromStats: true, // una transferencia no es gasto ni ingreso
       importBatchId: null,
       date: input.date,
+      // Una transferencia no tiene comercio: mueve dinero propio, no es una compra.
+      rawConcept: concept,
+      normalizedConcept: normalizeConceptV1(concept),
+      normalizationVersion: NORMALIZATION_VERSION,
+      merchantId: null,
+      merchantMatchSource: 'none' as const,
+      merchantMatchConfidence: 0,
     };
 
     const out: NewTransaction = {
@@ -532,6 +547,13 @@ export const transactionService = {
         amountCents: mirrorAmount,
         concept: current.concept,
       }),
+      // La pata espejo no es una compra: sin comercio, aunque conserva el concepto original.
+      rawConcept: current.rawConcept,
+      normalizedConcept: current.normalizedConcept,
+      normalizationVersion: current.normalizationVersion,
+      merchantId: null,
+      merchantMatchSource: 'none',
+      merchantMatchConfidence: 0,
     };
     const [created] = await transactionsRepo.createMany(profileId, [mirror]);
     return [updated, created!];
@@ -622,6 +644,14 @@ export const transactionService = {
           amountCents: part.amountCents,
           concept,
         }),
+        // Las lineas de split son porciones del MISMO movimiento bancario original: heredan
+        // el concepto original inmutable y la asociacion de comercio del padre.
+        rawConcept: p.rawConcept,
+        normalizedConcept: p.normalizedConcept,
+        normalizationVersion: p.normalizationVersion,
+        merchantId: p.merchantId,
+        merchantMatchSource: p.merchantMatchSource,
+        merchantMatchConfidence: p.merchantMatchConfidence,
       };
     });
 

@@ -11,6 +11,8 @@ import type {
   Category,
   ImportBatch,
   ImportTemplate,
+  Merchant,
+  MerchantAlias,
   Profile,
   Rule,
   Setting,
@@ -28,6 +30,8 @@ export interface ProfileDataTables {
   accounts: Account[];
   categories: Category[];
   tags: Tag[];
+  merchants: Merchant[];
+  merchantAliases: MerchantAlias[];
   transactions: Transaction[];
   rules: Rule[];
   budgets: Budget[];
@@ -56,6 +60,8 @@ export const backupRepo = {
         accounts,
         categories,
         tags,
+        merchants,
+        merchantAliases,
         transactions,
         rules,
         budgets,
@@ -66,6 +72,8 @@ export const backupRepo = {
         db.accounts.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.categories.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.tags.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.merchants.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.merchantAliases.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.transactions.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.rules.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.budgets.where('profileId').equals(profileId).filter(isAlive).toArray(),
@@ -80,6 +88,8 @@ export const backupRepo = {
           accounts,
           categories,
           tags,
+          merchants,
+          merchantAliases,
           transactions,
           rules,
           budgets,
@@ -133,6 +143,8 @@ async function bulkAddAll(data: ProfileDataTables): Promise<void> {
   if (data.accounts.length > 0) await db.accounts.bulkAdd(data.accounts);
   if (data.categories.length > 0) await db.categories.bulkAdd(data.categories);
   if (data.tags.length > 0) await db.tags.bulkAdd(data.tags);
+  if (data.merchants.length > 0) await db.merchants.bulkAdd(data.merchants);
+  if (data.merchantAliases.length > 0) await db.merchantAliases.bulkAdd(data.merchantAliases);
   if (data.transactions.length > 0) await db.transactions.bulkAdd(data.transactions);
   if (data.rules.length > 0) await db.rules.bulkAdd(data.rules);
   if (data.budgets.length > 0) await db.budgets.bulkAdd(data.budgets);

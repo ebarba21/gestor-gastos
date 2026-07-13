@@ -12,6 +12,7 @@ import { CategorySpendChart } from './CategorySpendChart';
 import { IncomeExpenseChart } from './IncomeExpenseChart';
 import { TopExpensesCard } from './TopExpensesCard';
 import { RecurringCard } from './RecurringCard';
+import { MerchantSpendCard } from './MerchantSpendCard';
 import { SavingsInvestmentSection } from './SavingsInvestmentSection';
 
 // Tarjeta con titulo para envolver un grafico o lista.
@@ -46,6 +47,7 @@ export function DashboardSection() {
     categoryNames,
     categoryColors,
     accountNames,
+    merchantNames,
     loading,
     error,
   } = useDashboard();
@@ -164,6 +166,10 @@ export function DashboardSection() {
               <RecurringCard recurring={data.recurring} />
             </Card>
           </div>
+
+          <Card title="Gasto por comercio" subtitle="Ranking de gasto del periodo por comercio asociado">
+            <MerchantSpendCard merchantSpend={data.merchantSpend} merchantNames={merchantNames} />
+          </Card>
 
           {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolucion completa,
               sin filtro cruzado (ver DashboardData.savingsInvestment). */}

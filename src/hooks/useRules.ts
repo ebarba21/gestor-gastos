@@ -8,7 +8,8 @@ import { ruleService } from '../services/ruleService';
 import { accountService } from '../services/accountService';
 import { categoryService } from '../services/categoryService';
 import { tagService } from '../services/tagService';
-import type { Account, Category, Rule, Tag } from '../db/schema';
+import { merchantService } from '../services/merchantService';
+import type { Account, Category, Merchant, Rule, Tag } from '../db/schema';
 
 export interface UseRules {
   profileId: string;
@@ -16,12 +17,14 @@ export interface UseRules {
   accounts: Account[];
   categories: Category[];
   tags: Tag[];
+  merchants: Merchant[];
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
   accountNames: Map<string, string>;
   categoryNames: Map<string, string>;
   tagNames: Map<string, string>;
+  merchantNames: Map<string, string>;
 }
 
 export function useRules(): UseRules {
@@ -30,6 +33,7 @@ export function useRules(): UseRules {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,16 +41,18 @@ export function useRules(): UseRules {
     setLoading(true);
     try {
       // Cargas en paralelo. Todas exigen profileId (aislamiento por diseno).
-      const [rs, accs, cats, tgs] = await Promise.all([
+      const [rs, accs, cats, tgs, merchs] = await Promise.all([
         ruleService.list(profileId),
         accountService.listAll(profileId),
         categoryService.listAll(profileId),
         tagService.listTags(profileId),
+        merchantService.list(profileId),
       ]);
       setRules(rs);
       setAccounts(accs);
       setCategories(cats);
       setTags(tgs);
+      setMerchants(merchs);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cargar las reglas.');
@@ -65,6 +71,10 @@ export function useRules(): UseRules {
     [categories],
   );
   const tagNames = useMemo(() => new Map(tags.map((t) => [t.id, t.name])), [tags]);
+  const merchantNames = useMemo(
+    () => new Map(merchants.map((m) => [m.id, m.canonicalName])),
+    [merchants],
+  );
 
   return {
     profileId,
@@ -72,11 +82,13 @@ export function useRules(): UseRules {
     accounts,
     categories,
     tags,
+    merchants,
     loading,
     error,
     reload,
     accountNames,
     categoryNames,
     tagNames,
+    merchantNames,
   };
 }

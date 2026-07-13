@@ -41,6 +41,12 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
     statsFlag: 0,
     importBatchId: null,
     dedupeHash: 'h',
+    rawConcept: 'Compra',
+    normalizedConcept: 'compra',
+    normalizationVersion: 1,
+    merchantId: null,
+    merchantMatchSource: 'none',
+    merchantMatchConfidence: 0,
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
@@ -57,6 +63,7 @@ const names: NameLookups = {
     ['sub1', 'Supermercado'],
   ]),
   tagNames: new Map([['tag1', 'basico']]),
+  merchantNames: new Map([['merch1', 'Amazon']]),
 };
 
 describe('computeAccountBalances', () => {
@@ -94,15 +101,15 @@ describe('buildTransactionsSheet', () => {
     expect(sheet.rows[0]).toContain('Importe (EUR)');
     // Fila 1: gasto en euros negativo, categoria y cuenta por nombre.
     const row1 = sheet.rows[1]!;
-    expect(row1[2]).toBe(-25); // -2500 centimos -> -25 euros, signo preservado
-    expect(row1[3]).toBe('Gasto');
-    expect(row1[4]).toBe('Alimentacion');
-    expect(row1[5]).toBe('Supermercado');
-    expect(row1[6]).toBe('Banco');
-    expect(row1[7]).toBe('basico');
+    expect(row1[3]).toBe(-25); // -2500 centimos -> -25 euros, signo preservado
+    expect(row1[4]).toBe('Gasto');
+    expect(row1[5]).toBe('Alimentacion');
+    expect(row1[6]).toBe('Supermercado');
+    expect(row1[7]).toBe('Banco');
+    expect(row1[9]).toBe('basico');
     // Fila 2: ingreso en euros positivo.
-    expect(sheet.rows[2]![2]).toBe(120);
-    expect(sheet.rows[2]![3]).toBe('Ingreso');
+    expect(sheet.rows[2]![3]).toBe(120);
+    expect(sheet.rows[2]![4]).toBe('Ingreso');
   });
 });
 

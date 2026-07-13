@@ -47,6 +47,7 @@ export const OPERATORS_BY_FIELD: Record<RuleConditionField, readonly RuleConditi
   date: ['before', 'after', 'between'],
   account: ['equals'],
   type: ['equals'],
+  merchant: ['equals'],
 };
 
 const VALID_TX_TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
@@ -64,6 +65,7 @@ export interface EvaluableTransaction {
   date: string; // YYYY-MM-DD (ordenable lexicograficamente)
   accountId: string;
   type: TransactionType;
+  merchantId: string | null;
 }
 
 // Estado de categorizacion actual de un movimiento (lo que una regla podria cambiar).
@@ -222,6 +224,8 @@ export function conditionMatches(condition: RuleCondition, tx: EvaluableTransact
       return dateConditionMatches(condition, tx.date);
     case 'account':
       return condition.operator === 'equals' && tx.accountId === String(condition.value);
+    case 'merchant':
+      return condition.operator === 'equals' && tx.merchantId === String(condition.value);
     case 'type':
       return condition.operator === 'equals' && tx.type === String(condition.value);
     default:
@@ -428,6 +432,7 @@ export function applyRulesToDraft(rules: Rule[], draft: NewTransaction): void {
     date: draft.date,
     accountId: draft.accountId,
     type: draft.type,
+    merchantId: draft.merchantId,
   });
   const next = categorizationFrom(
     {
@@ -525,6 +530,13 @@ export function validateCondition(condition: RuleCondition): void {
       assert(
         typeof condition.value === 'string' && condition.value.length > 0,
         'La condicion de cuenta necesita una cuenta.',
+      );
+      break;
+    }
+    case 'merchant': {
+      assert(
+        typeof condition.value === 'string' && condition.value.length > 0,
+        'La condicion de comercio necesita un comercio.',
       );
       break;
     }

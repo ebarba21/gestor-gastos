@@ -86,6 +86,12 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'statsFlag', remote: 'stats_flag', kind: 'plain' },
     { local: 'importBatchId', remote: 'import_batch_id', kind: 'plain' },
     { local: 'dedupeHash', remote: 'dedupe_hash', kind: 'plain' },
+    { local: 'rawConcept', remote: 'raw_concept', kind: 'plain' },
+    { local: 'normalizedConcept', remote: 'normalized_concept', kind: 'plain' },
+    { local: 'normalizationVersion', remote: 'normalization_version', kind: 'plain' },
+    { local: 'merchantId', remote: 'merchant_id', kind: 'plain' },
+    { local: 'merchantMatchSource', remote: 'merchant_match_source', kind: 'plain' },
+    { local: 'merchantMatchConfidence', remote: 'merchant_match_confidence', kind: 'plain' },
   ],
   rule: [
     { local: 'name', remote: 'name', kind: 'plain' },
@@ -127,6 +133,23 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'rowsImported', remote: 'rows_imported', kind: 'plain' },
     { local: 'rowsSkippedDuplicate', remote: 'rows_skipped_duplicate', kind: 'plain' },
     { local: 'status', remote: 'status', kind: 'plain' },
+  ],
+  merchant: [
+    { local: 'canonicalName', remote: 'canonical_name', kind: 'plain' },
+    { local: 'normalizedName', remote: 'normalized_name', kind: 'plain' },
+    { local: 'defaultCategoryId', remote: 'default_category_id', kind: 'plain' },
+    { local: 'defaultSubcategoryId', remote: 'default_subcategory_id', kind: 'plain' },
+    { local: 'defaultTagIds', remote: 'default_tag_ids', kind: 'plain' },
+    { local: 'notes', remote: 'notes', kind: 'plain' },
+    { local: 'archivedAt', remote: 'archived_at', kind: 'msNull' },
+  ],
+  merchantAlias: [
+    { local: 'merchantId', remote: 'merchant_id', kind: 'plain' },
+    { local: 'rawAlias', remote: 'raw_alias', kind: 'plain' },
+    { local: 'normalizedAlias', remote: 'normalized_alias', kind: 'plain' },
+    { local: 'matchType', remote: 'match_type', kind: 'plain' },
+    { local: 'priority', remote: 'priority', kind: 'plain' },
+    { local: 'enabled', remote: 'enabled', kind: 'plain' },
   ],
 };
 

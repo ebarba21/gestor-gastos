@@ -28,6 +28,7 @@ interface TransactionRowProps {
   onActions: (tx: Transaction) => void;
   accountNames: Map<string, string>;
   categoryNames: Map<string, string>;
+  merchantNames: Map<string, string>;
   locale: string;
   currency: string;
 }
@@ -40,6 +41,7 @@ export function TransactionRow({
   onActions,
   accountNames,
   categoryNames,
+  merchantNames,
   locale,
   currency,
 }: TransactionRowProps) {
@@ -48,6 +50,7 @@ export function TransactionRow({
   const categoryLabel = tx.categoryId ? (categoryNames.get(tx.categoryId) ?? '—') : 'Sin categoria';
   const subLabel = tx.subcategoryId ? categoryNames.get(tx.subcategoryId) : undefined;
   const accountLabel = accountNames.get(tx.accountId) ?? '—';
+  const merchantLabel = tx.merchantId ? merchantNames.get(tx.merchantId) : undefined;
 
   return (
     <div
@@ -82,6 +85,7 @@ export function TransactionRow({
             <span className="tabular-nums sm:hidden">{tx.date} · </span>
             {categoryLabel}
             {subLabel ? ` › ${subLabel}` : ''} · {accountLabel}
+            {merchantLabel ? ` · ${merchantLabel}` : ''}
           </span>
           {tx.excludedFromStats && <Badge className="bg-slate-700 text-slate-300">Excluido</Badge>}
           {tx.isSplitParent && <Badge className="bg-violet-900/50 text-violet-300">Split</Badge>}

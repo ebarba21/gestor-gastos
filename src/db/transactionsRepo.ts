@@ -41,7 +41,13 @@ export type NewTransaction = Omit<
   Transaction,
   'id' | 'profileId' | 'createdAt' | 'updatedAt' | 'statsFlag' | keyof SyncMeta
 >;
-export type TransactionPatch = Partial<NewTransaction>;
+// rawConcept es INMUTABLE tras crear el movimiento (invariante 12 de CLAUDE.md); normalizedConcept
+// y normalizationVersion se derivan de el y solo cambian junto con un recalculo explicito de
+// normalizacion (migracion de esquema), nunca via un patch de actualizacion normal. Excluirlos
+// del tipo hace el invariante exigible en compilacion, no solo por convencion de los servicios.
+export type TransactionPatch = Partial<
+  Omit<NewTransaction, 'rawConcept' | 'normalizedConcept' | 'normalizationVersion'>
+>;
 
 // Valida las reglas de integridad del modelo. Sin errores silenciosos.
 function validateIntegrity(t: {
@@ -254,6 +260,34 @@ export const transactionsRepo = {
       set.add(key[1]);
     }
     return set;
+  },
+
+  // Movimientos asociados a un comercio (indice [profileId+merchantId]).
+  listByMerchant(profileId: string, merchantId: string): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    return db.transactions
+      .where('[profileId+merchantId]')
+      .equals([profileId, merchantId])
+      .filter(isAlive)
+      .toArray();
+  },
+
+  // Movimientos SIN comercio asociado (para revisar candidatos de nuevos comercios). Dexie no
+  // indexa null en indices compuestos: se escanea el perfil y se filtra en memoria (uso
+  // puntual desde la seccion de comercios, no en caliente).
+  async listWithoutMerchant(profileId: string): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    const all = await db.transactions.where('profileId').equals(profileId).filter(isAlive).toArray();
+    return all.filter((t) => t.merchantId === null);
+  },
+
+  countByMerchant(profileId: string, merchantId: string): Promise<number> {
+    requireProfileId(profileId);
+    return db.transactions
+      .where('[profileId+merchantId]')
+      .equals([profileId, merchantId])
+      .filter(isAlive)
+      .count();
   },
 
   listByImportBatch(profileId: string, importBatchId: string): Promise<Transaction[]> {

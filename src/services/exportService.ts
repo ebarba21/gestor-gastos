@@ -13,6 +13,8 @@ import type {
   Account,
   Budget,
   Category,
+  Merchant,
+  MerchantAlias,
   Rule,
   RuleCondition,
   Transaction,
@@ -43,6 +45,7 @@ export interface NameLookups {
   accountNames: Map<string, string>;
   categoryNames: Map<string, string>;
   tagNames: Map<string, string>;
+  merchantNames: Map<string, string>;
 }
 
 const TX_TYPE_LABELS: Record<TransactionType, string> = {
@@ -100,11 +103,13 @@ export function computeAccountBalances(
 const TX_HEADER: ExportCell[] = [
   'Fecha',
   'Concepto',
+  'Concepto original',
   'Importe (EUR)',
   'Tipo',
   'Categoria',
   'Subcategoria',
   'Cuenta',
+  'Comercio',
   'Etiquetas',
   'Estado',
   'Notas',
@@ -116,11 +121,13 @@ function txRow(t: Transaction, names: NameLookups): ExportCell[] {
   return [
     t.date,
     t.concept,
+    t.rawConcept,
     eur(t.amountCents),
     TX_TYPE_LABELS[t.type],
     nameOf(names.categoryNames, t.categoryId),
     nameOf(names.categoryNames, t.subcategoryId),
     nameOf(names.accountNames, t.accountId),
+    nameOf(names.merchantNames, t.merchantId),
     t.tagIds.map((id) => nameOf(names.tagNames, id)).join(', '),
     TX_STATUS_LABELS[t.status],
     t.notes ?? '',
@@ -204,9 +211,55 @@ function describeCondition(cond: RuleCondition, names: NameLookups): string {
   const value =
     cond.field === 'account' && typeof cond.value === 'string'
       ? nameOf(names.accountNames, cond.value)
-      : String(cond.value);
+      : cond.field === 'merchant' && typeof cond.value === 'string'
+        ? nameOf(names.merchantNames, cond.value)
+        : String(cond.value);
   const value2 = cond.value2 === null ? '' : ` .. ${String(cond.value2)}`;
   return `${cond.field} ${cond.operator} ${value}${value2}`.trim();
+}
+
+// --- Comercios (fase 4) ---
+
+const MATCH_TYPE_LABELS: Record<MerchantAlias['matchType'], string> = {
+  exact: 'Exacto',
+  contains: 'Contiene',
+  startsWith: 'Empieza por',
+  regex: 'Regex',
+};
+
+export function buildMerchantsSheet(merchants: Merchant[], names: NameLookups): SheetSpec {
+  const header: ExportCell[] = [
+    'Nombre',
+    'Categoria por defecto',
+    'Subcategoria por defecto',
+    'Etiquetas por defecto',
+    'Notas',
+    'Archivado',
+  ];
+  const rows = merchants.map((m) => [
+    m.canonicalName,
+    nameOf(names.categoryNames, m.defaultCategoryId),
+    nameOf(names.categoryNames, m.defaultSubcategoryId),
+    m.defaultTagIds.map((id) => nameOf(names.tagNames, id)).join(', '),
+    m.notes ?? '',
+    m.archivedAt === null ? 'No' : 'Si',
+  ]);
+  return { name: 'Comercios', rows: [header, ...rows] };
+}
+
+export function buildMerchantAliasesSheet(
+  aliases: MerchantAlias[],
+  merchantNames: Map<string, string>,
+): SheetSpec {
+  const header: ExportCell[] = ['Comercio', 'Alias', 'Tipo de coincidencia', 'Prioridad', 'Activo'];
+  const rows = aliases.map((a) => [
+    nameOf(merchantNames, a.merchantId),
+    a.rawAlias,
+    MATCH_TYPE_LABELS[a.matchType],
+    a.priority,
+    a.enabled ? 'Si' : 'No',
+  ]);
+  return { name: 'Alias de comercio', rows: [header, ...rows] };
 }
 
 export function buildRulesSheet(rules: Rule[], names: NameLookups): SheetSpec {
@@ -402,6 +455,7 @@ export const EXPORT_LABELS = {
   rules: 'reglas',
   budgets: 'metas',
   dashboard: 'dashboard',
+  merchants: 'comercios',
 } as const;
 
 export const exportService = {
@@ -413,4 +467,6 @@ export const exportService = {
   buildRulesSheet,
   buildBudgetsSheet,
   buildDashboardSheets,
+  buildMerchantsSheet,
+  buildMerchantAliasesSheet,
 };

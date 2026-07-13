@@ -96,11 +96,29 @@ export const ENTITY_REGISTRY: Record<SyncEntityType, EntityInfo> = {
     hasProfileId: true,
     financial: true,
   },
+  // Comercios (fase 4): deben subir ANTES que transactions, que puede referenciarlos por
+  // merchantId (FK compuesta profile_id+merchant_id en remoto).
+  merchant: {
+    entityType: 'merchant',
+    remoteTable: 'merchants',
+    localTable: 'merchants',
+    order: 9,
+    hasProfileId: true,
+    financial: true,
+  },
+  merchantAlias: {
+    entityType: 'merchantAlias',
+    remoteTable: 'merchant_aliases',
+    localTable: 'merchantAliases',
+    order: 10,
+    hasProfileId: true,
+    financial: true,
+  },
   transaction: {
     entityType: 'transaction',
     remoteTable: 'transactions',
     localTable: 'transactions',
-    order: 9,
+    order: 11,
     hasProfileId: true,
     financial: true,
   },

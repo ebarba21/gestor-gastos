@@ -14,6 +14,8 @@ import type {
   Budget,
   ImportTemplate,
   ImportBatch,
+  Merchant,
+  MerchantAlias,
   SyncMeta,
   OutboxMutation,
   Conflict,
@@ -23,6 +25,7 @@ import type {
   EncryptedSessionRow,
   WebAuthnCredentialRef,
 } from './schema';
+import { backfillMerchantFields, type LegacyTransactionRow } from './merchantMigration';
 
 export class GestorGastosDB extends Dexie {
   profiles!: Table<Profile, string>;
@@ -35,6 +38,9 @@ export class GestorGastosDB extends Dexie {
   budgets!: Table<Budget, string>;
   importTemplates!: Table<ImportTemplate, string>;
   importBatches!: Table<ImportBatch, string>;
+  // Comercios normalizados (ampliacion, fase 4).
+  merchants!: Table<Merchant, string>;
+  merchantAliases!: Table<MerchantAlias, string>;
   // Tablas device-local de la ampliacion (fase 2). NO se sincronizan ni entran en backups.
   outbox!: Table<OutboxMutation, string>;
   conflicts!: Table<Conflict, string>;
@@ -182,13 +188,81 @@ export class GestorGastosDB extends Dexie {
       // Referencias locales a passkeys registradas (la credencial vive en el autenticador/SO).
       webauthnCredentials: 'id, credentialId',
     });
+
+    // Version 5 (ampliacion, fase 4): comercios normalizados (DATA_MODEL seccion 14). Aditiva:
+    //   - Crea las tablas nuevas merchants/merchantAliases (sincronizables, entran en backup).
+    //   - transactions gana los campos de comercio (rawConcept, normalizedConcept,
+    //     normalizationVersion, merchantId, merchantMatchSource, merchantMatchConfidence) y los
+    //     indices [profileId+merchantId] y [profileId+normalizedConcept]. El upgrade rellena los
+    //     defaults en las filas existentes: rawConcept = concept actual, normalizedConcept
+    //     calculado con la version vigente del algoritmo, sin comercio asociado (el motor de
+    //     asociacion y la revision de candidatos son un paso posterior explicito del usuario,
+    //     nunca una fusion automatica silenciosa).
+    this.version(5)
+      .stores({
+        merchants: 'id, profileId, [profileId+normalizedName], [profileId+archivedAt], [profileId+syncStatus]',
+        merchantAliases:
+          'id, profileId, merchantId, [profileId+normalizedAlias], [profileId+enabled], ' +
+          '[profileId+syncStatus]',
+        transactions:
+          'id, profileId, ' +
+          '[profileId+date], [profileId+accountId], [profileId+categoryId], ' +
+          '[profileId+type], [profileId+statsFlag], [profileId+transferGroupId], ' +
+          '[profileId+parentId], [profileId+refundOfId], [profileId+importBatchId], ' +
+          '[profileId+dedupeHash], [profileId+syncStatus], [profileId+merchantId], ' +
+          '[profileId+normalizedConcept], *tagIds',
+      })
+      .upgrade(async (tx) => {
+        const profiles = await tx.table('profiles').toArray();
+        const ownerByProfile = new Map<string, string | null>(
+          profiles.map((p: { id: string; ownerUserId: string | null }) => [p.id, p.ownerUserId ?? null]),
+        );
+        const ts = now();
+        const toEnqueue: Array<{ userId: string; profileId: string; entityId: string; entity: Record<string, unknown> }> = [];
+        await tx
+          .table('transactions')
+          .toCollection()
+          .modify((row: LegacyTransactionRow) => {
+            const touched = backfillMerchantFields(row);
+            // Los campos nuevos son datos de negocio: si la fila ya estaba confirmada en
+            // remoto (syncStatus 'synced') y el perfil esta vinculado a una cuenta, hay que
+            // subir la correccion para no perder la normalizacion en otros dispositivos.
+            const userId = ownerByProfile.get(row.profileId) ?? null;
+            if (touched && userId && row.syncStatus === 'synced') {
+              row.syncStatus = 'pending';
+              toEnqueue.push({
+                userId,
+                profileId: row.profileId,
+                entityId: row.id as string,
+                entity: { ...row },
+              });
+            }
+          });
+        for (const item of toEnqueue) {
+          await tx.table('outbox').add({
+            mutationId: newId(),
+            userId: item.userId,
+            profileId: item.profileId,
+            entityType: 'transaction',
+            entityId: item.entityId,
+            operation: 'update',
+            payload: item.entity,
+            baseRevision: (item.entity.revision as number) ?? 0,
+            createdAt: ts,
+            attempts: 0,
+            lastAttemptAt: null,
+            lastError: null,
+            status: 'queued',
+          });
+        }
+      });
   }
 }
 
 // Version del esquema de datos (Dexie). Fuente unica: la usan los backups para saber con
 // que version se generaron y decidir si son restaurables (DATA_MODEL seccion 7). Debe
 // coincidir con la ultima db.version(n) declarada arriba.
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 // Singleton de la base de datos usado por todos los repositorios.
 export const db = new GestorGastosDB();
@@ -199,6 +273,8 @@ export const childTables: readonly Table<{ profileId: string }, string>[] = [
   db.accounts,
   db.categories,
   db.tags,
+  db.merchants,
+  db.merchantAliases,
   db.transactions,
   db.rules,
   db.budgets,
