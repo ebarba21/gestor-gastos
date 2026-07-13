@@ -12,6 +12,10 @@
 // Nombres de las variables de entorno. Fuente unica para docs y validacion.
 export const SUPABASE_URL_ENV = 'VITE_SUPABASE_URL';
 export const SUPABASE_PUBLISHABLE_KEY_ENV = 'VITE_SUPABASE_PUBLISHABLE_KEY';
+// Feature flag de passkeys (fase 3, CLOUD_SYNC_SECURITY seccion 11). La integracion oficial de
+// Supabase Auth sigue siendo experimental: desactivada por defecto. Ver
+// docs/FASE3_CONFIGURACION_MANUAL.md para la configuracion manual pendiente en el Dashboard.
+export const ENABLE_PASSKEYS_ENV = 'VITE_ENABLE_PASSKEYS';
 
 // Prefijos de nombres de variable que jamas deben aparecer en el bundle del cliente.
 // Se usa como barrera defensiva en desarrollo (ver assertNoServiceRoleInEnv).
@@ -21,6 +25,8 @@ const FORBIDDEN_ENV_SUBSTRINGS = ['SERVICE_ROLE', 'SERVICE_KEY', 'SECRET'] as co
 export interface SupabaseConfig {
   url: string;
   publishableKey: string;
+  // Passkeys experimentales (opt-in explicito del cliente, ver CLOUD_SYNC_SECURITY seccion 11).
+  enablePasskeys: boolean;
 }
 
 // Resultado de resolver la configuracion:
@@ -63,6 +69,9 @@ export function resolveSupabaseConfig(
 ): SupabaseConfigResult {
   const url = normalize(env[SUPABASE_URL_ENV]);
   const publishableKey = normalize(env[SUPABASE_PUBLISHABLE_KEY_ENV]);
+  // Desactivado por defecto salvo que se ponga explicitamente a 'true' (integracion
+  // experimental, ver CLOUD_SYNC_SECURITY seccion 11). Cualquier otro valor cuenta como false.
+  const enablePasskeys = normalize(env[ENABLE_PASSKEYS_ENV]).toLowerCase() === 'true';
 
   const anyPresent = url.length > 0 || publishableKey.length > 0;
   if (!anyPresent) {
@@ -89,7 +98,7 @@ export function resolveSupabaseConfig(
     };
   }
 
-  return { status: 'configured', config: { url, publishableKey } };
+  return { status: 'configured', config: { url, publishableKey, enablePasskeys } };
 }
 
 // Barrera defensiva: si por error se filtra una clave de servicio a las variables VITE_*

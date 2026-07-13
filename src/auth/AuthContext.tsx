@@ -34,11 +34,18 @@ interface AuthContextValue {
   emailPending: boolean;
   // true tras seguir un enlace de recuperacion: la UI debe pedir nueva contrasena.
   recoveryMode: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  // Devuelve la Session (no solo void): la recuperacion de PIN (LockContext) necesita el
+  // user.id resultante para verificar que la cuenta reautenticada es dueña de datos de este
+  // dispositivo, no solo que las credenciales son validas para alguna cuenta del proyecto.
+  signIn: (email: string, password: string) => Promise<Session>;
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
+  // Cierra las sesiones de otros dispositivos, conservando la actual (CLOUD_SYNC_SECURITY 1).
+  signOutOthers: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  // Reautenticacion para acciones sensibles (cambio de contrasena, recuperacion de PIN).
+  reauthenticate: (password: string) => Promise<void>;
   resendConfirmation: (email: string) => Promise<void>;
   clearRecoveryMode: () => void;
 }
@@ -106,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const next = await authService.signIn(email, password);
     setSession(next);
     setStatus('signed-in');
+    return next;
   }, []);
 
   const signUp = useCallback(
@@ -118,6 +126,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setStatus('signed-out');
     setRecoveryMode(false);
+  }, []);
+
+  const signOutOthers = useCallback(async () => {
+    await authService.signOutOthers();
+  }, []);
+
+  const reauthenticate = useCallback(async (password: string) => {
+    const next = await authService.reauthenticate(password);
+    setSession(next);
+    setStatus('signed-in');
   }, []);
 
   const requestPasswordReset = useCallback(
@@ -151,8 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutOthers,
       requestPasswordReset,
       updatePassword,
+      reauthenticate,
       resendConfirmation,
       clearRecoveryMode,
     }),
@@ -166,8 +186,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      signOutOthers,
       requestPasswordReset,
       updatePassword,
+      reauthenticate,
       resendConfirmation,
       clearRecoveryMode,
     ],

@@ -354,3 +354,63 @@ export interface SyncState {
   // epoch ms local de la ultima descarga.
   lastPulledAt: number | null;
 }
+
+// --- Ampliacion fase 3: seguridad de acceso local (PIN, sesion cifrada, passkeys) ---
+//
+// Las tres entidades de esta seccion son DEVICE-LOCAL (DATA_MODEL seccion 10.2): viven SOLO en
+// Dexie, NUNCA se sincronizan a Supabase y NUNCA se incluyen en los backups (ni siquiera el
+// verificador del PIN). No llevan SyncMeta a proposito: no son sincronizables.
+
+// Parametros versionados del KDF usado para derivar el verificador del PIN y la clave de
+// cifrado de sesion (CLOUD_SYNC_SECURITY seccion 9-10). Cambiar cualquier valor exige una nueva
+// version para poder reconocer con que parametros se derivo un verificador ya guardado.
+export interface PinKdfParams {
+  version: 1;
+  algorithm: 'PBKDF2';
+  hash: 'SHA-256';
+  iterations: number;
+  saltBytes: number;
+  keyBits: number;
+}
+
+// Fila unica (id constante) con la configuracion de seguridad LOCAL del dispositivo. Nunca
+// contiene el PIN en claro: solo un verificador derivado (HMAC de la clave base del KDF, no
+// invertible a la clave de cifrado) y la sal. La clave de cifrado de sesion NUNCA se persiste
+// aqui: vive solo en memoria mientras la app esta desbloqueada (ver src/security).
+export interface DeviceSecurity {
+  id: string;
+  pinEnabled: boolean;
+  pinSalt: string | null;
+  pinVerifier: string | null;
+  pinKdfParams: PinKdfParams | null;
+  // Contador de intentos fallidos consecutivos y espera progresiva (CLOUD_SYNC_SECURITY 9).
+  pinAttempts: number;
+  pinLockedUntil: number | null;
+  // Bloqueo automatico en ms (0 = inmediato). null = PIN desactivado, no aplica.
+  autoLockMs: number | null;
+  passkeysEnabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Sesion de Supabase cifrada con AES-GCM (clave derivada del PIN, solo en memoria al
+// desbloquear). `key` es la clave de storage que pide el SDK de Supabase Auth (permite migrar
+// entre localStorage en claro y esta tabla sin adivinar el formato interno del SDK). Nunca hay
+// una copia sin cifrar de estos datos en otro storage mientras el PIN esta activo.
+export interface EncryptedSessionRow {
+  key: string;
+  ivBase64: string;
+  ciphertextBase64: string;
+  updatedAt: number;
+}
+
+// Referencia LOCAL a una passkey registrada en Supabase Auth (WebAuthn). La credencial en si
+// vive en el autenticador del sistema operativo y en Supabase Auth; aqui solo se guarda una
+// referencia para poder listarla/renombrarla sin depender de red.
+export interface WebAuthnCredentialRef {
+  id: string;
+  credentialId: string;
+  friendlyName: string | null;
+  createdAt: number;
+  lastUsedAt: number | null;
+}

@@ -5,6 +5,7 @@ import type { AppSupabaseClient } from '../lib/supabase/client';
 import { db } from '../db/index';
 import { runPush, type PushResult } from './pushEngine';
 import { pullProfile, pullProfiles, type PullResult } from './pullEngine';
+import { isLocked } from '../security/lockState';
 
 export interface SyncSummary {
   push: PushResult;
@@ -38,7 +39,10 @@ export async function runSync(
   userId: string,
   options: SyncOptions = {},
 ): Promise<SyncSummary> {
-  if (running) {
+  // Segunda barrera defensiva (la primera esta en SyncContext.syncNow): mientras la app esta
+  // bloqueada por PIN no se sincroniza en segundo plano (CLOUD_SYNC_SECURITY seccion 6,
+  // ARCHITECTURE seccion 13). Ninguna capa confia solo en la de arriba.
+  if (running || isLocked()) {
     return { push: EMPTY_PUSH, pull: EMPTY_PULL, skipped: true };
   }
   running = true;

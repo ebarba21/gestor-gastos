@@ -22,9 +22,12 @@ import {
   BACKUP_FORMAT_VERSION,
 } from './backupService';
 import { SCHEMA_VERSION } from '../db/index';
+import { pinService } from '../security/pinService';
+import { __resetForTests as __resetSessionStorageForTests } from '../security/encryptedSessionStorage';
 
 beforeEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()));
+  __resetSessionStorageForTests();
 });
 
 function txInput(overrides: Partial<NewTransaction> = {}): NewTransaction {
@@ -500,6 +503,30 @@ describe('validacion de archivos corruptos o de version incompatible', () => {
     const parsed = parseBackup(text);
     expect(parsed.data.transactions).toEqual([]);
     expect(parsed.data.accounts).toEqual([]);
+  });
+});
+
+describe('el backup NUNCA incluye seguridad local (PIN, sesion cifrada, passkeys)', () => {
+  it('createBackup no expone deviceSecurity/encryptedSession/webauthnCredentials aunque existan', async () => {
+    const a = await seedRichProfile('Perfil A');
+    // Activa PIN de verdad: hay verificador, sal y (potencialmente) sesion cifrada en Dexie.
+    await pinService.enablePin('123456', '123456');
+    expect((await db.deviceSecurity.toArray()).length).toBeGreaterThan(0);
+
+    const backup = await backupService.createBackup(a.pid);
+    const serialized = backupService.serializeBackup(backup);
+
+    // Ninguna clave de las tablas device-local aparece en el objeto de datos del backup.
+    expect(Object.keys(backup.data)).not.toContain('deviceSecurity');
+    expect(Object.keys(backup.data)).not.toContain('encryptedSession');
+    expect(Object.keys(backup.data)).not.toContain('webauthnCredentials');
+
+    // Ni el verificador del PIN ni nada relacionado aparece en el JSON serializado.
+    const security = await pinService.getSecurity();
+    expect(security.pinVerifier).toBeTruthy();
+    expect(serialized).not.toContain(security.pinVerifier as string);
+    expect(serialized.toLowerCase()).not.toContain('pinverifier');
+    expect(serialized.toLowerCase()).not.toContain('pinsalt');
   });
 });
 

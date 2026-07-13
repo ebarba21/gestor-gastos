@@ -19,6 +19,9 @@ import type {
   Conflict,
   ProfileMigration,
   SyncState,
+  DeviceSecurity,
+  EncryptedSessionRow,
+  WebAuthnCredentialRef,
 } from './schema';
 
 export class GestorGastosDB extends Dexie {
@@ -37,6 +40,10 @@ export class GestorGastosDB extends Dexie {
   conflicts!: Table<Conflict, string>;
   profileMigrations!: Table<ProfileMigration, string>;
   syncState!: Table<SyncState, [string, string]>;
+  // Tablas device-local de la ampliacion (fase 3). NO se sincronizan ni entran en backups.
+  deviceSecurity!: Table<DeviceSecurity, string>;
+  encryptedSession!: Table<EncryptedSessionRow, string>;
+  webauthnCredentials!: Table<WebAuthnCredentialRef, string>;
 
   constructor() {
     super('gestor-gastos');
@@ -161,13 +168,27 @@ export class GestorGastosDB extends Dexie {
       // Cursor de descarga por (profileId, entityType). Clave primaria compuesta.
       syncState: '[profileId+entityType], profileId',
     });
+
+    // Version 4 (ampliacion, fase 3): seguridad de acceso local (PIN, sesion cifrada,
+    // passkeys). Aditiva: crea tres tablas DEVICE-LOCAL nuevas y vacias (DATA_MODEL seccion
+    // 10.2). No transforma ninguna tabla existente ni datos financieros; no necesita .upgrade().
+    // Estas tablas NUNCA se sincronizan ni entran en backups (no se anaden a childTables ni a
+    // ProfileDataTables/backupRepo.ts).
+    this.version(4).stores({
+      // Fila unica de configuracion de seguridad del dispositivo (PIN, bloqueo automatico).
+      deviceSecurity: 'id',
+      // Sesion de Supabase cifrada; key = la clave de storage que pide el SDK de Auth.
+      encryptedSession: 'key',
+      // Referencias locales a passkeys registradas (la credencial vive en el autenticador/SO).
+      webauthnCredentials: 'id, credentialId',
+    });
   }
 }
 
 // Version del esquema de datos (Dexie). Fuente unica: la usan los backups para saber con
 // que version se generaron y decidir si son restaurables (DATA_MODEL seccion 7). Debe
 // coincidir con la ultima db.version(n) declarada arriba.
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 // Singleton de la base de datos usado por todos los repositorios.
 export const db = new GestorGastosDB();

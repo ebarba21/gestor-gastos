@@ -17,12 +17,14 @@ import { countOpen as countOpenConflicts, listOpenByUser as listOpenConflictsByU
 import { resolveKeepLocal, resolveKeepRemote } from './conflictResolver';
 import { listMigratableProfiles, migrateProfile } from './profileMigration';
 import { rebuildDevice } from './deviceRebuild';
+import { __resetLockStateForTests, setLockStatus } from '../security/lockState';
 
 const USER = '11111111-1111-1111-1111-111111111111';
 const OTHER_USER = '22222222-2222-2222-2222-222222222222';
 
 beforeEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()));
+  __resetLockStateForTests();
 });
 
 async function linkedProfile(userId = USER, name = 'Personal') {
@@ -346,4 +348,24 @@ describe('sincronizacion local-first (fase 2)', () => {
     expect(remote.count('transactions')).toBe(1000);
     expect(await countPending(USER)).toBe(0);
   }, 60000);
+
+  it('no sincroniza mientras la app esta bloqueada por PIN (CLOUD_SYNC_SECURITY seccion 6)', async () => {
+    const remote = new FakeRemote();
+    const client = remote.asClient();
+    const profile = await linkedProfile();
+    await accountsRepo.create(profile.id, accountInput());
+    expect(await countPending(USER)).toBeGreaterThan(0);
+
+    setLockStatus('locked');
+    const result = await runSync(client, USER);
+
+    expect(result.skipped).toBe(true);
+    expect(remote.count('accounts')).toBe(0);
+    expect(await countPending(USER)).toBeGreaterThan(0);
+
+    // Al desbloquear, la sincronizacion vuelve a funcionar con normalidad.
+    setLockStatus('unlocked');
+    await runSync(client, USER);
+    expect(remote.count('accounts')).toBe(1);
+  });
 });

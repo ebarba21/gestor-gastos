@@ -8,11 +8,13 @@ import AccountsPage from './pages/AccountsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import ExportPage from './pages/ExportPage';
 import SettingsPage from './pages/SettingsPage';
+import SecurityPage from './pages/SecurityPage';
 import AccountPage from './pages/AccountPage';
 import SyncPage from './pages/SyncPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
 import { ThemeToggle } from './components/common';
 import { SyncBadge } from './components/sync';
+import { LockGate } from './components/security';
 
 interface NavItem {
   to: string;
@@ -32,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/cuenta', label: 'Cuenta' },
   { to: '/sincronizacion', label: 'Sincronizacion' },
   { to: '/ajustes', label: 'Ajustes' },
+  { to: '/ajustes/seguridad', label: 'Seguridad' },
 ];
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
@@ -85,6 +88,7 @@ function AppLayout() {
           <Route path="/cuenta" element={<AccountPage />} />
           <Route path="/sincronizacion" element={<SyncPage />} />
           <Route path="/ajustes" element={<SettingsPage />} />
+          <Route path="/ajustes/seguridad" element={<SecurityPage />} />
         </Routes>
       </main>
     </div>
@@ -92,11 +96,15 @@ function AppLayout() {
 }
 
 export default function App() {
-  // El gate garantiza que solo se renderiza la app cuando hay un perfil activo:
+  // LockGate va POR FUERA de ProfileGate: mientras la app esta bloqueada por PIN, ni siquiera el
+  // selector de perfil es visible (CLOUD_SYNC_SECURITY seccion 4, ARCHITECTURE seccion 4). El
+  // gate de perfil garantiza ademas que solo se renderiza la app cuando hay un perfil activo:
   // asi ninguna seccion de datos accede sin profileId (aislamiento por diseno).
   return (
-    <ProfileGate>
-      <AppLayout />
-    </ProfileGate>
+    <LockGate>
+      <ProfileGate>
+        <AppLayout />
+      </ProfileGate>
+    </LockGate>
   );
 }

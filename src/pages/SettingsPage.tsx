@@ -39,6 +39,20 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Seguridad</h3>
+        <p className="mt-2 text-sm text-slate-400">
+          PIN local, bloqueo automatico, passkeys y contrasena de cuenta se gestionan en un solo
+          sitio.
+        </p>
+        <Link
+          to="/ajustes/seguridad"
+          className="mt-4 inline-block rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
+        >
+          Ir a Ajustes de seguridad
+        </Link>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Apariencia</h3>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-slate-400">

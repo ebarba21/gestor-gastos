@@ -19,6 +19,7 @@ import type { AppSupabaseClient } from '../lib/supabase/client';
 import { countPending } from './outboxRepo';
 import { countOpenConflicts } from './index';
 import { runSync } from './syncEngine';
+import { isLocked } from '../security/lockState';
 
 export type SyncStatusUi =
   | 'disabled' // sin cuenta o sin configuracion: modo local puro.
@@ -92,7 +93,10 @@ export function SyncProvider({ children }: { children: ReactNode }): React.React
   }, [userId]);
 
   const syncNow = useCallback(async () => {
-    if (!enabled || !userId || !client || runningRef.current) return;
+    // Barrera principal: mientras la app esta bloqueada por PIN no se sincroniza en segundo
+    // plano (CLOUD_SYNC_SECURITY seccion 6). syncEngine.runSync repite la comprobacion como
+    // segunda barrera defensiva.
+    if (!enabled || !userId || !client || runningRef.current || isLocked()) return;
     runningRef.current = true;
     setSyncing(true);
     setLastError(null);

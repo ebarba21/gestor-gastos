@@ -37,7 +37,9 @@ export function AccountPanel() {
   }
 
   if (auth.recoveryMode) {
-    return <UpdatePasswordForm heading="Elige una nueva contrasena" />;
+    // Tras un enlace de recuperacion, la identidad ya se probo por correo: no se pide la
+    // contrasena anterior (precisamente porque el usuario la ha olvidado).
+    return <UpdatePasswordForm heading="Elige una nueva contrasena" requireCurrentPassword={false} />;
   }
 
   if (auth.status === 'signed-in') {
@@ -77,10 +79,27 @@ function UnconfiguredNotice() {
 
 // --- Estado: con sesion ---
 function SignedInPanel() {
-  const { user, emailPending, signOut, resendConfirmation } = useAuth();
+  const { user, emailPending, signOut, signOutOthers, resendConfirmation } = useAuth();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [othersBusy, setOthersBusy] = useState(false);
+  const [othersNotice, setOthersNotice] = useState<string | null>(null);
+  const [othersError, setOthersError] = useState<string | null>(null);
+
+  async function handleSignOutOthers() {
+    setOthersError(null);
+    setOthersNotice(null);
+    setOthersBusy(true);
+    try {
+      await signOutOthers();
+      setOthersNotice('Se han cerrado las sesiones de tus otros dispositivos.');
+    } catch (err) {
+      setOthersError(messageOf(err));
+    } finally {
+      setOthersBusy(false);
+    }
+  }
 
   async function handleResend() {
     if (!user?.email) return;
@@ -130,16 +149,31 @@ function SignedInPanel() {
         {notice && <p className="mt-3 text-sm text-emerald-400">{notice}</p>}
         {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
 
-        <button
-          type="button"
-          onClick={() => void signOut()}
-          className="mt-4 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
-        >
-          Cerrar sesion
-        </button>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
+          >
+            Cerrar sesion
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSignOutOthers()}
+            disabled={othersBusy}
+            className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+          >
+            {othersBusy ? 'Cerrando otras sesiones...' : 'Cerrar otras sesiones'}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Cierra la sesion en tus demas dispositivos y pestañas, conservando esta.
+        </p>
+        {othersNotice && <p className="mt-2 text-sm text-emerald-400">{othersNotice}</p>}
+        {othersError && <p className="mt-2 text-sm text-red-400">{othersError}</p>}
       </div>
 
-      <UpdatePasswordForm heading="Cambiar contrasena" />
+      <UpdatePasswordForm heading="Cambiar contrasena" requireCurrentPassword />
     </div>
   );
 }
@@ -292,9 +326,20 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
   );
 }
 
-function UpdatePasswordForm({ heading }: { heading: string }) {
-  const { updatePassword } = useAuth();
+function UpdatePasswordForm({
+  heading,
+  requireCurrentPassword = false,
+}: {
+  heading: string;
+  // Reautenticacion para accion sensible (CLOUD_SYNC_SECURITY seccion 1): cuando la cuenta ya
+  // esta en sesion (no viene de un enlace de recuperacion), se exige la contrasena actual antes
+  // de aceptar la nueva.
+  requireCurrentPassword?: boolean;
+}) {
+  const { updatePassword, reauthenticate } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -302,15 +347,28 @@ function UpdatePasswordForm({ heading }: { heading: string }) {
   async function handle(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (requireCurrentPassword && currentPassword.length === 0) {
+      setError('Introduce tu contrasena actual.');
+      return;
+    }
     if (password.length < MIN_PASSWORD) {
       setError(`La contrasena debe tener al menos ${MIN_PASSWORD} caracteres.`);
       return;
     }
+    if (password !== confirmPassword) {
+      setError('Las dos contrasenas nuevas no coinciden.');
+      return;
+    }
     setBusy(true);
     try {
+      if (requireCurrentPassword) {
+        await reauthenticate(currentPassword);
+      }
       await updatePassword(password);
       setDone(true);
+      setCurrentPassword('');
       setPassword('');
+      setConfirmPassword('');
     } catch (err) {
       setError(messageOf(err));
     } finally {
@@ -321,10 +379,24 @@ function UpdatePasswordForm({ heading }: { heading: string }) {
   return (
     <form onSubmit={handle} className={CARD + ' space-y-4'} noValidate>
       <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">{heading}</h3>
+      {requireCurrentPassword && (
+        <PasswordField
+          value={currentPassword}
+          onChange={setCurrentPassword}
+          label="Contrasena actual"
+          autoComplete="current-password"
+        />
+      )}
       <PasswordField
         value={password}
         onChange={setPassword}
         label={`Nueva contrasena (min. ${MIN_PASSWORD})`}
+        autoComplete="new-password"
+      />
+      <PasswordField
+        value={confirmPassword}
+        onChange={setConfirmPassword}
+        label="Confirma la nueva contrasena"
         autoComplete="new-password"
       />
       <FormFeedback error={error} notice={done ? 'Contrasena actualizada.' : null} />
