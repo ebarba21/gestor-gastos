@@ -75,6 +75,18 @@ export type MerchantMatchType = 'exact' | 'contains' | 'startsWith' | 'regex';
 // manual > alias exacto/configurable > regla > sugerencia por similitud > sin comercio.
 export type MerchantMatchSource = 'manual' | 'alias' | 'rule' | 'import' | 'suggested' | 'none';
 
+// Deteccion avanzada de duplicados (ampliacion, fase 5). Ver DATA_MODEL seccion 15 y
+// FINANCIAL_ALGORITHMS seccion 5. Niveles de menor a mayor confianza (salvo pendingReplaced,
+// que es un caso especial): weak < possible < strongNormalized < exact; pendingReplaced marca
+// un confirmado que sustituye a un pendiente ya vinculado.
+export type DuplicateStatus =
+  | 'unique'
+  | 'exact'
+  | 'strongNormalized'
+  | 'possible'
+  | 'weak'
+  | 'pendingReplaced';
+
 // --- Entidades ---
 
 export interface Profile extends SyncMeta {
@@ -180,6 +192,50 @@ export interface Transaction extends SyncMeta {
   merchantMatchSource: MerchantMatchSource;
   // Confianza orientativa por mil (0..1000). No es una probabilidad real.
   merchantMatchConfidence: number;
+  // --- Metadatos bancarios y duplicados avanzados (ampliacion, fase 5; DATA_MODEL 15.1) ---
+  // Identificador de operacion del banco, si el fichero lo trae. Fiable para dedupe cuando
+  // existe (unicidad remota solo por cuenta, ver DATA_MODEL 21.2).
+  bankTransactionId: string | null;
+  // Fecha contable YYYY-MM-DD si distinta de `date` (el fichero puede traer ambas).
+  bookingDate: string | null;
+  // Fecha valor YYYY-MM-DD.
+  valueDate: string | null;
+  // Operacion pendiente (true) vs confirmada (false).
+  pending: boolean;
+  // Moneda de la operacion (por defecto la del perfil, DATA_MODEL 1).
+  currency: string;
+  // Saldo posterior en centimos, si el fichero lo trae.
+  balanceAfterCents: number | null;
+  // Referencia bancaria libre.
+  bankReference: string | null;
+  // Tipo de operacion del banco (texto libre del extracto).
+  operationType: string | null;
+  // Hash exacto de la fila de origen (src/lib/duplicateFingerprint.ts).
+  sourceRowHash: string;
+  // Huella exacta: accountId+date+amountCents+currency+normalizedConcept.
+  exactFingerprint: string;
+  // Huella tolerante: accountId+amountCents+currency+(merchantId|normalizedConcept), sin
+  // fecha (la ventana temporal se aplica en la generacion de candidatos). NUNCA UNIQUE.
+  normalizedFingerprint: string;
+  // Version del algoritmo de huellas con el que se calcularon sourceRowHash/exactFingerprint/
+  // normalizedFingerprint.
+  fingerprintVersion: number;
+  // Hash del fichero de origen (detecta reimportacion aunque cambie el nombre), o null si el
+  // movimiento no viene de una importacion de fichero.
+  sourceFileHash: string | null;
+  // Tamano en bytes del fichero de origen, o null.
+  sourceFileSize: number | null;
+  // Nivel de duplicado resuelto por el motor (FINANCIAL_ALGORITHMS seccion 5).
+  duplicateStatus: DuplicateStatus;
+  // Confianza orientativa por mil (0..1000). Heuristica, NO es una probabilidad real.
+  duplicateConfidence: number;
+  // Motivos legibles del nivel asignado (p. ej. "mismo bankTransactionId").
+  duplicateReasonCodes: string[];
+  // Ids de los candidatos considerados por el motor al resolver el nivel.
+  duplicateCandidateIds: string[];
+  // Si este movimiento (confirmado) sustituye a un pendiente, apunta al pendiente sustituido
+  // (que queda borrado logicamente). Conserva trazabilidad sin duplicar saldo.
+  pendingReplacementId: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -231,7 +287,8 @@ export interface Budget extends SyncMeta {
   updatedAt: number;
 }
 
-// Mapeo columna->campo del fichero importado. Valor = nombre o indice de columna.
+// Mapeo columna->campo del fichero importado. Valor = nombre o indice de columna. Los campos
+// de la fase 5 (metadatos bancarios) son opcionales: un fichero puede no traerlos.
 export interface ColumnMap {
   date: string | number;
   concept: string | number;
@@ -240,6 +297,17 @@ export interface ColumnMap {
   credit: string | number | null;
   account: string | number | null;
   notes: string | number | null;
+  // --- Ampliacion fase 5 (metadatos bancarios opcionales, DATA_MODEL 15) ---
+  bankTransactionId: string | number | null;
+  bookingDate: string | number | null;
+  valueDate: string | number | null;
+  // Columna que marca la operacion como pendiente (su presencia/valor lo decide el parseo).
+  pending: string | number | null;
+  merchant: string | number | null;
+  currency: string | number | null;
+  balanceAfter: string | number | null;
+  bankReference: string | number | null;
+  operationType: string | number | null;
 }
 
 export interface ImportTemplate extends SyncMeta {
@@ -267,7 +335,14 @@ export interface ImportBatch extends SyncMeta {
   rowsTotal: number;
   rowsImported: number;
   rowsSkippedDuplicate: number;
+  // Filas resueltas con la decision "vincular" (fase 5): no crean un movimiento nuevo, solo
+  // actualizan los metadatos bancarios de un movimiento existente que ya coincidia.
+  rowsLinked: number;
   status: ImportBatchStatus;
+  // Hash del fichero de origen (SHA-256) y su tamano, para detectar "archivo repetido" antes
+  // de confirmar una nueva importacion (ampliacion, fase 5). null si no se pudo calcular.
+  sourceFileHash: string | null;
+  sourceFileSize: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -303,6 +378,20 @@ export interface MerchantAlias extends SyncMeta {
   updatedAt: number;
 }
 
+// Recuerda que una pareja concreta de movimientos NO es duplicado, para no volver a
+// preguntar salvo cambio relevante (ampliacion, fase 5; DATA_MODEL 15.2).
+export interface NoDuplicateDecision extends SyncMeta {
+  id: string;
+  profileId: string;
+  leftFingerprint: string;
+  rightFingerprint: string;
+  leftTxId: string | null;
+  rightTxId: string | null;
+  reason: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // --- Ampliacion fase 2: estructuras de sincronizacion (DATA_MODEL secciones 11-13) ---
 //
 // Las entidades de esta seccion son DEVICE-LOCAL: viven solo en Dexie, NUNCA se sincronizan a
@@ -322,7 +411,8 @@ export type SyncEntityType =
   | 'importTemplate'
   | 'importBatch'
   | 'merchant'
-  | 'merchantAlias';
+  | 'merchantAlias'
+  | 'noDuplicateDecision';
 
 export type MutationOperation = 'insert' | 'update' | 'delete';
 

@@ -97,6 +97,15 @@ export function shiftMonths(refISO: string, delta: number): string {
   return toISO(ny, nm, nd);
 }
 
+// Desplaza la fecha de referencia un numero de dias (positivo o negativo). Devuelve
+// YYYY-MM-DD. Util para acotar ventanas temporales de candidatos (deteccion de duplicados,
+// fase 5).
+export function shiftDays(refISO: string, delta: number): string {
+  const { y, m, d } = parseISO(refISO);
+  const dt = new Date(Date.UTC(y, m - 1, d + delta));
+  return toISO(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+}
+
 // Desplaza la referencia un numero de anos, ajustando 29 de febrero a 28 en anos no bisiestos.
 export function shiftYears(refISO: string, delta: number): string {
   const { y, m, d } = parseISO(refISO);

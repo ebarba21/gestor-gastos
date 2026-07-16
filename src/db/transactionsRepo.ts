@@ -262,6 +262,77 @@ export const transactionsRepo = {
     return set;
   },
 
+  // --- Deteccion avanzada de duplicados (fase 5, DATA_MODEL 15) ---
+
+  // Movimientos con el mismo identificador bancario dentro de una cuenta (nivel "exact" mas
+  // fiable). Excluye tombstones. La unicidad remota es (profile_id, account_id,
+  // bank_transaction_id); localmente se filtra en memoria por cuenta porque el indice solo
+  // cubre profileId+bankTransactionId (bankTransactionId ya es suficientemente selectivo).
+  async listByBankTransactionId(
+    profileId: string,
+    accountId: string,
+    bankTransactionId: string,
+  ): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    const rows = await db.transactions
+      .where('[profileId+bankTransactionId]')
+      .equals([profileId, bankTransactionId])
+      .filter(isAlive)
+      .toArray();
+    return rows.filter((t) => t.accountId === accountId);
+  },
+
+  // Identidad exacta (cuenta+fecha+importe+moneda+concepto normalizado). Excluye tombstones.
+  listByExactFingerprint(profileId: string, exactFingerprint: string): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    return db.transactions
+      .where('[profileId+exactFingerprint]')
+      .equals([profileId, exactFingerprint])
+      .filter(isAlive)
+      .toArray();
+  },
+
+  // Identidad tolerante (cuenta+importe+moneda+comercio/concepto, SIN fecha): candidatos para
+  // los niveles strongNormalized/possible/weak. El llamante (duplicateEngine) aplica la
+  // ventana temporal sobre el resultado. Ya acotado por cuenta+moneda+importe+comercio porque
+  // esos campos forman la huella (DATA_MODEL 15.1); nunca se compara todo contra todo.
+  listByNormalizedFingerprint(
+    profileId: string,
+    normalizedFingerprint: string,
+  ): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    return db.transactions
+      .where('[profileId+normalizedFingerprint]')
+      .equals([profileId, normalizedFingerprint])
+      .filter(isAlive)
+      .toArray();
+  },
+
+  // Movimientos con un nivel de duplicado concreto (API para la bandeja de revision, fase 6).
+  listByDuplicateStatus(
+    profileId: string,
+    status: Transaction['duplicateStatus'],
+  ): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    return db.transactions
+      .where('[profileId+duplicateStatus]')
+      .equals([profileId, status])
+      .filter(isAlive)
+      .toArray();
+  },
+
+  // Movimientos pendientes (status='pending') de una cuenta, candidatos a ser sustituidos por
+  // un confirmado compatible (FINANCIAL_ALGORITHMS seccion 5, "pendiente -> confirmado").
+  async listPendingByAccount(profileId: string, accountId: string): Promise<Transaction[]> {
+    requireProfileId(profileId);
+    const rows = await db.transactions
+      .where('[profileId+accountId]')
+      .equals([profileId, accountId])
+      .filter(isAlive)
+      .toArray();
+    return rows.filter((t) => t.pending);
+  },
+
   // Movimientos asociados a un comercio (indice [profileId+merchantId]).
   listByMerchant(profileId: string, merchantId: string): Promise<Transaction[]> {
     requireProfileId(profileId);

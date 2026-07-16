@@ -13,6 +13,7 @@ import type {
   ImportTemplate,
   Merchant,
   MerchantAlias,
+  NoDuplicateDecision,
   Profile,
   Rule,
   Setting,
@@ -37,6 +38,7 @@ export interface ProfileDataTables {
   budgets: Budget[];
   importTemplates: ImportTemplate[];
   importBatches: ImportBatch[];
+  noDuplicateDecisions: NoDuplicateDecision[];
 }
 
 export interface ProfileSnapshot {
@@ -67,6 +69,7 @@ export const backupRepo = {
         budgets,
         importTemplates,
         importBatches,
+        noDuplicateDecisions,
       ] = await Promise.all([
         db.settings.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.accounts.where('profileId').equals(profileId).filter(isAlive).toArray(),
@@ -79,6 +82,7 @@ export const backupRepo = {
         db.budgets.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.importTemplates.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.importBatches.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.noDuplicateDecisions.where('profileId').equals(profileId).filter(isAlive).toArray(),
       ]);
 
       return {
@@ -95,6 +99,7 @@ export const backupRepo = {
           budgets,
           importTemplates,
           importBatches,
+          noDuplicateDecisions,
         },
       };
     });
@@ -150,4 +155,7 @@ async function bulkAddAll(data: ProfileDataTables): Promise<void> {
   if (data.budgets.length > 0) await db.budgets.bulkAdd(data.budgets);
   if (data.importTemplates.length > 0) await db.importTemplates.bulkAdd(data.importTemplates);
   if (data.importBatches.length > 0) await db.importBatches.bulkAdd(data.importBatches);
+  if (data.noDuplicateDecisions.length > 0) {
+    await db.noDuplicateDecisions.bulkAdd(data.noDuplicateDecisions);
+  }
 }

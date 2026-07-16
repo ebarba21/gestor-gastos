@@ -67,6 +67,25 @@ function txInput(accountId: string, overrides: Partial<NewTransaction> = {}): Ne
     merchantId: null,
     merchantMatchSource: 'none',
     merchantMatchConfidence: 0,
+    bankTransactionId: null,
+    bookingDate: null,
+    valueDate: null,
+    pending: false,
+    currency: 'EUR',
+    balanceAfterCents: null,
+    bankReference: null,
+    operationType: null,
+    sourceRowHash: 'row-hash',
+    exactFingerprint: 'exact-fp',
+    normalizedFingerprint: 'norm-fp',
+    fingerprintVersion: 1,
+    sourceFileHash: null,
+    sourceFileSize: null,
+    duplicateStatus: 'unique',
+    duplicateConfidence: 0,
+    duplicateReasonCodes: [],
+    duplicateCandidateIds: [],
+    pendingReplacementId: null,
     ...overrides,
   };
 }
@@ -318,7 +337,16 @@ describe('sincronizacion local-first (fase 2)', () => {
     const account = await accountsRepo.create(profile.id, accountInput());
     const batch = await importBatchesRepo.commitBatch(
       profile.id,
-      { templateId: null, fileName: 'extracto.csv', rowsTotal: 3, rowsImported: 3, rowsSkippedDuplicate: 0 },
+      {
+        templateId: null,
+        fileName: 'extracto.csv',
+        rowsTotal: 3,
+        rowsImported: 3,
+        rowsSkippedDuplicate: 0,
+        rowsLinked: 0,
+        sourceFileHash: null,
+        sourceFileSize: null,
+      },
       [txInput(account.id), txInput(account.id), txInput(account.id)],
     );
     await runSync(client, USER);

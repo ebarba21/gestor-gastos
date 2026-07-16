@@ -27,6 +27,7 @@ export const STORE_TO_ENTITY: Record<string, SyncEntityType> = {
   budgets: 'budget',
   importTemplates: 'importTemplate',
   importBatches: 'importBatch',
+  noDuplicateDecisions: 'noDuplicateDecision',
 };
 
 // Propietario (auth.users.id) del perfil, o null si el perfil es solo local (sin cuenta). Debe
@@ -53,6 +54,13 @@ export async function enqueueMutation(params: {
   operation: MutationOperation;
   entity: Record<string, unknown>;
   baseRevision: number;
+  // Permite forzar un orden de procesamiento entre mutaciones de ENTIDADES DISTINTAS creadas
+  // en la misma transaccion Dexie (el push procesa la cola por createdAt ascendente, ver
+  // sync/outboxRepo.ts listPending). Por defecto now(). Uso: garantizar que el borrado
+  // logico de un pendiente sustituido llegue al servidor ANTES que el alta del confirmado
+  // con el mismo bankTransactionId (evita violar la unicidad remota por cuenta+identificador,
+  // ver importBatchesRepo.commitBatch).
+  createdAt?: number;
 }): Promise<void> {
   const { userId, profileId, entityType, entityId, operation, entity, baseRevision } = params;
   const payload = snapshot(entity);
@@ -90,7 +98,7 @@ export async function enqueueMutation(params: {
     operation,
     payload,
     baseRevision,
-    createdAt: now(),
+    createdAt: params.createdAt ?? now(),
     attempts: 0,
     lastAttemptAt: null,
     lastError: null,

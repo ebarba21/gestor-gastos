@@ -17,6 +17,15 @@ import { transactionsRepo } from '../db/transactionsRepo';
 import type { NewTransaction, TransactionPatch } from '../db/transactionsRepo';
 import { computeDedupeHash } from '../lib/dedupe';
 import { normalizeConceptV1, NORMALIZATION_VERSION } from '../lib/normalization';
+import {
+  computeFingerprints,
+  computeSyntheticRowHash,
+  FINGERPRINT_VERSION,
+} from '../lib/duplicateFingerprint';
+// Moneda por defecto cuando no se conoce la del perfil (coherente con Setting.currency,
+// DATA_MODEL seccion 1). Los movimientos de alta manual, transferencia y split no vienen de
+// un extracto bancario, por lo que no traen moneda propia.
+const DEFAULT_CURRENCY = 'EUR';
 import { assert, ValidationError, requireId, requireProfileId } from '../lib/validation';
 import { assertCents } from '../lib/money';
 
@@ -89,6 +98,15 @@ function buildNewTransaction(profileId: string, input: TransactionInput): NewTra
     assert(categoryId !== null, 'Una subcategoria requiere tambien su categoria raiz.');
   }
   const excludedFromStats = input.excludedFromStats ?? false;
+  const normalizedConcept = normalizeConceptV1(concept);
+  const { exactFingerprint, normalizedFingerprint } = computeFingerprints({
+    accountId: input.accountId,
+    date: input.date,
+    amountCents: input.amountCents,
+    currency: DEFAULT_CURRENCY,
+    normalizedConcept,
+    merchantId: null,
+  });
   return {
     date: input.date,
     amountCents: input.amountCents,
@@ -117,11 +135,38 @@ function buildNewTransaction(profileId: string, input: TransactionInput): NewTra
     }),
     // Alta manual: no hay concepto bancario distinto del editado por el usuario.
     rawConcept: concept,
-    normalizedConcept: normalizeConceptV1(concept),
+    normalizedConcept,
     normalizationVersion: NORMALIZATION_VERSION,
     merchantId: null,
     merchantMatchSource: 'none',
     merchantMatchConfidence: 0,
+    // Alta manual: sin metadatos bancarios (fase 5, DATA_MODEL 15.1). Las huellas se calculan
+    // igualmente para que el motor de duplicados pueda cruzar altas manuales con
+    // importaciones futuras (p. ej. la misma compra dada de alta a mano y luego importada).
+    bankTransactionId: null,
+    bookingDate: null,
+    valueDate: null,
+    pending: false,
+    currency: DEFAULT_CURRENCY,
+    balanceAfterCents: null,
+    bankReference: null,
+    operationType: null,
+    sourceRowHash: computeSyntheticRowHash({
+      date: input.date,
+      amountCents: input.amountCents,
+      concept,
+      accountId: input.accountId,
+    }),
+    exactFingerprint,
+    normalizedFingerprint,
+    fingerprintVersion: FINGERPRINT_VERSION,
+    sourceFileHash: null,
+    sourceFileSize: null,
+    duplicateStatus: 'unique',
+    duplicateConfidence: 0,
+    duplicateReasonCodes: [],
+    duplicateCandidateIds: [],
+    pendingReplacementId: null,
   };
 }
 
@@ -433,6 +478,7 @@ export const transactionService = {
     const transferGroupId = crypto.randomUUID();
     const magnitude = Math.abs(input.amountCents);
 
+    const normalizedConcept = normalizeConceptV1(concept);
     const commonBase = {
       type: 'transfer' as const,
       concept,
@@ -452,13 +498,38 @@ export const transactionService = {
       date: input.date,
       // Una transferencia no tiene comercio: mueve dinero propio, no es una compra.
       rawConcept: concept,
-      normalizedConcept: normalizeConceptV1(concept),
+      normalizedConcept,
       normalizationVersion: NORMALIZATION_VERSION,
       merchantId: null,
       merchantMatchSource: 'none' as const,
       merchantMatchConfidence: 0,
+      // Sin metadatos bancarios (alta manual de transferencia, fase 5).
+      bankTransactionId: null,
+      bookingDate: null,
+      valueDate: null,
+      pending: false,
+      currency: DEFAULT_CURRENCY,
+      balanceAfterCents: null,
+      bankReference: null,
+      operationType: null,
+      fingerprintVersion: FINGERPRINT_VERSION,
+      sourceFileHash: null,
+      sourceFileSize: null,
+      duplicateStatus: 'unique' as const,
+      duplicateConfidence: 0,
+      duplicateReasonCodes: [] as string[],
+      duplicateCandidateIds: [] as string[],
+      pendingReplacementId: null,
     };
 
+    const outFingerprints = computeFingerprints({
+      accountId: input.fromAccountId,
+      date: input.date,
+      amountCents: -magnitude,
+      currency: DEFAULT_CURRENCY,
+      normalizedConcept,
+      merchantId: null,
+    });
     const out: NewTransaction = {
       ...commonBase,
       amountCents: -magnitude,
@@ -470,7 +541,22 @@ export const transactionService = {
         amountCents: -magnitude,
         concept,
       }),
+      sourceRowHash: computeSyntheticRowHash({
+        date: input.date,
+        amountCents: -magnitude,
+        concept,
+        accountId: input.fromAccountId,
+      }),
+      ...outFingerprints,
     };
+    const incomeFingerprints = computeFingerprints({
+      accountId: input.toAccountId,
+      date: input.date,
+      amountCents: magnitude,
+      currency: DEFAULT_CURRENCY,
+      normalizedConcept,
+      merchantId: null,
+    });
     const income: NewTransaction = {
       ...commonBase,
       amountCents: magnitude,
@@ -482,6 +568,13 @@ export const transactionService = {
         amountCents: magnitude,
         concept,
       }),
+      sourceRowHash: computeSyntheticRowHash({
+        date: input.date,
+        amountCents: magnitude,
+        concept,
+        accountId: input.toAccountId,
+      }),
+      ...incomeFingerprints,
     };
     const [a, b] = await transactionsRepo.createMany(profileId, [out, income]);
     return [a!, b!];
@@ -554,6 +647,37 @@ export const transactionService = {
       merchantId: null,
       merchantMatchSource: 'none',
       merchantMatchConfidence: 0,
+      // Sin metadatos bancarios (pata espejo generada localmente, fase 5).
+      bankTransactionId: null,
+      bookingDate: null,
+      valueDate: null,
+      pending: false,
+      currency: current.currency,
+      balanceAfterCents: null,
+      bankReference: null,
+      operationType: null,
+      sourceRowHash: computeSyntheticRowHash({
+        date: current.date,
+        amountCents: mirrorAmount,
+        concept: current.concept,
+        accountId: counterAccountId,
+      }),
+      ...computeFingerprints({
+        accountId: counterAccountId,
+        date: current.date,
+        amountCents: mirrorAmount,
+        currency: current.currency,
+        normalizedConcept: current.normalizedConcept,
+        merchantId: null,
+      }),
+      fingerprintVersion: FINGERPRINT_VERSION,
+      sourceFileHash: null,
+      sourceFileSize: null,
+      duplicateStatus: 'unique',
+      duplicateConfidence: 0,
+      duplicateReasonCodes: [],
+      duplicateCandidateIds: [],
+      pendingReplacementId: null,
     };
     const [created] = await transactionsRepo.createMany(profileId, [mirror]);
     return [updated, created!];
@@ -652,6 +776,41 @@ export const transactionService = {
         merchantId: p.merchantId,
         merchantMatchSource: p.merchantMatchSource,
         merchantMatchConfidence: p.merchantMatchConfidence,
+        // Metadatos bancarios (fase 5): las hijas heredan lo que describe el extracto original
+        // (fechas, moneda, referencia, pendiente, fichero de origen). bankTransactionId NUNCA
+        // se copia a varias filas: la unicidad remota es (profile_id, account_id,
+        // bank_transaction_id) y el padre ya lo conserva; duplicarlo en las hijas rechazaria
+        // la insercion remota.
+        bankTransactionId: null,
+        bookingDate: p.bookingDate,
+        valueDate: p.valueDate,
+        pending: p.pending,
+        currency: p.currency,
+        balanceAfterCents: null,
+        bankReference: p.bankReference,
+        operationType: p.operationType,
+        sourceRowHash: computeSyntheticRowHash({
+          date: p.date,
+          amountCents: part.amountCents,
+          concept,
+          accountId: p.accountId,
+        }),
+        ...computeFingerprints({
+          accountId: p.accountId,
+          date: p.date,
+          amountCents: part.amountCents,
+          currency: p.currency,
+          normalizedConcept: p.normalizedConcept,
+          merchantId: p.merchantId,
+        }),
+        fingerprintVersion: FINGERPRINT_VERSION,
+        sourceFileHash: p.sourceFileHash,
+        sourceFileSize: null,
+        duplicateStatus: 'unique',
+        duplicateConfidence: 0,
+        duplicateReasonCodes: [],
+        duplicateCandidateIds: [],
+        pendingReplacementId: null,
       };
     });
 

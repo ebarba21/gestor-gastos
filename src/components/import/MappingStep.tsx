@@ -48,7 +48,7 @@ export function MappingStep({
 
   const previewRows = config.hasHeaderRow ? parsed.rows.slice(1, 4) : parsed.rows.slice(0, 3);
 
-  function setColumn(field: 'date' | 'concept' | 'amount' | 'debit' | 'credit' | 'account' | 'notes', value: number | null) {
+  function setColumn(field: keyof typeof config.columnMap, value: number | null) {
     onConfigChange({ ...config, columnMap: { ...config.columnMap, [field]: value } });
   }
 
@@ -224,7 +224,82 @@ export function MappingStep({
           optional
           onChange={(v) => setColumn('notes', v)}
         />
+      </div>
 
+      {/* Metadatos bancarios opcionales (fase 5): mejoran la deteccion de duplicados, pero
+          ninguno es obligatorio. Si el fichero no los trae, se dejan sin asignar. */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
+        <p className="mb-3 text-xs font-medium text-slate-400">
+          Metadatos bancarios (opcionales, mejoran la deteccion de duplicados)
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ColumnSelect
+            label="Identificador de operacion"
+            value={numOrUnset(config.columnMap.bankTransactionId)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('bankTransactionId', v)}
+          />
+          <ColumnSelect
+            label="Fecha contable"
+            value={numOrUnset(config.columnMap.bookingDate)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('bookingDate', v)}
+          />
+          <ColumnSelect
+            label="Fecha valor"
+            value={numOrUnset(config.columnMap.valueDate)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('valueDate', v)}
+          />
+          <ColumnSelect
+            label="Pendiente / confirmado"
+            value={numOrUnset(config.columnMap.pending)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('pending', v)}
+          />
+          <ColumnSelect
+            label="Comercio"
+            value={numOrUnset(config.columnMap.merchant)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('merchant', v)}
+          />
+          <ColumnSelect
+            label="Moneda"
+            value={numOrUnset(config.columnMap.currency)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('currency', v)}
+          />
+          <ColumnSelect
+            label="Saldo posterior"
+            value={numOrUnset(config.columnMap.balanceAfter)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('balanceAfter', v)}
+          />
+          <ColumnSelect
+            label="Referencia bancaria"
+            value={numOrUnset(config.columnMap.bankReference)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('bankReference', v)}
+          />
+          <ColumnSelect
+            label="Tipo de operacion"
+            value={numOrUnset(config.columnMap.operationType)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('operationType', v)}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1 text-xs text-slate-400">
           Formato de fecha
           <input

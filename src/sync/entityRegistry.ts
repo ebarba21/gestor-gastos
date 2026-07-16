@@ -122,6 +122,19 @@ export const ENTITY_REGISTRY: Record<SyncEntityType, EntityInfo> = {
     hasProfileId: true,
     financial: true,
   },
+  // Decisiones de "no duplicado" (fase 5): referencian movimientos por id opcional, se suben
+  // DESPUES de transactions para que esa referencia ya exista en remoto.
+  noDuplicateDecision: {
+    entityType: 'noDuplicateDecision',
+    remoteTable: 'no_duplicate_decisions',
+    localTable: 'noDuplicateDecisions',
+    order: 12,
+    hasProfileId: true,
+    // No es un movimiento financiero en si (no tiene importe): es una decision de
+    // clasificacion. Se trata igualmente como financiera porque afecta a que se presenta como
+    // "posible duplicado" en dinero real; sin merge automatico de campos.
+    financial: true,
+  },
 };
 
 // Orden de dependencias para el PUSH (ascendente) y para la subida en migracion/reconstruccion.

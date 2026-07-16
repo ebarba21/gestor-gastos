@@ -24,10 +24,18 @@ export function deserializeCents(value: number | string): number {
 }
 
 // Igual que deserializeCents pero admite null (columnas de centimos nullables, p. ej.
-// balanceAfterCents en fases futuras).
+// balanceAfterCents desde fase 5).
 export function deserializeCentsNullable(value: number | string | null): number | null {
   if (value === null) return null;
   return deserializeCents(value);
+}
+
+// Dominio -> transporte para columnas de centimos NULLABLE (p. ej. balanceAfterCents: el
+// fichero bancario puede no traer saldo posterior). null se conserva; un numero se valida
+// igual que serializeCents.
+export function serializeCentsNullable(cents: number | null): number | null {
+  if (cents === null) return null;
+  return serializeCents(cents);
 }
 
 // Valida que un valor es un entero seguro utilizable como centimos. No positivo/negativo: los

@@ -10,10 +10,10 @@
 // incluye owner_user_id/profile_id/revision/last_mutation_id: esos los fija el motor de push (el
 // propietario desde la sesion, la revision el servidor, el last_mutation_id la mutacion). `fromRow`
 // reconstruye la entidad local marcandola como sincronizada.
-import { serializeCents, deserializeCents } from '../remote';
+import { serializeCents, serializeCentsNullable, deserializeCents, deserializeCentsNullable } from '../remote';
 import type { SyncEntityType } from '../db/schema';
 
-type FieldKind = 'plain' | 'cents' | 'ms' | 'msNull';
+type FieldKind = 'plain' | 'cents' | 'centsNull' | 'ms' | 'msNull';
 
 interface FieldSpec {
   local: string;
@@ -92,6 +92,26 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'merchantId', remote: 'merchant_id', kind: 'plain' },
     { local: 'merchantMatchSource', remote: 'merchant_match_source', kind: 'plain' },
     { local: 'merchantMatchConfidence', remote: 'merchant_match_confidence', kind: 'plain' },
+    // --- Ampliacion fase 5 (metadatos bancarios y duplicados avanzados) ---
+    { local: 'bankTransactionId', remote: 'bank_transaction_id', kind: 'plain' },
+    { local: 'bookingDate', remote: 'booking_date', kind: 'plain' },
+    { local: 'valueDate', remote: 'value_date', kind: 'plain' },
+    { local: 'pending', remote: 'pending', kind: 'plain' },
+    { local: 'currency', remote: 'currency', kind: 'plain' },
+    { local: 'balanceAfterCents', remote: 'balance_after_cents', kind: 'centsNull' },
+    { local: 'bankReference', remote: 'bank_reference', kind: 'plain' },
+    { local: 'operationType', remote: 'operation_type', kind: 'plain' },
+    { local: 'sourceRowHash', remote: 'source_row_hash', kind: 'plain' },
+    { local: 'exactFingerprint', remote: 'exact_fingerprint', kind: 'plain' },
+    { local: 'normalizedFingerprint', remote: 'normalized_fingerprint', kind: 'plain' },
+    { local: 'fingerprintVersion', remote: 'fingerprint_version', kind: 'plain' },
+    { local: 'sourceFileHash', remote: 'source_file_hash', kind: 'plain' },
+    { local: 'sourceFileSize', remote: 'source_file_size', kind: 'plain' },
+    { local: 'duplicateStatus', remote: 'duplicate_status', kind: 'plain' },
+    { local: 'duplicateConfidence', remote: 'duplicate_confidence', kind: 'plain' },
+    { local: 'duplicateReasonCodes', remote: 'duplicate_reason_codes', kind: 'plain' },
+    { local: 'duplicateCandidateIds', remote: 'duplicate_candidate_ids', kind: 'plain' },
+    { local: 'pendingReplacementId', remote: 'pending_replacement_id', kind: 'plain' },
   ],
   rule: [
     { local: 'name', remote: 'name', kind: 'plain' },
@@ -132,7 +152,10 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'rowsTotal', remote: 'rows_total', kind: 'plain' },
     { local: 'rowsImported', remote: 'rows_imported', kind: 'plain' },
     { local: 'rowsSkippedDuplicate', remote: 'rows_skipped_duplicate', kind: 'plain' },
+    { local: 'rowsLinked', remote: 'rows_linked', kind: 'plain' },
     { local: 'status', remote: 'status', kind: 'plain' },
+    { local: 'sourceFileHash', remote: 'source_file_hash', kind: 'plain' },
+    { local: 'sourceFileSize', remote: 'source_file_size', kind: 'plain' },
   ],
   merchant: [
     { local: 'canonicalName', remote: 'canonical_name', kind: 'plain' },
@@ -150,6 +173,13 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'matchType', remote: 'match_type', kind: 'plain' },
     { local: 'priority', remote: 'priority', kind: 'plain' },
     { local: 'enabled', remote: 'enabled', kind: 'plain' },
+  ],
+  noDuplicateDecision: [
+    { local: 'leftFingerprint', remote: 'left_fingerprint', kind: 'plain' },
+    { local: 'rightFingerprint', remote: 'right_fingerprint', kind: 'plain' },
+    { local: 'leftTxId', remote: 'left_tx_id', kind: 'plain' },
+    { local: 'rightTxId', remote: 'right_tx_id', kind: 'plain' },
+    { local: 'reason', remote: 'reason', kind: 'plain' },
   ],
 };
 
@@ -187,6 +217,9 @@ export function toRow(
       case 'cents':
         row[spec.remote] = serializeCents(value as number);
         break;
+      case 'centsNull':
+        row[spec.remote] = value == null ? null : serializeCentsNullable(value as number);
+        break;
       case 'ms':
         row[spec.remote] = msToIso(value as number);
         break;
@@ -213,6 +246,9 @@ export function fromRow(
         break;
       case 'cents':
         local[spec.local] = deserializeCents(value as number | string);
+        break;
+      case 'centsNull':
+        local[spec.local] = deserializeCentsNullable(value as number | string | null);
         break;
       case 'ms':
         local[spec.local] = isoToMs(value as string);

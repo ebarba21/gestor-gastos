@@ -64,7 +64,14 @@ const context: RuleImportContext = {
 
 function parsed(rows: CellValue[][]): ParsedFile {
   const columnCount = rows.reduce((m, r) => Math.max(m, r.length), 0);
-  return { fileName: 'reglas.csv', sourceFormat: 'csv', rows, columnCount };
+  return {
+    fileName: 'reglas.csv',
+    sourceFormat: 'csv',
+    rows,
+    columnCount,
+    sourceFileHash: 'hash-reglas',
+    sourceFileSize: 0,
+  };
 }
 
 function mapWith(over: Partial<RuleImportColumnMap>): RuleImportColumnMap {

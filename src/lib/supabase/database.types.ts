@@ -11,14 +11,20 @@
 // REGENERACION (cuando cambien las migraciones): via MCP (generate_typescript_types) o CLI:
 //   supabase gen types typescript --project-id skwhlbwpnsdgmdsfozcr --schema public > src/lib/supabase/database.types.ts
 //
-// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2 y fase 4): entidades actuales, campos de
-// sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at, deleted_at,
+// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2, fase 4 y fase 5): entidades actuales, campos
+// de sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at, deleted_at,
 // revision), la columna de idempotencia `last_mutation_id`, `transactions.tag_ids` (fuente de
-// verdad de las etiquetas; `transaction_tags` es proyeccion derivada) y, desde fase 4, los
-// campos de comercio de `transactions` (raw_concept, normalized_concept,
-// normalization_version, merchant_id, merchant_match_source, merchant_match_confidence) y las
-// tablas `merchants`/`merchant_aliases`. Las columnas de fases posteriores (duplicados
-// avanzados, recurrencias, deudas) se anadiran en las migraciones de SUS fases, no aqui.
+// verdad de las etiquetas; `transaction_tags` es proyeccion derivada), los campos de comercio
+// de `transactions` (fase 4: raw_concept, normalized_concept, normalization_version,
+// merchant_id, merchant_match_source, merchant_match_confidence) y las tablas
+// `merchants`/`merchant_aliases`, y desde fase 5 los metadatos bancarios y huellas de
+// duplicados de `transactions` (bank_transaction_id, booking_date, value_date, pending,
+// currency, balance_after_cents, bank_reference, operation_type, source_row_hash,
+// exact_fingerprint, normalized_fingerprint, fingerprint_version, source_file_hash,
+// source_file_size, duplicate_status, duplicate_confidence, duplicate_reason_codes,
+// duplicate_candidate_ids, pending_replacement_id), `import_batches.source_file_hash/
+// source_file_size/rows_linked` y la tabla `no_duplicate_decisions`. Las columnas de fases
+// posteriores (recurrencias, deudas) se anadiran en las migraciones de SUS fases, no aqui.
 
 export type Json =
   | string
@@ -300,8 +306,11 @@ export type Database = {
           profile_id: string
           revision: number
           rows_imported: number
+          rows_linked: number
           rows_skipped_duplicate: number
           rows_total: number
+          source_file_hash: string | null
+          source_file_size: number | null
           status: string
           template_id: string | null
           updated_at: string
@@ -317,8 +326,11 @@ export type Database = {
           profile_id: string
           revision?: number
           rows_imported?: number
+          rows_linked?: number
           rows_skipped_duplicate?: number
           rows_total?: number
+          source_file_hash?: string | null
+          source_file_size?: number | null
           status: string
           template_id?: string | null
           updated_at?: string
@@ -334,8 +346,11 @@ export type Database = {
           profile_id?: string
           revision?: number
           rows_imported?: number
+          rows_linked?: number
           rows_skipped_duplicate?: number
           rows_total?: number
+          source_file_hash?: string | null
+          source_file_size?: number | null
           status?: string
           template_id?: string | null
           updated_at?: string
@@ -571,6 +586,76 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      no_duplicate_decisions: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          id: string
+          last_mutation_id: string | null
+          left_fingerprint: string
+          left_tx_id: string | null
+          owner_user_id: string
+          profile_id: string
+          reason: string | null
+          revision: number
+          right_fingerprint: string
+          right_tx_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_mutation_id?: string | null
+          left_fingerprint: string
+          left_tx_id?: string | null
+          owner_user_id: string
+          profile_id: string
+          reason?: string | null
+          revision?: number
+          right_fingerprint: string
+          right_tx_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_mutation_id?: string | null
+          left_fingerprint?: string
+          left_tx_id?: string | null
+          owner_user_id?: string
+          profile_id?: string
+          reason?: string | null
+          revision?: number
+          right_fingerprint?: string
+          right_tx_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "no_duplicate_decisions_left_tx_fkey"
+            columns: ["left_tx_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "no_duplicate_decisions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "no_duplicate_decisions_right_tx_fkey"
+            columns: ["right_tx_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id", "profile_id"]
           },
         ]
       }
@@ -838,14 +923,25 @@ export type Database = {
         Row: {
           account_id: string
           amount_cents: number
+          balance_after_cents: number | null
+          bank_reference: string | null
+          bank_transaction_id: string | null
+          booking_date: string | null
           categorized_by: string
           category_id: string | null
           concept: string
           created_at: string
+          currency: string
           date: string
           dedupe_hash: string
           deleted_at: string | null
+          duplicate_candidate_ids: string[]
+          duplicate_confidence: number
+          duplicate_reason_codes: string[]
+          duplicate_status: string
+          exact_fingerprint: string
           excluded_from_stats: boolean
+          fingerprint_version: number
           id: string
           import_batch_id: string | null
           is_split_parent: boolean
@@ -855,14 +951,21 @@ export type Database = {
           merchant_match_source: string
           normalization_version: number
           normalized_concept: string
+          normalized_fingerprint: string
           notes: string | null
+          operation_type: string | null
           owner_user_id: string
           parent_id: string | null
+          pending: boolean
+          pending_replacement_id: string | null
           profile_id: string
           raw_concept: string
           refund_of_id: string | null
           revision: number
           rule_id: string | null
+          source_file_hash: string | null
+          source_file_size: number | null
+          source_row_hash: string
           stats_flag: number
           status: string
           subcategory_id: string | null
@@ -870,18 +973,30 @@ export type Database = {
           transfer_group_id: string | null
           type: string
           updated_at: string
+          value_date: string | null
         }
         Insert: {
           account_id: string
           amount_cents: number
+          balance_after_cents?: number | null
+          bank_reference?: string | null
+          bank_transaction_id?: string | null
+          booking_date?: string | null
           categorized_by: string
           category_id?: string | null
           concept: string
           created_at?: string
+          currency?: string
           date: string
           dedupe_hash: string
           deleted_at?: string | null
+          duplicate_candidate_ids?: string[]
+          duplicate_confidence?: number
+          duplicate_reason_codes?: string[]
+          duplicate_status?: string
+          exact_fingerprint: string
           excluded_from_stats?: boolean
+          fingerprint_version?: number
           id?: string
           import_batch_id?: string | null
           is_split_parent?: boolean
@@ -891,14 +1006,21 @@ export type Database = {
           merchant_match_source?: string
           normalization_version?: number
           normalized_concept: string
+          normalized_fingerprint: string
           notes?: string | null
+          operation_type?: string | null
           owner_user_id: string
           parent_id?: string | null
+          pending?: boolean
+          pending_replacement_id?: string | null
           profile_id: string
           raw_concept: string
           refund_of_id?: string | null
           revision?: number
           rule_id?: string | null
+          source_file_hash?: string | null
+          source_file_size?: number | null
+          source_row_hash: string
           stats_flag?: number
           status: string
           subcategory_id?: string | null
@@ -906,18 +1028,30 @@ export type Database = {
           transfer_group_id?: string | null
           type: string
           updated_at?: string
+          value_date?: string | null
         }
         Update: {
           account_id?: string
           amount_cents?: number
+          balance_after_cents?: number | null
+          bank_reference?: string | null
+          bank_transaction_id?: string | null
+          booking_date?: string | null
           categorized_by?: string
           category_id?: string | null
           concept?: string
           created_at?: string
+          currency?: string
           date?: string
           dedupe_hash?: string
           deleted_at?: string | null
+          duplicate_candidate_ids?: string[]
+          duplicate_confidence?: number
+          duplicate_reason_codes?: string[]
+          duplicate_status?: string
+          exact_fingerprint?: string
           excluded_from_stats?: boolean
+          fingerprint_version?: number
           id?: string
           import_batch_id?: string | null
           is_split_parent?: boolean
@@ -927,14 +1061,21 @@ export type Database = {
           merchant_match_source?: string
           normalization_version?: number
           normalized_concept?: string
+          normalized_fingerprint?: string
           notes?: string | null
+          operation_type?: string | null
           owner_user_id?: string
           parent_id?: string | null
+          pending?: boolean
+          pending_replacement_id?: string | null
           profile_id?: string
           raw_concept?: string
           refund_of_id?: string | null
           revision?: number
           rule_id?: string | null
+          source_file_hash?: string | null
+          source_file_size?: number | null
+          source_row_hash?: string
           stats_flag?: number
           status?: string
           subcategory_id?: string | null
@@ -942,6 +1083,7 @@ export type Database = {
           transfer_group_id?: string | null
           type?: string
           updated_at?: string
+          value_date?: string | null
         }
         Relationships: [
           {
@@ -975,6 +1117,13 @@ export type Database = {
           {
             foreignKeyName: "transactions_parent_id_fkey"
             columns: ["parent_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "transactions_pending_replacement_fkey"
+            columns: ["pending_replacement_id", "profile_id"]
             isOneToOne: false
             referencedRelation: "transactions"
             referencedColumns: ["id", "profile_id"]
@@ -1141,3 +1290,9 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

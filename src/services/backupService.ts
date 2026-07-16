@@ -19,6 +19,7 @@ import { backupRepo, type ProfileDataTables } from '../db/backupRepo';
 import { profilesRepo } from '../db/profilesRepo';
 import { normalizeProfileName } from './profileService';
 import { requireProfileId } from '../lib/validation';
+import { computeFingerprints } from '../lib/duplicateFingerprint';
 
 // Marcadores del envelope. Sirven para reconocer el fichero y rechazar cualquier otro.
 export const BACKUP_APP = 'gestor-gastos';
@@ -85,6 +86,7 @@ const TABLE_KEYS: readonly (keyof ProfileDataTables)[] = [
   'budgets',
   'importTemplates',
   'importBatches',
+  'noDuplicateDecisions',
 ];
 
 // --- Creacion del backup ---
@@ -190,6 +192,7 @@ export function parseBackup(text: string): ProfileBackup {
     budgets: [],
     importTemplates: [],
     importBatches: [],
+    noDuplicateDecisions: [],
   };
   const rawData = raw.data as Record<string, unknown>;
   const mutableData = data as unknown as Record<string, unknown[]>;
@@ -281,6 +284,7 @@ export function remapProfileData(
   const txMap = buildIdMap(data.transactions, makeId);
   const settingMap = buildIdMap(data.settings, makeId);
   const budgetMap = buildIdMap(data.budgets, makeId);
+  const noDuplicateDecisionMap = buildIdMap(data.noDuplicateDecisions, makeId);
 
   // Los grupos de transferencia no son entidades: son un id compartido por las dos patas.
   // Se remapea de forma consistente (mismo valor origen -> mismo valor destino).
@@ -333,22 +337,57 @@ export function remapProfileData(
     merchantId: merchantMap.get(a.merchantId) ?? a.merchantId,
   }));
 
-  const transactions = data.transactions.map((t) => ({
-    ...t,
-    id: txMap.get(t.id)!,
-    profileId: targetProfileId,
-    accountId: remapRef(accountMap, t.accountId) ?? t.accountId,
-    categoryId: remapRef(categoryMap, t.categoryId),
-    subcategoryId: remapRef(categoryMap, t.subcategoryId),
-    tagIds: t.tagIds.map((id) => tagMap.get(id) ?? id),
-    ruleId: remapRef(ruleMap, t.ruleId),
-    transferGroupId:
-      t.transferGroupId === null ? null : transferGroupMap.get(t.transferGroupId) ?? t.transferGroupId,
-    parentId: remapRef(txMap, t.parentId),
-    refundOfId: remapRef(txMap, t.refundOfId),
-    importBatchId: remapRef(batchMap, t.importBatchId),
-    merchantId: remapRef(merchantMap, t.merchantId),
-  }));
+  // Traduccion huella tolerante ANTIGUA -> NUEVA (recalculada tras remapear accountId/
+  // merchantId, ver mas abajo), para poder traducir tambien las NoDuplicateDecision ya
+  // guardadas (leftFingerprint/rightFingerprint). Si dos transacciones distintas compartian
+  // la misma huella antigua, comparten la misma huella nueva (la formula solo depende de
+  // ids remapeados de forma consistente), asi que el mapeo nunca pierde informacion.
+  const normalizedFingerprintMap = new Map<string, string>();
+
+  const transactions = data.transactions.map((t) => {
+    const accountId = remapRef(accountMap, t.accountId) ?? t.accountId;
+    const merchantId = remapRef(merchantMap, t.merchantId);
+    // exactFingerprint/normalizedFingerprint incluyen literalmente accountId y merchantId
+    // como entrada (lib/duplicateFingerprint.ts). Tras remapearlos a ids nuevos hay que
+    // RECALCULAR las huellas explicitamente: si se conservaran las antiguas, el nivel
+    // "exact" del motor de duplicados dejaria de detectar una reimportacion real de este
+    // movimiento tras restaurar el backup (falso negativo que puede duplicar saldo,
+    // hallazgo de auditoria financiera).
+    const { exactFingerprint, normalizedFingerprint } = computeFingerprints({
+      accountId,
+      date: t.date,
+      amountCents: t.amountCents,
+      currency: t.currency,
+      normalizedConcept: t.normalizedConcept,
+      merchantId,
+    });
+    normalizedFingerprintMap.set(t.normalizedFingerprint, normalizedFingerprint);
+    return {
+      ...t,
+      id: txMap.get(t.id)!,
+      profileId: targetProfileId,
+      accountId,
+      categoryId: remapRef(categoryMap, t.categoryId),
+      subcategoryId: remapRef(categoryMap, t.subcategoryId),
+      tagIds: t.tagIds.map((id) => tagMap.get(id) ?? id),
+      ruleId: remapRef(ruleMap, t.ruleId),
+      transferGroupId:
+        t.transferGroupId === null ? null : transferGroupMap.get(t.transferGroupId) ?? t.transferGroupId,
+      parentId: remapRef(txMap, t.parentId),
+      refundOfId: remapRef(txMap, t.refundOfId),
+      importBatchId: remapRef(batchMap, t.importBatchId),
+      merchantId,
+      // El pendiente que este movimiento sustituyo (si lo hizo) nunca se exporta en el backup
+      // (backupRepo filtra los tombstones, y un pendiente sustituido siempre queda
+      // logicamente borrado): remapear su id antiguo apuntaria a un id inexistente en el
+      // perfil restaurado, violando la FK compuesta en el primer push. Se anula explicitamente
+      // (no hay pendiente que restaurar; la trazabilidad de esa sustitucion concreta no
+      // sobrevive a un backup, igual que el propio pendiente no sobrevive).
+      pendingReplacementId: null,
+      exactFingerprint,
+      normalizedFingerprint,
+    };
+  });
 
   const rules = data.rules.map((r) => ({
     ...r,
@@ -393,6 +432,23 @@ export function remapProfileData(
     templateId: remapRef(templateMap, batch.templateId),
   }));
 
+  // Las huellas (leftFingerprint/rightFingerprint) son hashes de contenido, no ids, pero
+  // incluyen accountId/merchantId como entrada: se traducen con normalizedFingerprintMap
+  // (calculado arriba junto con las transacciones remapeadas) para que sigan coincidiendo
+  // con las huellas recalculadas de los movimientos restaurados. Si una huella no aparece en
+  // el mapa (el movimiento que la origino no esta en este backup, p. ej. ya se habia borrado),
+  // se conserva tal cual: no hay mejor opcion sin ese movimiento. Solo se remapean ademas las
+  // referencias directas a movimientos (leftTxId/rightTxId).
+  const noDuplicateDecisions = data.noDuplicateDecisions.map((d) => ({
+    ...d,
+    id: noDuplicateDecisionMap.get(d.id)!,
+    profileId: targetProfileId,
+    leftFingerprint: normalizedFingerprintMap.get(d.leftFingerprint) ?? d.leftFingerprint,
+    rightFingerprint: normalizedFingerprintMap.get(d.rightFingerprint) ?? d.rightFingerprint,
+    leftTxId: remapRef(txMap, d.leftTxId),
+    rightTxId: remapRef(txMap, d.rightTxId),
+  }));
+
   // Restaurar = datos FRESCOS en local: se resetean los campos de sincronizacion (revision 0,
   // syncStatus 'local', deletedAt null, lastSyncedAt null). Un perfil restaurado es local hasta que
   // el usuario lo migre a una cuenta de forma explicita (fase 2). Ningun tombstone llega aqui (el
@@ -412,6 +468,7 @@ export function remapProfileData(
     budgets: resetSync(budgets),
     importTemplates: resetSync(importTemplates),
     importBatches: resetSync(importBatches),
+    noDuplicateDecisions: resetSync(noDuplicateDecisions),
   };
 }
 

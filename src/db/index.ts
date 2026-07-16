@@ -16,6 +16,7 @@ import type {
   ImportBatch,
   Merchant,
   MerchantAlias,
+  NoDuplicateDecision,
   SyncMeta,
   OutboxMutation,
   Conflict,
@@ -26,6 +27,11 @@ import type {
   WebAuthnCredentialRef,
 } from './schema';
 import { backfillMerchantFields, type LegacyTransactionRow } from './merchantMigration';
+import {
+  backfillDuplicateFields,
+  backfillImportBatchFields,
+  type LegacyTransactionRowV6,
+} from './duplicateMigration';
 
 export class GestorGastosDB extends Dexie {
   profiles!: Table<Profile, string>;
@@ -41,6 +47,8 @@ export class GestorGastosDB extends Dexie {
   // Comercios normalizados (ampliacion, fase 4).
   merchants!: Table<Merchant, string>;
   merchantAliases!: Table<MerchantAlias, string>;
+  // Deteccion avanzada de duplicados (ampliacion, fase 5).
+  noDuplicateDecisions!: Table<NoDuplicateDecision, string>;
   // Tablas device-local de la ampliacion (fase 2). NO se sincronizan ni entran en backups.
   outbox!: Table<OutboxMutation, string>;
   conflicts!: Table<Conflict, string>;
@@ -256,13 +264,105 @@ export class GestorGastosDB extends Dexie {
           });
         }
       });
+
+    // Version 6 (ampliacion, fase 5): deteccion avanzada de duplicados (DATA_MODEL seccion
+    // 15). Aditiva:
+    //   - Crea la tabla nueva noDuplicateDecisions (sincronizable, entra en backup).
+    //   - transactions gana los metadatos bancarios y huellas versionadas (bankTransactionId,
+    //     fechas contable/valor, pendiente, moneda, saldo posterior, referencia, tipo de
+    //     operacion, sourceRowHash, exactFingerprint, normalizedFingerprint,
+    //     fingerprintVersion, sourceFileHash, sourceFileSize, duplicateStatus,
+    //     duplicateConfidence, duplicateReasonCodes, duplicateCandidateIds,
+    //     pendingReplacementId) y los indices [profileId+bankTransactionId],
+    //     [profileId+normalizedFingerprint], [profileId+exactFingerprint] y
+    //     [profileId+duplicateStatus]. NUNCA se declara `&` (unico) sobre la huella
+    //     normalizada: dos compras reales identicas son legitimas (DATA_MODEL 15.1).
+    //   - importBatches gana sourceFileHash/sourceFileSize (detectar "archivo repetido") y su
+    //     indice [profileId+sourceFileHash].
+    //   - El upgrade rellena los defaults en las filas existentes: sin metadatos bancarios,
+    //     huellas calculadas con el algoritmo vigente, duplicateStatus='unique' (no se
+    //     re-evalua el historico contra el motor en la migracion; el recalculo es explicito,
+    //     nunca en silencio).
+    this.version(6)
+      .stores({
+        noDuplicateDecisions:
+          'id, profileId, [profileId+leftFingerprint], [profileId+rightFingerprint], ' +
+          '[profileId+syncStatus]',
+        transactions:
+          'id, profileId, ' +
+          '[profileId+date], [profileId+accountId], [profileId+categoryId], ' +
+          '[profileId+type], [profileId+statsFlag], [profileId+transferGroupId], ' +
+          '[profileId+parentId], [profileId+refundOfId], [profileId+importBatchId], ' +
+          '[profileId+dedupeHash], [profileId+syncStatus], [profileId+merchantId], ' +
+          '[profileId+normalizedConcept], [profileId+bankTransactionId], ' +
+          '[profileId+normalizedFingerprint], [profileId+exactFingerprint], ' +
+          '[profileId+duplicateStatus], *tagIds',
+        importBatches:
+          'id, profileId, [profileId+importedAt], [profileId+status], ' +
+          '[profileId+syncStatus], [profileId+sourceFileHash]',
+      })
+      .upgrade(async (tx) => {
+        const profiles = await tx.table('profiles').toArray();
+        const ownerByProfile = new Map<string, string | null>(
+          profiles.map((p: { id: string; ownerUserId: string | null }) => [
+            p.id,
+            p.ownerUserId ?? null,
+          ]),
+        );
+        const ts = now();
+        const toEnqueue: Array<{
+          userId: string;
+          profileId: string;
+          entityId: string;
+          entity: Record<string, unknown>;
+        }> = [];
+        await tx
+          .table('transactions')
+          .toCollection()
+          .modify((row: LegacyTransactionRowV6 & { id: string; profileId: string; syncStatus?: string }) => {
+            const touched = backfillDuplicateFields(row);
+            const userId = ownerByProfile.get(row.profileId) ?? null;
+            if (touched && userId && row.syncStatus === 'synced') {
+              row.syncStatus = 'pending';
+              toEnqueue.push({
+                userId,
+                profileId: row.profileId,
+                entityId: row.id,
+                entity: { ...row },
+              });
+            }
+          });
+        await tx
+          .table('importBatches')
+          .toCollection()
+          .modify((row: Record<string, unknown>) => {
+            backfillImportBatchFields(row);
+          });
+        for (const item of toEnqueue) {
+          await tx.table('outbox').add({
+            mutationId: newId(),
+            userId: item.userId,
+            profileId: item.profileId,
+            entityType: 'transaction',
+            entityId: item.entityId,
+            operation: 'update',
+            payload: item.entity,
+            baseRevision: (item.entity.revision as number) ?? 0,
+            createdAt: ts,
+            attempts: 0,
+            lastAttemptAt: null,
+            lastError: null,
+            status: 'queued',
+          });
+        }
+      });
   }
 }
 
 // Version del esquema de datos (Dexie). Fuente unica: la usan los backups para saber con
 // que version se generaron y decidir si son restaurables (DATA_MODEL seccion 7). Debe
 // coincidir con la ultima db.version(n) declarada arriba.
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 // Singleton de la base de datos usado por todos los repositorios.
 export const db = new GestorGastosDB();
@@ -280,6 +380,7 @@ export const childTables: readonly Table<{ profileId: string }, string>[] = [
   db.budgets,
   db.importTemplates,
   db.importBatches,
+  db.noDuplicateDecisions,
 ];
 
 // Helpers de identidad y tiempo. Claves primarias no autoincrementales para que los
