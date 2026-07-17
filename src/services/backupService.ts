@@ -75,6 +75,9 @@ export interface BackupSummary {
     reconciliations: number;
     recurringSeries: number;
     recurringOccurrences: number;
+    debts: number;
+    debtPayments: number;
+    debtScenarios: number;
   };
 }
 
@@ -95,6 +98,9 @@ const TABLE_KEYS: readonly (keyof ProfileDataTables)[] = [
   'reconciliations',
   'recurringSeries',
   'recurringOccurrences',
+  'debts',
+  'debtPayments',
+  'debtScenarios',
 ];
 
 // --- Creacion del backup ---
@@ -205,6 +211,9 @@ export function parseBackup(text: string): ProfileBackup {
     reconciliations: [],
     recurringSeries: [],
     recurringOccurrences: [],
+    debts: [],
+    debtPayments: [],
+    debtScenarios: [],
   };
   const rawData = raw.data as Record<string, unknown>;
   const mutableData = data as unknown as Record<string, unknown[]>;
@@ -257,6 +266,9 @@ export function summarizeBackup(backup: ProfileBackup): BackupSummary {
       reconciliations: d.reconciliations.length,
       recurringSeries: d.recurringSeries.length,
       recurringOccurrences: d.recurringOccurrences.length,
+      debts: d.debts.length,
+      debtPayments: d.debtPayments.length,
+      debtScenarios: d.debtScenarios.length,
     },
   };
 }
@@ -305,6 +317,9 @@ export function remapProfileData(
   const reconciliationMap = buildIdMap(data.reconciliations, makeId);
   const recurringSeriesMap = buildIdMap(data.recurringSeries, makeId);
   const recurringOccurrenceMap = buildIdMap(data.recurringOccurrences, makeId);
+  const debtMap = buildIdMap(data.debts, makeId);
+  const debtPaymentMap = buildIdMap(data.debtPayments, makeId);
+  const debtScenarioMap = buildIdMap(data.debtScenarios, makeId);
 
   // Los grupos de transferencia no son entidades: son un id compartido por las dos patas.
   // Se remapea de forma consistente (mismo valor origen -> mismo valor destino).
@@ -516,6 +531,34 @@ export function remapProfileData(
     transactionId: remapRef(txMap, o.transactionId),
   }));
 
+  const debts = data.debts.map((d) => ({
+    ...d,
+    id: debtMap.get(d.id)!,
+    profileId: targetProfileId,
+    linkedAccountId: remapRef(accountMap, d.linkedAccountId),
+    linkedCategoryId: remapRef(categoryMap, d.linkedCategoryId),
+  }));
+
+  const debtPayments = data.debtPayments.map((p) => ({
+    ...p,
+    id: debtPaymentMap.get(p.id)!,
+    profileId: targetProfileId,
+    debtId: debtMap.get(p.debtId) ?? p.debtId,
+    transactionId: remapRef(txMap, p.transactionId),
+  }));
+
+  // oneTimeExtraPayments es un array EMBEBIDO (no una tabla, DATA_MODEL 19.3): cada entrada
+  // referencia una deuda por debtId, que hay que remapear igual que cualquier otra referencia.
+  const debtScenarios = data.debtScenarios.map((s) => ({
+    ...s,
+    id: debtScenarioMap.get(s.id)!,
+    profileId: targetProfileId,
+    oneTimeExtraPayments: s.oneTimeExtraPayments.map((e) => ({
+      ...e,
+      debtId: debtMap.get(e.debtId) ?? e.debtId,
+    })),
+  }));
+
   // Restaurar = datos FRESCOS en local: se resetean los campos de sincronizacion (revision 0,
   // syncStatus 'local', deletedAt null, lastSyncedAt null). Un perfil restaurado es local hasta que
   // el usuario lo migre a una cuenta de forma explicita (fase 2). Ningun tombstone llega aqui (el
@@ -540,6 +583,9 @@ export function remapProfileData(
     reconciliations: resetSync(reconciliations),
     recurringSeries: resetSync(recurringSeries),
     recurringOccurrences: resetSync(recurringOccurrences),
+    debts: resetSync(debts),
+    debtPayments: resetSync(debtPayments),
+    debtScenarios: resetSync(debtScenarios),
   };
 }
 

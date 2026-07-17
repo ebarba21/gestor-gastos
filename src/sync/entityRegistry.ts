@@ -176,6 +176,35 @@ export const ENTITY_REGISTRY: Record<SyncEntityType, EntityInfo> = {
     hasProfileId: true,
     financial: true,
   },
+  // Deudas (fase 8): la deuda referencia opcionalmente una cuenta y una categoria (ya subidas,
+  // order 1 y 2), se sube DESPUES de ambas. Los pagos y escenarios referencian la deuda, se
+  // suben DESPUES de debt.
+  debt: {
+    entityType: 'debt',
+    remoteTable: 'debts',
+    localTable: 'debts',
+    order: 17,
+    hasProfileId: true,
+    financial: true,
+  },
+  debtPayment: {
+    entityType: 'debtPayment',
+    remoteTable: 'debt_payments',
+    localTable: 'debtPayments',
+    order: 18,
+    hasProfileId: true,
+    financial: true,
+  },
+  debtScenario: {
+    entityType: 'debtScenario',
+    remoteTable: 'debt_scenarios',
+    localTable: 'debtScenarios',
+    order: 19,
+    hasProfileId: true,
+    // Simulacion guardada, no un movimiento real, pero afecta a decisiones sobre dinero real:
+    // mismo criterio que reviewItem/noDuplicateDecision, sin merge automatico de campos.
+    financial: true,
+  },
 };
 
 // Orden de dependencias para el PUSH (ascendente) y para la subida en migracion/reconstruccion.

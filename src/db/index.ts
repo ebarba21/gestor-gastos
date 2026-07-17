@@ -21,6 +21,9 @@ import type {
   Reconciliation,
   RecurringSeries,
   RecurringOccurrence,
+  Debt,
+  DebtPayment,
+  DebtScenario,
   SyncMeta,
   OutboxMutation,
   Conflict,
@@ -59,6 +62,10 @@ export class GestorGastosDB extends Dexie {
   // Recurrencias y forecast por rango (ampliacion, fase 7).
   recurringSeries!: Table<RecurringSeries, string>;
   recurringOccurrences!: Table<RecurringOccurrence, string>;
+  // Deudas y planificador (ampliacion, fase 8).
+  debts!: Table<Debt, string>;
+  debtPayments!: Table<DebtPayment, string>;
+  debtScenarios!: Table<DebtScenario, string>;
   // Tablas device-local de la ampliacion (fase 2). NO se sincronizan ni entran en backups.
   outbox!: Table<OutboxMutation, string>;
   conflicts!: Table<Conflict, string>;
@@ -407,13 +414,27 @@ export class GestorGastosDB extends Dexie {
         'id, profileId, [profileId+seriesId], [profileId+status], ' +
         '[profileId+expectedDate], [profileId+syncStatus]',
     });
+
+    // Version 9 (ampliacion, fase 8): deudas y planificador (DATA_MODEL seccion 19). Aditiva:
+    // crea tres tablas nuevas y vacias (debts, debtPayments, debtScenarios), todas
+    // sincronizables y con backup. SIN `.upgrade()` de datos: no hay filas legacy de estas
+    // entidades que transformar (son enteramente nuevas), mismo criterio que las versiones 7 y 8.
+    this.version(9).stores({
+      // [profileId+status]: listar activas/pagadas/archivadas. linkedAccountId: navegar desde
+      // una cuenta a sus deudas vinculadas.
+      debts: 'id, profileId, [profileId+status], linkedAccountId, [profileId+syncStatus]',
+      // [profileId+debtId]: pagos de una deuda. [profileId+date]: historial ordenado por fecha.
+      debtPayments:
+        'id, profileId, [profileId+debtId], [profileId+date], [profileId+syncStatus]',
+      debtScenarios: 'id, profileId, [profileId+strategy], [profileId+syncStatus]',
+    });
   }
 }
 
 // Version del esquema de datos (Dexie). Fuente unica: la usan los backups para saber con
 // que version se generaron y decidir si son restaurables (DATA_MODEL seccion 7). Debe
 // coincidir con la ultima db.version(n) declarada arriba.
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 // Singleton de la base de datos usado por todos los repositorios.
 export const db = new GestorGastosDB();
@@ -436,6 +457,9 @@ export const childTables: readonly Table<{ profileId: string }, string>[] = [
   db.reconciliations,
   db.recurringSeries,
   db.recurringOccurrences,
+  db.debts,
+  db.debtPayments,
+  db.debtScenarios,
 ];
 
 // Helpers de identidad y tiempo. Claves primarias no autoincrementales para que los

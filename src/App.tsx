@@ -7,6 +7,7 @@ import MerchantsPage from './pages/MerchantsPage';
 import ReviewInboxPage from './pages/ReviewInboxPage';
 import ReconciliationPage from './pages/ReconciliationPage';
 import RecurringSeriesPage from './pages/RecurringSeriesPage';
+import DebtsPage from './pages/DebtsPage';
 import CategoriesPage from './pages/CategoriesPage';
 import AccountsPage from './pages/AccountsPage';
 import BudgetsPage from './pages/BudgetsPage';
@@ -36,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/bandeja', label: 'Bandeja de revision' },
   { to: '/conciliacion', label: 'Conciliacion' },
   { to: '/recurrencias', label: 'Recurrencias' },
+  { to: '/deudas', label: 'Deudas' },
   { to: '/categorias', label: 'Categorias' },
   { to: '/cuentas', label: 'Cuentas' },
   { to: '/presupuestos', label: 'Presupuestos' },
@@ -96,6 +98,7 @@ function AppLayout() {
           <Route path="/bandeja" element={<ReviewInboxPage />} />
           <Route path="/conciliacion" element={<ReconciliationPage />} />
           <Route path="/recurrencias" element={<RecurringSeriesPage />} />
+          <Route path="/deudas" element={<DebtsPage />} />
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/cuentas" element={<AccountsPage />} />
           <Route path="/presupuestos" element={<BudgetsPage />} />

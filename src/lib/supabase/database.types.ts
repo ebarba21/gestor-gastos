@@ -11,22 +11,22 @@
 // REGENERACION (cuando cambien las migraciones): via MCP (generate_typescript_types) o CLI:
 //   supabase gen types typescript --project-id skwhlbwpnsdgmdsfozcr --schema public > src/lib/supabase/database.types.ts
 //
-// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2, fase 4, fase 5 y fase 6): entidades actuales,
-// campos de sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at,
-// deleted_at, revision), la columna de idempotencia `last_mutation_id`, `transactions.tag_ids`
-// (fuente de verdad de las etiquetas; `transaction_tags` es proyeccion derivada), los campos de
-// comercio de `transactions` (fase 4: raw_concept, normalized_concept, normalization_version,
-// merchant_id, merchant_match_source, merchant_match_confidence) y las tablas
-// `merchants`/`merchant_aliases`, desde fase 5 los metadatos bancarios y huellas de duplicados
-// de `transactions` (bank_transaction_id, booking_date, value_date, pending, currency,
+// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2, fase 4, fase 5, fase 6, fase 7 y fase 8):
+// entidades actuales, campos de sincronizacion/propiedad (owner_user_id, profile_id, created_at,
+// updated_at, deleted_at, revision), la columna de idempotencia `last_mutation_id`,
+// `transactions.tag_ids` (fuente de verdad de las etiquetas; `transaction_tags` es proyeccion
+// derivada), los campos de comercio de `transactions` (fase 4: raw_concept, normalized_concept,
+// normalization_version, merchant_id, merchant_match_source, merchant_match_confidence) y las
+// tablas `merchants`/`merchant_aliases`, desde fase 5 los metadatos bancarios y huellas de
+// duplicados de `transactions` (bank_transaction_id, booking_date, value_date, pending, currency,
 // balance_after_cents, bank_reference, operation_type, source_row_hash, exact_fingerprint,
 // normalized_fingerprint, fingerprint_version, source_file_hash, source_file_size,
 // duplicate_status, duplicate_confidence, duplicate_reason_codes, duplicate_candidate_ids,
 // pending_replacement_id), `import_batches.source_file_hash/source_file_size/rows_linked` y la
 // tabla `no_duplicate_decisions`, desde fase 6 las tablas `review_items` y `reconciliations`
-// (bandeja de revision y conciliacion bancaria), y desde fase 7 las tablas `recurring_series`
-// y `recurring_occurrences` (series recurrentes y forecast por rango). Las columnas de fases
-// posteriores (deudas) se anadiran en las migraciones de SU fase, no aqui.
+// (bandeja de revision y conciliacion bancaria), desde fase 7 las tablas `recurring_series` y
+// `recurring_occurrences` (series recurrentes y forecast por rango), y desde fase 8 las tablas
+// `debts`, `debt_payments` y `debt_scenarios` (calculadora y planificador de deudas).
 
 export type Json =
   | string
@@ -289,6 +289,238 @@ export type Database = {
           },
           {
             foreignKeyName: "categories_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      debt_payments: {
+        Row: {
+          created_at: string
+          date: string
+          debt_id: string
+          deleted_at: string | null
+          extra_principal_cents: number
+          fees_cents: number
+          id: string
+          interest_cents: number
+          last_mutation_id: string | null
+          owner_user_id: string
+          principal_cents: number
+          profile_id: string
+          revision: number
+          total_cents: number
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          debt_id: string
+          deleted_at?: string | null
+          extra_principal_cents?: number
+          fees_cents: number
+          id?: string
+          interest_cents: number
+          last_mutation_id?: string | null
+          owner_user_id: string
+          principal_cents: number
+          profile_id: string
+          revision?: number
+          total_cents: number
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          debt_id?: string
+          deleted_at?: string | null
+          extra_principal_cents?: number
+          fees_cents?: number
+          id?: string
+          interest_cents?: number
+          last_mutation_id?: string | null
+          owner_user_id?: string
+          principal_cents?: number
+          profile_id?: string
+          revision?: number
+          total_cents?: number
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debt_payments_debt_id_fkey"
+            columns: ["debt_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "debts"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "debt_payments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debt_payments_transaction_id_fkey"
+            columns: ["transaction_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id", "profile_id"]
+          },
+        ]
+      }
+      debt_scenarios: {
+        Row: {
+          calculation_version: number
+          created_at: string
+          deleted_at: string | null
+          id: string
+          last_mutation_id: string | null
+          name: string
+          one_time_extra_payments: Json
+          owner_user_id: string
+          profile_id: string
+          recurring_extra_cents: number
+          revision: number
+          source_revision: number
+          strategy: string
+          updated_at: string
+        }
+        Insert: {
+          calculation_version: number
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_mutation_id?: string | null
+          name: string
+          one_time_extra_payments?: Json
+          owner_user_id: string
+          profile_id: string
+          recurring_extra_cents?: number
+          revision?: number
+          source_revision?: number
+          strategy: string
+          updated_at?: string
+        }
+        Update: {
+          calculation_version?: number
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          last_mutation_id?: string | null
+          name?: string
+          one_time_extra_payments?: Json
+          owner_user_id?: string
+          profile_id?: string
+          recurring_extra_cents?: number
+          revision?: number
+          source_revision?: number
+          strategy?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debt_scenarios_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      debts: {
+        Row: {
+          annual_rate_ppm: number
+          created_at: string
+          currency: string
+          deleted_at: string | null
+          id: string
+          last_mutation_id: string | null
+          linked_account_id: string | null
+          linked_category_id: string | null
+          minimum_payment_cents: number
+          name: string
+          next_payment_date: string | null
+          original_principal_cents: number
+          outstanding_principal_cents: number
+          owner_user_id: string
+          payment_frequency: string
+          profile_id: string
+          remaining_term_months: number | null
+          revision: number
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          annual_rate_ppm: number
+          created_at?: string
+          currency?: string
+          deleted_at?: string | null
+          id?: string
+          last_mutation_id?: string | null
+          linked_account_id?: string | null
+          linked_category_id?: string | null
+          minimum_payment_cents: number
+          name: string
+          next_payment_date?: string | null
+          original_principal_cents: number
+          outstanding_principal_cents: number
+          owner_user_id: string
+          payment_frequency?: string
+          profile_id: string
+          remaining_term_months?: number | null
+          revision?: number
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          annual_rate_ppm?: number
+          created_at?: string
+          currency?: string
+          deleted_at?: string | null
+          id?: string
+          last_mutation_id?: string | null
+          linked_account_id?: string | null
+          linked_category_id?: string | null
+          minimum_payment_cents?: number
+          name?: string
+          next_payment_date?: string | null
+          original_principal_cents?: number
+          outstanding_principal_cents?: number
+          owner_user_id?: string
+          payment_frequency?: string
+          profile_id?: string
+          remaining_term_months?: number | null
+          revision?: number
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debts_linked_account_id_fkey"
+            columns: ["linked_account_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "debts_linked_category_id_fkey"
+            columns: ["linked_category_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "debts_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"

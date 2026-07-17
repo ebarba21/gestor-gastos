@@ -244,6 +244,12 @@ export interface SplitPart {
   subcategoryId?: string | null;
   tagIds?: string[];
   notes?: string | null;
+  // Exclusion de estadisticas de ESTA linea. Opcional: si se omite, hereda el comportamiento
+  // historico (todas las hijas comparten la exclusion "heredada" del padre). Un llamante que
+  // necesite mezclar hijas que cuentan con hijas excluidas dentro del MISMO split (p. ej. fase 8:
+  // separar el principal de una cuota de deuda, que no es consumo, del interes, que si lo es)
+  // puede fijarlo por parte. Aditivo: no cambia el comportamiento de ningun llamante existente.
+  excludedFromStats?: boolean;
 }
 
 // Valida el reparto: cada parte con importe no nulo, mismo signo que el padre y suma
@@ -800,8 +806,9 @@ export const transactionService = {
         parentId,
         isSplitParent: false,
         refundOfId: null,
-        // Las hijas cuentan en estadisticas salvo que el padre estuviera excluido (herencia).
-        excludedFromStats: inheritedExcluded,
+        // Las hijas cuentan en estadisticas salvo que el padre estuviera excluido (herencia),
+        // salvo que esta parte concreta fije su propia exclusion (ver SplitPart.excludedFromStats).
+        excludedFromStats: part.excludedFromStats ?? inheritedExcluded,
         importBatchId: null,
         dedupeHash: computeDedupeHash({
           profileId,

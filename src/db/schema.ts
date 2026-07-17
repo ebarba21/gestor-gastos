@@ -534,6 +534,96 @@ export interface RecurringOccurrence extends SyncMeta {
   updatedAt: number;
 }
 
+// Deudas (ampliacion, fase 8). Ver DATA_MODEL seccion 19 y FINANCIAL_ALGORITHMS secciones 8-9.
+// Importes en centimos; tipos de interes en micro-fraccion 1e-6 (annualRatePpm). No es
+// asesoramiento financiero personalizado: solo calculo determinista sobre los datos que registra
+// la persona.
+export type DebtType = 'personalLoan' | 'mortgageFixed' | 'card' | 'other';
+// Mensual en esta fase (arquitectura lista para variable, sin simular indices futuros sin
+// datos: FINANCIAL_ALGORITHMS 8.1).
+export type DebtPaymentFrequency = 'monthly';
+export type DebtStatus = 'active' | 'paidOff' | 'archived';
+
+// Deuda registrada (DATA_MODEL 19.1). `type='card'` (revolving, pago minimo variable) queda
+// FUERA del calendario de amortizacion y de Snowball/Avalanche en esta fase (FINANCIAL_ALGORITHMS
+// 8.1): se registra la deuda y sus pagos, pero ningun servicio le genera calendario.
+export interface Debt extends SyncMeta {
+  id: string;
+  profileId: string;
+  name: string;
+  type: DebtType;
+  currency: string;
+  originalPrincipalCents: number;
+  outstandingPrincipalCents: number;
+  annualRatePpm: number;
+  minimumPaymentCents: number;
+  paymentFrequency: DebtPaymentFrequency;
+  nextPaymentDate: string | null; // YYYY-MM-DD
+  remainingTermMonths: number | null;
+  linkedAccountId: string | null;
+  linkedCategoryId: string | null;
+  status: DebtStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Pago registrado sobre una deuda (DATA_MODEL 19.2). Convencion de signo: TODOS los importes
+// son magnitudes POSITIVAS (importes pagados), a diferencia de Transaction (gasto negativo). Si
+// hay `transactionId`, la parte de PRINCIPAL reduce el pasivo y NO se cuenta como gasto de
+// consumo; solo intereses y comisiones son gasto real (evita doble conteo, invariante de la
+// fase). Invariante: totalCents = principalCents + interestCents + feesCents, con
+// extraPrincipalCents incluido DENTRO de principalCents (la amortizacion extraordinaria es
+// principal, no un componente aparte que sume al total).
+export interface DebtPayment extends SyncMeta {
+  id: string;
+  debtId: string;
+  profileId: string;
+  date: string; // YYYY-MM-DD
+  totalCents: number;
+  principalCents: number;
+  interestCents: number;
+  feesCents: number;
+  extraPrincipalCents: number;
+  transactionId: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type DebtScenarioStrategy = 'baseline' | 'snowball' | 'avalanche' | 'custom';
+export type ExtraPaymentMode = 'reduceTerm' | 'reducePayment';
+
+// Amortizacion extraordinaria dentro de un escenario (DATA_MODEL 19.3). Embebida en
+// DebtScenario.oneTimeExtraPayments (no es tabla propia: un escenario es una simulacion
+// guardada, nunca modifica datos reales).
+export interface ExtraPayment {
+  id: string;
+  debtId: string;
+  date: string; // YYYY-MM-DD
+  amountCents: number;
+  mode: ExtraPaymentMode;
+}
+
+// Escenario de simulacion (DATA_MODEL 19.3). NUNCA modifica deudas reales. `sourceRevision` es
+// la suma de las `revision` de TODAS las deudas incluidas en el calculo: si el agregado actual
+// difiere del guardado, alguna deuda cambio desde que se guardo el escenario y la UI debe
+// avisar que esta desactualizado (nunca recalcular en silencio). `updatedAt` no aparece en la
+// tabla abreviada de DATA_MODEL 19.3 (solo lista `createdAt`), pero la regla general de la
+// seccion 1 ("toda entidad persistente lleva createdAt y updatedAt") y el mixin de
+// sincronizacion (el repositorio siempre lo fija en cada escritura) lo exigen igual que en el
+// resto de entidades; se anade por consistencia, nunca se pierde nada al hacerlo (aditivo).
+export interface DebtScenario extends SyncMeta {
+  id: string;
+  profileId: string;
+  name: string;
+  strategy: DebtScenarioStrategy;
+  recurringExtraCents: number;
+  oneTimeExtraPayments: ExtraPayment[];
+  createdAt: number;
+  updatedAt: number;
+  calculationVersion: number;
+  sourceRevision: number;
+}
+
 // --- Ampliacion fase 2: estructuras de sincronizacion (DATA_MODEL secciones 11-13) ---
 //
 // Las entidades de esta seccion son DEVICE-LOCAL: viven solo en Dexie, NUNCA se sincronizan a
@@ -558,7 +648,10 @@ export type SyncEntityType =
   | 'reviewItem'
   | 'reconciliation'
   | 'recurringSeries'
-  | 'recurringOccurrence';
+  | 'recurringOccurrence'
+  | 'debt'
+  | 'debtPayment'
+  | 'debtScenario';
 
 export type MutationOperation = 'insert' | 'update' | 'delete';
 

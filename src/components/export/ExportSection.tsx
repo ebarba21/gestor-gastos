@@ -23,6 +23,7 @@ import {
 import { ruleService } from '../../services/ruleService';
 import { merchantService } from '../../services/merchantService';
 import { budgetService } from '../../services/budgetService';
+import { debtsService } from '../../services/debtsService';
 import { statsService } from '../../services/statsService';
 import {
   backupService,
@@ -137,6 +138,22 @@ export function ExportSection() {
       await exportWorkbook([exportService.buildRulesSheet(rules, names)], EXPORT_LABELS.rules);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'No se pudieron cargar las reglas.', 'error');
+    }
+  };
+
+  const exportDebts = async () => {
+    try {
+      const { debts, payments } = await debtsService.listAllForExport(profileId);
+      const debtNames = new Map(debts.map((d) => [d.id, d.name]));
+      await exportWorkbook(
+        [
+          exportService.buildDebtsSheet(debts, names),
+          exportService.buildDebtPaymentsSheet(payments, debtNames),
+        ],
+        EXPORT_LABELS.debts,
+      );
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudieron cargar las deudas.', 'error');
     }
   };
 
@@ -314,6 +331,9 @@ export function ExportSection() {
           <button type="button" disabled={busy} onClick={() => void exportBudgets()} className={exportBtn}>
             Metas
           </button>
+          <button type="button" disabled={busy} onClick={() => void exportDebts()} className={exportBtn}>
+            Deudas
+          </button>
         </div>
 
         <div className="border-t border-slate-800 pt-4">
@@ -397,7 +417,8 @@ export function ExportSection() {
                 {restore.summary.counts.accounts} cuentas, {restore.summary.counts.categories}{' '}
                 categorias, {restore.summary.counts.merchants} comercios (
                 {restore.summary.counts.merchantAliases} alias), {restore.summary.counts.rules}{' '}
-                reglas y {restore.summary.counts.budgets} metas.
+                reglas, {restore.summary.counts.budgets} metas y {restore.summary.counts.debts}{' '}
+                deudas.
               </p>
               <p className="text-amber-300">
                 <strong>Sobrescribir este perfil</strong> borra por completo los datos actuales de{' '}

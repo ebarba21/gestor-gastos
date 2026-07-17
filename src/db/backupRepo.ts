@@ -9,6 +9,9 @@ import type {
   Account,
   Budget,
   Category,
+  Debt,
+  DebtPayment,
+  DebtScenario,
   ImportBatch,
   ImportTemplate,
   Merchant,
@@ -47,6 +50,9 @@ export interface ProfileDataTables {
   reconciliations: Reconciliation[];
   recurringSeries: RecurringSeries[];
   recurringOccurrences: RecurringOccurrence[];
+  debts: Debt[];
+  debtPayments: DebtPayment[];
+  debtScenarios: DebtScenario[];
 }
 
 export interface ProfileSnapshot {
@@ -82,6 +88,9 @@ export const backupRepo = {
         reconciliations,
         recurringSeries,
         recurringOccurrences,
+        debts,
+        debtPayments,
+        debtScenarios,
       ] = await Promise.all([
         db.settings.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.accounts.where('profileId').equals(profileId).filter(isAlive).toArray(),
@@ -99,6 +108,9 @@ export const backupRepo = {
         db.reconciliations.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.recurringSeries.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.recurringOccurrences.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.debts.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.debtPayments.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.debtScenarios.where('profileId').equals(profileId).filter(isAlive).toArray(),
       ]);
 
       return {
@@ -120,6 +132,9 @@ export const backupRepo = {
           reconciliations,
           recurringSeries,
           recurringOccurrences,
+          debts,
+          debtPayments,
+          debtScenarios,
         },
       };
     });
@@ -184,4 +199,7 @@ async function bulkAddAll(data: ProfileDataTables): Promise<void> {
   if (data.recurringOccurrences.length > 0) {
     await db.recurringOccurrences.bulkAdd(data.recurringOccurrences);
   }
+  if (data.debts.length > 0) await db.debts.bulkAdd(data.debts);
+  if (data.debtPayments.length > 0) await db.debtPayments.bulkAdd(data.debtPayments);
+  if (data.debtScenarios.length > 0) await db.debtScenarios.bulkAdd(data.debtScenarios);
 }

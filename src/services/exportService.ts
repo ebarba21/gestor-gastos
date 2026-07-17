@@ -13,6 +13,8 @@ import type {
   Account,
   Budget,
   Category,
+  Debt,
+  DebtPayment,
   Merchant,
   MerchantAlias,
   Rule,
@@ -262,6 +264,98 @@ export function buildMerchantAliasesSheet(
   return { name: 'Alias de comercio', rows: [header, ...rows] };
 }
 
+// --- Deudas (fase 8) ---
+
+const DEBT_TYPE_LABELS: Record<Debt['type'], string> = {
+  personalLoan: 'Prestamo personal',
+  mortgageFixed: 'Hipoteca fija',
+  card: 'Tarjeta',
+  other: 'Otra',
+};
+
+const DEBT_STATUS_LABELS: Record<Debt['status'], string> = {
+  active: 'Activa',
+  paidOff: 'Liquidada',
+  archived: 'Archivada',
+};
+
+// Tipo de interes en porcentaje legible (annualRatePpm esta en micro-fraccion 1e-6: 50000 ppm ->
+// 5%). Solo para presentacion; el calculo financiero nunca usa este valor formateado.
+function ppmToPercentLabel(ppm: number): string {
+  return `${(ppm / 10000).toFixed(4)}%`;
+}
+
+export function buildDebtsSheet(
+  debts: Debt[],
+  names: Pick<NameLookups, 'accountNames' | 'categoryNames'>,
+): SheetSpec {
+  const header: ExportCell[] = [
+    'Nombre',
+    'Tipo',
+    'Moneda',
+    'Principal original (EUR)',
+    'Principal pendiente (EUR)',
+    'Tipo de interes anual',
+    'Cuota / pago minimo (EUR)',
+    'Proxima fecha de pago',
+    'Plazo restante (meses)',
+    'Cuenta vinculada',
+    'Categoria vinculada',
+    'Estado',
+  ];
+  const rows = debts.map((d) => [
+    d.name,
+    DEBT_TYPE_LABELS[d.type],
+    d.currency,
+    eur(d.originalPrincipalCents),
+    eur(d.outstandingPrincipalCents),
+    ppmToPercentLabel(d.annualRatePpm),
+    eur(d.minimumPaymentCents),
+    d.nextPaymentDate ?? '',
+    d.remainingTermMonths ?? '',
+    nameOf(names.accountNames, d.linkedAccountId),
+    nameOf(names.categoryNames, d.linkedCategoryId),
+    DEBT_STATUS_LABELS[d.status],
+  ]);
+  return { name: 'Deudas', rows: [header, ...rows] };
+}
+
+export function buildDebtPaymentsSheet(payments: DebtPayment[], debtNames: Map<string, string>): SheetSpec {
+  const header: ExportCell[] = [
+    'Deuda',
+    'Fecha',
+    'Total (EUR)',
+    'Principal (EUR)',
+    'Interes (EUR)',
+    'Comisiones (EUR)',
+    'Amortizacion extraordinaria (EUR)',
+    'Movimiento vinculado',
+  ];
+  const rows = payments.map((p) => [
+    nameOf(debtNames, p.debtId),
+    p.date,
+    eur(p.totalCents),
+    eur(p.principalCents),
+    eur(p.interestCents),
+    eur(p.feesCents),
+    eur(p.extraPrincipalCents),
+    p.transactionId === null ? 'No' : 'Si',
+  ]);
+  return { name: 'Pagos de deuda', rows: [header, ...rows] };
+}
+
+// Calendario de amortizacion descargable (simulador/comparador de la UI de deudas). Genera una
+// hoja independiente a partir de las filas YA calculadas por debtAmortizationEngine: no
+// reimplementa el calculo (mismo principio que el resto de exportaciones).
+export function buildAmortizationScheduleSheet(
+  rows: { period: number; date: string; paymentCents: number; interestCents: number; principalCents: number; balanceCents: number }[],
+  sheetName = 'Calendario de amortizacion',
+): SheetSpec {
+  const header: ExportCell[] = ['Periodo', 'Fecha', 'Cuota (EUR)', 'Interes (EUR)', 'Principal (EUR)', 'Saldo (EUR)'];
+  const dataRows = rows.map((r) => [r.period, r.date, eur(r.paymentCents), eur(r.interestCents), eur(r.principalCents), eur(r.balanceCents)]);
+  return { name: sheetName, rows: [header, ...dataRows] };
+}
+
 export function buildRulesSheet(rules: Rule[], names: NameLookups): SheetSpec {
   const header: ExportCell[] = [
     'Nombre',
@@ -456,6 +550,7 @@ export const EXPORT_LABELS = {
   budgets: 'metas',
   dashboard: 'dashboard',
   merchants: 'comercios',
+  debts: 'deudas',
 } as const;
 
 export const exportService = {
@@ -469,4 +564,7 @@ export const exportService = {
   buildDashboardSheets,
   buildMerchantsSheet,
   buildMerchantAliasesSheet,
+  buildDebtsSheet,
+  buildDebtPaymentsSheet,
+  buildAmortizationScheduleSheet,
 };
