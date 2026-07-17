@@ -11,20 +11,22 @@
 // REGENERACION (cuando cambien las migraciones): via MCP (generate_typescript_types) o CLI:
 //   supabase gen types typescript --project-id skwhlbwpnsdgmdsfozcr --schema public > src/lib/supabase/database.types.ts
 //
-// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2, fase 4 y fase 5): entidades actuales, campos
-// de sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at, deleted_at,
-// revision), la columna de idempotencia `last_mutation_id`, `transactions.tag_ids` (fuente de
-// verdad de las etiquetas; `transaction_tags` es proyeccion derivada), los campos de comercio
-// de `transactions` (fase 4: raw_concept, normalized_concept, normalization_version,
+// Nota de alcance (IMPLEMENTATION_ROADMAP fase 2, fase 4, fase 5 y fase 6): entidades actuales,
+// campos de sincronizacion/propiedad (owner_user_id, profile_id, created_at, updated_at,
+// deleted_at, revision), la columna de idempotencia `last_mutation_id`, `transactions.tag_ids`
+// (fuente de verdad de las etiquetas; `transaction_tags` es proyeccion derivada), los campos de
+// comercio de `transactions` (fase 4: raw_concept, normalized_concept, normalization_version,
 // merchant_id, merchant_match_source, merchant_match_confidence) y las tablas
-// `merchants`/`merchant_aliases`, y desde fase 5 los metadatos bancarios y huellas de
-// duplicados de `transactions` (bank_transaction_id, booking_date, value_date, pending,
-// currency, balance_after_cents, bank_reference, operation_type, source_row_hash,
-// exact_fingerprint, normalized_fingerprint, fingerprint_version, source_file_hash,
-// source_file_size, duplicate_status, duplicate_confidence, duplicate_reason_codes,
-// duplicate_candidate_ids, pending_replacement_id), `import_batches.source_file_hash/
-// source_file_size/rows_linked` y la tabla `no_duplicate_decisions`. Las columnas de fases
-// posteriores (recurrencias, deudas) se anadiran en las migraciones de SUS fases, no aqui.
+// `merchants`/`merchant_aliases`, desde fase 5 los metadatos bancarios y huellas de duplicados
+// de `transactions` (bank_transaction_id, booking_date, value_date, pending, currency,
+// balance_after_cents, bank_reference, operation_type, source_row_hash, exact_fingerprint,
+// normalized_fingerprint, fingerprint_version, source_file_hash, source_file_size,
+// duplicate_status, duplicate_confidence, duplicate_reason_codes, duplicate_candidate_ids,
+// pending_replacement_id), `import_batches.source_file_hash/source_file_size/rows_linked` y la
+// tabla `no_duplicate_decisions`, desde fase 6 las tablas `review_items` y `reconciliations`
+// (bandeja de revision y conciliacion bancaria), y desde fase 7 las tablas `recurring_series`
+// y `recurring_occurrences` (series recurrentes y forecast por rango). Las columnas de fases
+// posteriores (deudas) se anadiran en las migraciones de SU fase, no aqui.
 
 export type Json =
   | string
@@ -700,6 +702,316 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      reconciliations: {
+        Row: {
+          account_id: string
+          computed_balance_cents: number
+          created_at: string
+          deleted_at: string | null
+          difference_cents: number
+          id: string
+          last_mutation_id: string | null
+          notes: string | null
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          statement_balance_cents: number
+          statement_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          computed_balance_cents: number
+          created_at?: string
+          deleted_at?: string | null
+          difference_cents: number
+          id?: string
+          last_mutation_id?: string | null
+          notes?: string | null
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          statement_balance_cents: number
+          statement_date: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          computed_balance_cents?: number
+          created_at?: string
+          deleted_at?: string | null
+          difference_cents?: number
+          id?: string
+          last_mutation_id?: string | null
+          notes?: string | null
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          statement_balance_cents?: number
+          statement_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliations_account_id_fkey"
+            columns: ["account_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "reconciliations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_occurrences: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          expected_amount_cents: number
+          expected_date: string
+          id: string
+          last_mutation_id: string | null
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          series_id: string
+          status: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          expected_amount_cents: number
+          expected_date: string
+          id?: string
+          last_mutation_id?: string | null
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          series_id: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          expected_amount_cents?: number
+          expected_date?: string
+          id?: string
+          last_mutation_id?: string | null
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          series_id?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_occurrences_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_occurrences_series_id_fkey"
+            columns: ["series_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_series"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "recurring_occurrences_transaction_id_fkey"
+            columns: ["transaction_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id", "profile_id"]
+          },
+        ]
+      }
+      recurring_series: {
+        Row: {
+          account_id: string | null
+          amount_tolerance_cents: number
+          amount_tolerance_ppm: number
+          confidence: number
+          created_at: string
+          date_tolerance_days: number
+          deleted_at: string | null
+          detection_version: number
+          direction: string
+          expected_amount_cents: number
+          expected_day_of_month: number | null
+          expected_day_of_week: number | null
+          frequency: string
+          id: string
+          interval: number
+          last_mutation_id: string | null
+          merchant_id: string | null
+          name: string
+          next_expected_date: string | null
+          owner_user_id: string
+          profile_id: string
+          revision: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount_tolerance_cents?: number
+          amount_tolerance_ppm?: number
+          confidence?: number
+          created_at?: string
+          date_tolerance_days?: number
+          deleted_at?: string | null
+          detection_version?: number
+          direction: string
+          expected_amount_cents: number
+          expected_day_of_month?: number | null
+          expected_day_of_week?: number | null
+          frequency: string
+          id?: string
+          interval?: number
+          last_mutation_id?: string | null
+          merchant_id?: string | null
+          name: string
+          next_expected_date?: string | null
+          owner_user_id: string
+          profile_id: string
+          revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount_tolerance_cents?: number
+          amount_tolerance_ppm?: number
+          confidence?: number
+          created_at?: string
+          date_tolerance_days?: number
+          deleted_at?: string | null
+          detection_version?: number
+          direction?: string
+          expected_amount_cents?: number
+          expected_day_of_month?: number | null
+          expected_day_of_week?: number | null
+          frequency?: string
+          id?: string
+          interval?: number
+          last_mutation_id?: string | null
+          merchant_id?: string | null
+          name?: string
+          next_expected_date?: string | null
+          owner_user_id?: string
+          profile_id?: string
+          revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_series_account_id_fkey"
+            columns: ["account_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "recurring_series_merchant_id_fkey"
+            columns: ["merchant_id", "profile_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id", "profile_id"]
+          },
+          {
+            foreignKeyName: "recurring_series_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_items: {
+        Row: {
+          confidence: number
+          created_at: string
+          deleted_at: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          last_mutation_id: string | null
+          metadata: Json
+          owner_user_id: string
+          profile_id: string
+          reason_codes: string[]
+          resolution: string | null
+          resolved_at: string | null
+          revision: number
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          deleted_at?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          last_mutation_id?: string | null
+          metadata?: Json
+          owner_user_id: string
+          profile_id: string
+          reason_codes?: string[]
+          resolution?: string | null
+          resolved_at?: string | null
+          revision?: number
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          deleted_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          last_mutation_id?: string | null
+          metadata?: Json
+          owner_user_id?: string
+          profile_id?: string
+          reason_codes?: string[]
+          resolution?: string | null
+          resolved_at?: string | null
+          revision?: number
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_items_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rules: {
         Row: {

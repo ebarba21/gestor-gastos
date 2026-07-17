@@ -17,6 +17,10 @@ import type {
   Merchant,
   MerchantAlias,
   NoDuplicateDecision,
+  ReviewItem,
+  Reconciliation,
+  RecurringSeries,
+  RecurringOccurrence,
   SyncMeta,
   OutboxMutation,
   Conflict,
@@ -49,6 +53,12 @@ export class GestorGastosDB extends Dexie {
   merchantAliases!: Table<MerchantAlias, string>;
   // Deteccion avanzada de duplicados (ampliacion, fase 5).
   noDuplicateDecisions!: Table<NoDuplicateDecision, string>;
+  // Bandeja de revision y conciliacion bancaria (ampliacion, fase 6).
+  reviewItems!: Table<ReviewItem, string>;
+  reconciliations!: Table<Reconciliation, string>;
+  // Recurrencias y forecast por rango (ampliacion, fase 7).
+  recurringSeries!: Table<RecurringSeries, string>;
+  recurringOccurrences!: Table<RecurringOccurrence, string>;
   // Tablas device-local de la ampliacion (fase 2). NO se sincronizan ni entran en backups.
   outbox!: Table<OutboxMutation, string>;
   conflicts!: Table<Conflict, string>;
@@ -356,13 +366,54 @@ export class GestorGastosDB extends Dexie {
           });
         }
       });
+
+    // Version 7 (ampliacion, fase 6): bandeja de revision y conciliacion (DATA_MODEL secciones
+    // 16-17). Aditiva: crea dos tablas nuevas y vacias (reviewItems, reconciliations), ambas
+    // sincronizables y con backup. SIN `.upgrade()` de datos: no hay filas legacy de estas
+    // entidades que transformar (son enteramente nuevas). La generacion inicial de tareas a
+    // partir del estado actual del perfil ("recuento" del roadmap) NO se hace aqui: es una
+    // operacion de NEGOCIO (reviewService.runFullScan), no una migracion de esquema; ejecutarla
+    // dentro de un upgrade de apertura de BD violaria "nunca en silencio" y podria ser costosa
+    // con miles de movimientos. La bandeja la dispara de forma explicita (boton + una vez por
+    // perfil) tal y como describe src/services/reviewService.ts.
+    this.version(7).stores({
+      // [profileId+type+entityId]: clave de idempotencia (mismo criterio que el indice unico
+      // parcial remoto "review_items_open_dedup_uk" sobre (profile_id, type, entity_id) con
+      // status='open'). [profileId+entityType+entityId]: navegacion inversa desde una entidad
+      // (p. ej. un movimiento) a sus tareas de revision, sin importar el tipo.
+      reviewItems:
+        'id, profileId, [profileId+status], [profileId+type], ' +
+        '[profileId+type+entityId], [profileId+entityType+entityId], [profileId+syncStatus]',
+      reconciliations:
+        'id, profileId, [profileId+accountId], [profileId+statementDate], ' +
+        '[profileId+syncStatus]',
+    });
+
+    // Version 8 (ampliacion, fase 7): recurrencias y forecast por rango (DATA_MODEL seccion
+    // 18). Aditiva: crea dos tablas nuevas y vacias (recurringSeries, recurringOccurrences),
+    // ambas sincronizables y con backup. SIN `.upgrade()` de datos: no hay filas legacy de
+    // estas entidades que transformar (son enteramente nuevas). La deteccion inicial de series
+    // candidatas a partir del historico NO se hace aqui: es una operacion de NEGOCIO
+    // (recurringSeriesService.runDetection), no una migracion de esquema, mismo criterio que
+    // reviewService.runFullScan en la version 7.
+    this.version(8).stores({
+      // [profileId+status]: listar candidatas/activas/pausadas. merchantId: navegar desde un
+      // comercio a sus series.
+      recurringSeries:
+        'id, profileId, [profileId+status], merchantId, [profileId+syncStatus]',
+      // [profileId+seriesId]: ocurrencias de una serie. [profileId+status]: pendientes/ausentes
+      // globales. [profileId+expectedDate]: proximos cobros ordenados por fecha.
+      recurringOccurrences:
+        'id, profileId, [profileId+seriesId], [profileId+status], ' +
+        '[profileId+expectedDate], [profileId+syncStatus]',
+    });
   }
 }
 
 // Version del esquema de datos (Dexie). Fuente unica: la usan los backups para saber con
 // que version se generaron y decidir si son restaurables (DATA_MODEL seccion 7). Debe
 // coincidir con la ultima db.version(n) declarada arriba.
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 8;
 
 // Singleton de la base de datos usado por todos los repositorios.
 export const db = new GestorGastosDB();
@@ -381,6 +432,10 @@ export const childTables: readonly Table<{ profileId: string }, string>[] = [
   db.importTemplates,
   db.importBatches,
   db.noDuplicateDecisions,
+  db.reviewItems,
+  db.reconciliations,
+  db.recurringSeries,
+  db.recurringOccurrences,
 ];
 
 // Helpers de identidad y tiempo. Claves primarias no autoincrementales para que los

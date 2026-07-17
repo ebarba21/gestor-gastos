@@ -3,6 +3,7 @@
 // especiales. Toda la logica vive en transactionService/transactionFilters; aqui solo
 // orquestacion de UI y estado local de la pagina.
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { Transaction } from '../../db/schema';
 import { useTransactions } from '../../hooks/useTransactions';
 import {
@@ -55,7 +56,14 @@ export function TransactionsSection() {
   } = useTransactions();
   const { showToast } = useToast();
 
-  const [filter, setFilter] = useState<TxFilter>({ hideSplitChildren: true });
+  // Filtro inicial: si se llega desde el resumen de importacion (?importBatchId=...), la lista
+  // arranca ya filtrada por ese lote (ampliacion fase 6, "enlace a dashboard filtrado").
+  const [searchParams] = useSearchParams();
+  const initialImportBatchId = searchParams.get('importBatchId') ?? undefined;
+  const [filter, setFilter] = useState<TxFilter>({
+    hideSplitChildren: true,
+    importBatchId: initialImportBatchId,
+  });
   const [sort, setSort] = useState<TxSort>({ field: 'date', dir: 'desc' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -162,6 +170,19 @@ export function TransactionsSection() {
           </button>
         </div>
       </div>
+
+      {filter.importBatchId && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-indigo-800 bg-indigo-950/40 px-3 py-2 text-sm text-indigo-200">
+          <span>Mostrando solo los movimientos de una importacion.</span>
+          <button
+            type="button"
+            onClick={() => setFilter((f) => ({ ...f, importBatchId: undefined }))}
+            className="rounded-lg border border-indigo-700 px-2.5 py-1 text-xs font-medium hover:bg-indigo-900"
+          >
+            Quitar filtro
+          </button>
+        </div>
+      )}
 
       <TransactionFilters
         filter={filter}

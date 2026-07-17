@@ -248,6 +248,79 @@ function byPriority(a: Rule, b: Rule): number {
   return a.priority - b.priority || a.createdAt - b.createdAt;
 }
 
+// Indices de las condiciones de `rule` que casan CONCRETAMENTE con `tx` (a diferencia de
+// `ruleMatches`, que solo dice si la regla en conjunto casa segun su matchMode). Lo usa
+// `estimateRuleMatchConfidence` (ampliacion, fase 6) para saber CUALES condiciones aportaron
+// la coincidencia real, no solo si hubo alguna.
+export function matchingConditionIndexes(rule: Rule, tx: EvaluableTransaction): number[] {
+  const indexes: number[] = [];
+  rule.conditions.forEach((condition, i) => {
+    if (conditionMatches(condition, tx)) indexes.push(i);
+  });
+  return indexes;
+}
+
+// --- Confianza heuristica de una coincidencia de regla (ampliacion, fase 6) ---
+//
+// Rule/RuleCondition son deterministas (no llevan un campo de confianza propio, a diferencia
+// de merchantMatchConfidence/duplicateConfidence). Para alimentar la bandeja de revision
+// ("regla con baja confianza", DATA_MODEL seccion 16) se estima aqui una confianza heuristica
+// orientativa por mil (0..1000), NUNCA una probabilidad real, igual que el resto de
+// confianzas de la ampliacion. Version explicita para poder recalcular tras cambiar la formula
+// (DATA_MODEL seccion 20: todo algoritmo derivado se versiona).
+export const RULE_CONFIDENCE_VERSION = 1;
+// Por debajo de este umbral, la coincidencia genera una tarea de revision "lowConfidenceRule".
+export const LOW_CONFIDENCE_THRESHOLD = 400;
+
+// Longitud minima de un valor de texto (contains/notContains) para no considerarse debil: un
+// fragmento muy corto casa con demasiados conceptos distintos por azar.
+const WEAK_TEXT_LENGTH = 4;
+
+// Peso de cada campo cuando aporta una coincidencia (account/type/merchant/amount son
+// identificadores concretos, poco propensos a falsos positivos; date y concept dependen del
+// operador). El valor de 'concept' aqui es solo el tipo por defecto de TypeScript: la funcion
+// de abajo siempre recalcula el peso real del concepto segun su operador/longitud.
+const FIELD_STRENGTH: Record<RuleConditionField, number> = {
+  account: 300,
+  type: 250,
+  amount: 250,
+  merchant: 300,
+  date: 150,
+  concept: 150,
+};
+
+function conditionStrength(condition: RuleCondition): number {
+  if (condition.field !== 'concept') return FIELD_STRENGTH[condition.field];
+  switch (condition.operator) {
+    case 'equals':
+      return 280;
+    case 'startsWith':
+    case 'endsWith':
+      return 220;
+    case 'regex':
+      return 180;
+    case 'contains':
+    case 'notContains':
+      return String(condition.value ?? '').length < WEAK_TEXT_LENGTH ? 90 : 200;
+    default:
+      return 150;
+  }
+}
+
+// Estima la confianza (0..1000) de que una coincidencia de regla sea correcta. `matchedIndexes`
+// son las condiciones que REALMENTE casaron (ver matchingConditionIndexes), no todas las de la
+// regla. Con `matchMode: 'any'`, una sola condicion debil entre varias posibles es menos
+// fiable que si fuera la unica condicion de la regla: se penaliza por cobertura (fraccion de
+// condiciones de la regla que efectivamente casaron). Con `matchMode: 'all'` la cobertura es
+// siempre 1 (todas casan por definicion).
+export function estimateRuleMatchConfidence(rule: Rule, matchedIndexes: number[]): number {
+  if (matchedIndexes.length === 0 || rule.conditions.length === 0) return 0;
+  const total = matchedIndexes.reduce((sum, i) => sum + conditionStrength(rule.conditions[i]), 0);
+  const coverage =
+    rule.matchMode === 'any' ? matchedIndexes.length / rule.conditions.length : 1;
+  return Math.min(1000, Math.round(total * coverage));
+}
+
 // Evalua un conjunto de reglas contra un movimiento. Solo considera las reglas ACTIVAS
 // (enabled), en orden de prioridad. Acumula el efecto de cada regla que casa: la primera que
 // aporta categoria fija la categoria/subcategoria; las etiquetas se unen; la primera que

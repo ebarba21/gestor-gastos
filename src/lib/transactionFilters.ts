@@ -27,6 +27,9 @@ export interface TxFilter {
   onlyUncategorized?: boolean; // solo movimientos sin categoria
   // Ocultar las lineas hijas de un split (por defecto la lista muestra el padre).
   hideSplitChildren?: boolean;
+  // Filtra por lote de importacion de origen (ampliacion fase 6: enlace desde el resumen de
+  // importacion al dashboard de movimientos filtrado por ese lote).
+  importBatchId?: string;
 }
 
 export type SortField =
@@ -102,6 +105,8 @@ export function filterTransactions(txs: Transaction[], filter: TxFilter): Transa
     if (filter.excluded === 'exclude' && t.excludedFromStats) return false;
 
     if (filter.onlyUncategorized && t.categoryId !== null) return false;
+
+    if (filter.importBatchId && t.importBatchId !== filter.importBatchId) return false;
 
     return true;
   });

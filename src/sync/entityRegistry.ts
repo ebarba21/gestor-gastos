@@ -135,6 +135,47 @@ export const ENTITY_REGISTRY: Record<SyncEntityType, EntityInfo> = {
     // "posible duplicado" en dinero real; sin merge automatico de campos.
     financial: true,
   },
+  // Bandeja de revision (fase 6): entityId referencia movimientos/lotes/conflictos ya subidos,
+  // se sube DESPUES de transactions y importBatch.
+  reviewItem: {
+    entityType: 'reviewItem',
+    remoteTable: 'review_items',
+    localTable: 'reviewItems',
+    order: 13,
+    hasProfileId: true,
+    // Afecta a flujos de dinero real (duplicados, transferencias, reembolsos candidatos):
+    // mismo criterio que noDuplicateDecision, sin merge automatico de campos.
+    financial: true,
+  },
+  // Conciliacion bancaria (fase 6): referencia una cuenta, se sube DESPUES de accounts.
+  reconciliation: {
+    entityType: 'reconciliation',
+    remoteTable: 'reconciliations',
+    localTable: 'reconciliations',
+    order: 14,
+    hasProfileId: true,
+    // Snapshot de saldo real: conflictos financieros, nunca merge silencioso.
+    financial: true,
+  },
+  // Recurrencias (fase 7): la serie referencia opcionalmente un comercio, se sube DESPUES de
+  // merchants. Las ocurrencias referencian la serie y opcionalmente un movimiento, se suben
+  // DESPUES de recurringSeries y de transactions.
+  recurringSeries: {
+    entityType: 'recurringSeries',
+    remoteTable: 'recurring_series',
+    localTable: 'recurringSeries',
+    order: 15,
+    hasProfileId: true,
+    financial: true,
+  },
+  recurringOccurrence: {
+    entityType: 'recurringOccurrence',
+    remoteTable: 'recurring_occurrences',
+    localTable: 'recurringOccurrences',
+    order: 16,
+    hasProfileId: true,
+    financial: true,
+  },
 };
 
 // Orden de dependencias para el PUSH (ascendente) y para la subida en migracion/reconstruccion.

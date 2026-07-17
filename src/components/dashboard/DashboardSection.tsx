@@ -3,15 +3,18 @@
 // responsive. Estados cuidados: cargando, rango invalido, periodo sin datos.
 import type { ReactNode } from 'react';
 import { useDashboard } from '../../hooks/useDashboard';
+import { useForecastRange } from '../../hooks/useForecastRange';
+import { useRecurringSeries } from '../../hooks/useRecurringSeries';
 import { EmptyState } from '../common';
 import { PeriodSelector } from './PeriodSelector';
 import { StatTiles } from './StatTiles';
 import { ComparisonForecast } from './ComparisonForecast';
+import { ForecastRangeCard } from './ForecastRangeCard';
 import { MonthlyEvolutionChart } from './MonthlyEvolutionChart';
 import { CategorySpendChart } from './CategorySpendChart';
 import { IncomeExpenseChart } from './IncomeExpenseChart';
 import { TopExpensesCard } from './TopExpensesCard';
-import { RecurringCard } from './RecurringCard';
+import { UpcomingChargesCard } from './UpcomingChargesCard';
 import { MerchantSpendCard } from './MerchantSpendCard';
 import { SavingsInvestmentSection } from './SavingsInvestmentSection';
 
@@ -40,6 +43,7 @@ export function DashboardSection() {
     customTo,
     setCustomFrom,
     setCustomTo,
+    range,
     filter,
     toggleCategoryFilter,
     clearFilter,
@@ -51,6 +55,8 @@ export function DashboardSection() {
     loading,
     error,
   } = useDashboard();
+  const { forecast, loading: forecastLoading, error: forecastError } = useForecastRange(range);
+  const { upcomingCharges, loading: recurringLoading } = useRecurringSeries();
 
   // Nombre legible de la categoria del filtro activo (para el chip).
   const activeFilterName =
@@ -127,7 +133,10 @@ export function DashboardSection() {
       ) : (
         <div className="mt-6 space-y-6">
           <StatTiles summary={data.summary} />
-          <ComparisonForecast comparison={data.comparison} forecast={data.forecast} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ComparisonForecast comparison={data.comparison} />
+            <ForecastRangeCard forecast={forecast} loading={forecastLoading} error={forecastError} />
+          </div>
 
           <Card title="Evolucion mensual" subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para verlo">
             <MonthlyEvolutionChart
@@ -162,8 +171,8 @@ export function DashboardSection() {
                 onSelectCategory={toggleCategoryFilter}
               />
             </Card>
-            <Card title="Gastos recurrentes" subtitle="Conceptos repetidos en los ultimos meses">
-              <RecurringCard recurring={data.recurring} />
+            <Card title="Proximos cobros" subtitle="Series recurrentes confirmadas">
+              <UpcomingChargesCard charges={upcomingCharges} loading={recurringLoading} />
             </Card>
           </div>
 

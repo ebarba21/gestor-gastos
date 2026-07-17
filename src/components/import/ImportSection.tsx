@@ -11,15 +11,19 @@ import {
   type ParsedFile,
 } from '../../services/importService';
 import type { DuplicateAction } from '../../services/duplicateEngine';
+import { reviewService, type ImportRowError } from '../../services/reviewService';
+import { ruleService } from '../../services/ruleService';
+import { transactionsRepo } from '../../db/transactionsRepo';
 import type { ImportBatch } from '../../db/schema';
 import { EmptyState, ConfirmDialog, type DialogButton } from '../common';
 import { MappingStep } from './MappingStep';
 import { PreviewStep } from './PreviewStep';
+import { ImportSummaryStep, type ImportSummaryData } from './ImportSummaryStep';
 
 const LOCALE = 'es-ES';
 const CURRENCY = 'EUR';
 
-type Step = 'select' | 'map' | 'preview';
+type Step = 'select' | 'map' | 'preview' | 'summary';
 
 export function ImportSection() {
   const { profileId, accounts, templates, batches, loading, error, reload, accountNames } =
@@ -36,12 +40,14 @@ export function ImportSection() {
   // confirmar/cancelar antes de continuar con el fichero recien leido.
   const [repeatedBatches, setRepeatedBatches] = useState<ImportBatch[]>([]);
   const [pendingFile, setPendingFile] = useState<{ parsed: ParsedFile; fileForConfig: File } | null>(null);
+  const [summary, setSummary] = useState<ImportSummaryData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetWizard = useCallback(() => {
     setStep('select');
     setParsed(null);
     setConfig(null);
+    setSummary(null);
     setPreview(null);
     setRepeatedBatches([]);
     setPendingFile(null);
@@ -164,14 +170,47 @@ export function ImportSection() {
     if (!parsed || !preview || busy) return;
     setBusy(true);
     try {
-      const { imported, linked } = await importService.commit(profileId, {
+      const { batch, imported, linked } = await importService.commit(profileId, {
         parsed,
         preview,
         templateId: null,
       });
-      const linkedMsg = linked > 0 ? ` y ${linked} movimiento(s) vinculados` : '';
-      showToast(`${imported} movimiento(s) importados${linkedMsg}.`, 'success');
-      resetWizard();
+
+      // Genera las tareas de revision de este lote (sin categorizar, posible duplicado,
+      // comercio nuevo, errores de fila) y despues un escaneo completo bajo demanda para
+      // transferencias/reembolsos candidatos y pendientes antiguos (ARCHITECTURE seccion 17;
+      // ambos idempotentes, nunca duplican tareas ya abiertas).
+      const createdTransactions = await transactionsRepo.listByImportBatch(profileId, batch.id);
+      const rowErrors: ImportRowError[] = preview.rows
+        .filter((r) => r.status === 'error')
+        .map((r) => ({
+          row: r.rowIndex + 1,
+          field: 'fila',
+          value: r.raw.map((c) => String(c ?? '')).join(' | '),
+          reason: r.errors.join(' '),
+        }));
+      await reviewService.generateFromImportBatch(profileId, batch.id, createdTransactions, rowErrors);
+      const enabledRules = await ruleService.listEnabled(profileId);
+      await reviewService.generateFromRuleMatches(profileId, createdTransactions, enabledRules);
+      await reviewService.runFullScan(profileId);
+      const reviewCounts = await reviewService.countsByType(profileId);
+
+      const netEffectCents = createdTransactions.reduce((sum, t) => sum + t.amountCents, 0);
+      setSummary({
+        batchId: batch.id,
+        fileName: parsed.fileName,
+        rowsTotal: preview.summary.total,
+        imported,
+        linked,
+        skippedDuplicate: preview.summary.duplicates,
+        errors: preview.summary.errors,
+        categorized: createdTransactions.filter((t) => t.categoryId !== null).length,
+        merchantsMatched: createdTransactions.filter((t) => t.merchantId !== null).length,
+        netEffectCents,
+        reviewTotal: reviewCounts.total,
+        reviewByType: reviewCounts.byType,
+      });
+      setStep('summary');
       await reload();
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'No se pudo completar la importacion.', 'error');
@@ -324,6 +363,16 @@ export function ImportSection() {
               busy={busy}
               locale={LOCALE}
               currency={CURRENCY}
+            />
+          )}
+
+          {/* Paso 4: resumen (flujo posterior a importar, ARCHITECTURE seccion 17) */}
+          {step === 'summary' && summary && (
+            <ImportSummaryStep
+              summary={summary}
+              locale={LOCALE}
+              currency={CURRENCY}
+              onImportAnother={resetWizard}
             />
           )}
         </>

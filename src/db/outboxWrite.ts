@@ -28,6 +28,10 @@ export const STORE_TO_ENTITY: Record<string, SyncEntityType> = {
   importTemplates: 'importTemplate',
   importBatches: 'importBatch',
   noDuplicateDecisions: 'noDuplicateDecision',
+  reviewItems: 'reviewItem',
+  reconciliations: 'reconciliation',
+  recurringSeries: 'recurringSeries',
+  recurringOccurrences: 'recurringOccurrence',
 };
 
 // Propietario (auth.users.id) del perfil, o null si el perfil es solo local (sin cuenta). Debe

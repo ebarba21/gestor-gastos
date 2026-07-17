@@ -7,6 +7,8 @@ import type {
   ConflictResolution,
   SyncEntityType,
 } from '../db/schema';
+import { generateFromConflict } from '../services/reviewService';
+import { reviewItemsRepo } from '../db/reviewItemsRepo';
 
 export async function createConflict(params: {
   userId: string;
@@ -31,7 +33,11 @@ export async function createConflict(params: {
       baseRevision: params.baseRevision,
       remoteRevision: params.remoteRevision,
     });
-    return { ...open, ...params, status: 'open' } as Conflict;
+    const updated = { ...open, ...params, status: 'open' } as Conflict;
+    // Genera/actualiza la tarea de la bandeja de revision (ampliacion, fase 6). Idempotente:
+    // como mucho una tarea abierta por conflicto (ver reviewService.upsertOpenReviewItem).
+    await generateFromConflict(updated);
+    return updated;
   }
   const conflict: Conflict = {
     id: newId(),
@@ -49,6 +55,7 @@ export async function createConflict(params: {
     resolvedAt: null,
   };
   await db.conflicts.add(conflict);
+  await generateFromConflict(conflict);
   return conflict;
 }
 
@@ -73,4 +80,16 @@ export async function getConflict(id: string): Promise<Conflict | undefined> {
 
 export async function markResolved(id: string, resolution: ConflictResolution): Promise<void> {
   await db.conflicts.update(id, { status: 'resolved', resolution, resolvedAt: now() });
+  // Resuelve tambien la tarea de la bandeja de revision asociada (ampliacion, fase 6): la
+  // persona ya tomo la decision sobre el conflicto, la tarea no debe seguir abierta.
+  const conflict = await db.conflicts.get(id);
+  if (!conflict) return;
+  const item = await reviewItemsRepo.findOpenByTypeAndEntity(conflict.profileId, 'syncConflict', id);
+  if (item) {
+    await reviewItemsRepo.update(conflict.profileId, item.id, {
+      status: 'resolved',
+      resolution: `conflict:${resolution}`,
+      resolvedAt: now(),
+    });
+  }
 }

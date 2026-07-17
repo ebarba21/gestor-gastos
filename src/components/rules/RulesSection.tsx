@@ -6,6 +6,8 @@ import { useState } from 'react';
 import type { Rule, RuleCondition } from '../../db/schema';
 import { useRules } from '../../hooks/useRules';
 import { ruleService, type SimulationResult } from '../../services/ruleService';
+import { reviewService } from '../../services/reviewService';
+import { transactionsRepo } from '../../db/transactionsRepo';
 import { EmptyState, Modal, ConfirmDialog, type DialogButton } from '../common';
 import { useToast } from '../../context/ToastContext';
 import { formatCents } from '../../lib/money';
@@ -166,10 +168,21 @@ export function RulesSection() {
   async function runApply() {
     setApplyBusy(true);
     try {
+      const affectedIds = simulation?.affected.map((a) => a.transaction.id) ?? [];
       const { changed } = await ruleService.applyAllRetroactive(profileId, {
         overrideManual: applyOverrideManual,
       });
       showToast(`${changed} movimiento(s) recategorizados.`, 'success');
+      // Genera (o cierra automaticamente) tareas de baja confianza sobre los movimientos que
+      // acaban de recategorizarse por regla (ampliacion fase 6, DATA_MODEL seccion 16).
+      if (affectedIds.length > 0) {
+        const [updated, enabledRules] = await Promise.all([
+          Promise.all(affectedIds.map((id) => transactionsRepo.getById(profileId, id))),
+          ruleService.listEnabled(profileId),
+        ]);
+        const recategorized = updated.filter((t): t is NonNullable<typeof t> => t !== undefined);
+        await reviewService.generateFromRuleMatches(profileId, recategorized, enabledRules);
+      }
       setApplyOpen(false);
       await reload();
     } catch (e) {

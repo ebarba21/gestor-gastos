@@ -234,6 +234,10 @@ describe('sincronizacion local-first (fase 2)', () => {
     expect(local?.name).toBe('Remoto');
     expect(local?.syncStatus).toBe('synced');
     expect(await countOpenConflicts(USER)).toBe(0);
+    // Resolver el conflicto tambien resuelve la tarea de la bandeja de revision que genero
+    // (ampliacion fase 6), lo que encola su propia mutacion pendiente hasta el siguiente
+    // ciclo de sincronizacion: un push mas la deja en 0.
+    await runPush(client, USER);
     expect(await countPending(USER)).toBe(0);
   });
 

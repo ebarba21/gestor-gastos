@@ -15,6 +15,10 @@ import type {
   MerchantAlias,
   NoDuplicateDecision,
   Profile,
+  Reconciliation,
+  RecurringOccurrence,
+  RecurringSeries,
+  ReviewItem,
   Rule,
   Setting,
   Tag,
@@ -39,6 +43,10 @@ export interface ProfileDataTables {
   importTemplates: ImportTemplate[];
   importBatches: ImportBatch[];
   noDuplicateDecisions: NoDuplicateDecision[];
+  reviewItems: ReviewItem[];
+  reconciliations: Reconciliation[];
+  recurringSeries: RecurringSeries[];
+  recurringOccurrences: RecurringOccurrence[];
 }
 
 export interface ProfileSnapshot {
@@ -70,6 +78,10 @@ export const backupRepo = {
         importTemplates,
         importBatches,
         noDuplicateDecisions,
+        reviewItems,
+        reconciliations,
+        recurringSeries,
+        recurringOccurrences,
       ] = await Promise.all([
         db.settings.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.accounts.where('profileId').equals(profileId).filter(isAlive).toArray(),
@@ -83,6 +95,10 @@ export const backupRepo = {
         db.importTemplates.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.importBatches.where('profileId').equals(profileId).filter(isAlive).toArray(),
         db.noDuplicateDecisions.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.reviewItems.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.reconciliations.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.recurringSeries.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.recurringOccurrences.where('profileId').equals(profileId).filter(isAlive).toArray(),
       ]);
 
       return {
@@ -100,6 +116,10 @@ export const backupRepo = {
           importTemplates,
           importBatches,
           noDuplicateDecisions,
+          reviewItems,
+          reconciliations,
+          recurringSeries,
+          recurringOccurrences,
         },
       };
     });
@@ -157,5 +177,11 @@ async function bulkAddAll(data: ProfileDataTables): Promise<void> {
   if (data.importBatches.length > 0) await db.importBatches.bulkAdd(data.importBatches);
   if (data.noDuplicateDecisions.length > 0) {
     await db.noDuplicateDecisions.bulkAdd(data.noDuplicateDecisions);
+  }
+  if (data.reviewItems.length > 0) await db.reviewItems.bulkAdd(data.reviewItems);
+  if (data.reconciliations.length > 0) await db.reconciliations.bulkAdd(data.reconciliations);
+  if (data.recurringSeries.length > 0) await db.recurringSeries.bulkAdd(data.recurringSeries);
+  if (data.recurringOccurrences.length > 0) {
+    await db.recurringOccurrences.bulkAdd(data.recurringOccurrences);
   }
 }

@@ -4,6 +4,9 @@ import TransactionsPage from './pages/TransactionsPage';
 import ImportPage from './pages/ImportPage';
 import RulesPage from './pages/RulesPage';
 import MerchantsPage from './pages/MerchantsPage';
+import ReviewInboxPage from './pages/ReviewInboxPage';
+import ReconciliationPage from './pages/ReconciliationPage';
+import RecurringSeriesPage from './pages/RecurringSeriesPage';
 import CategoriesPage from './pages/CategoriesPage';
 import AccountsPage from './pages/AccountsPage';
 import BudgetsPage from './pages/BudgetsPage';
@@ -15,6 +18,7 @@ import SyncPage from './pages/SyncPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
 import { ThemeToggle } from './components/common';
 import { SyncBadge } from './components/sync';
+import { ReviewBadge } from './components/review';
 import { LockGate } from './components/security';
 
 interface NavItem {
@@ -29,6 +33,9 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/importar', label: 'Importar' },
   { to: '/reglas', label: 'Reglas' },
   { to: '/comercios', label: 'Comercios' },
+  { to: '/bandeja', label: 'Bandeja de revision' },
+  { to: '/conciliacion', label: 'Conciliacion' },
+  { to: '/recurrencias', label: 'Recurrencias' },
   { to: '/categorias', label: 'Categorias' },
   { to: '/cuentas', label: 'Cuentas' },
   { to: '/presupuestos', label: 'Presupuestos' },
@@ -59,6 +66,8 @@ function AppLayout() {
             <span className="text-lg font-bold">Gestor de Gastos</span>
             {/* Insignia de estado de sincronizacion (solo con cuenta activa). */}
             <SyncBadge />
+            {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). */}
+            <ReviewBadge />
             {/* Conmutador de tema, accesible desde cualquier seccion. */}
             <ThemeToggle className="md:ml-auto" />
           </div>
@@ -84,6 +93,9 @@ function AppLayout() {
           <Route path="/importar" element={<ImportPage />} />
           <Route path="/reglas" element={<RulesPage />} />
           <Route path="/comercios" element={<MerchantsPage />} />
+          <Route path="/bandeja" element={<ReviewInboxPage />} />
+          <Route path="/conciliacion" element={<ReconciliationPage />} />
+          <Route path="/recurrencias" element={<RecurringSeriesPage />} />
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/cuentas" element={<AccountsPage />} />
           <Route path="/presupuestos" element={<BudgetsPage />} />

@@ -71,6 +71,10 @@ export interface BackupSummary {
     budgets: number;
     importTemplates: number;
     importBatches: number;
+    reviewItems: number;
+    reconciliations: number;
+    recurringSeries: number;
+    recurringOccurrences: number;
   };
 }
 
@@ -87,6 +91,10 @@ const TABLE_KEYS: readonly (keyof ProfileDataTables)[] = [
   'importTemplates',
   'importBatches',
   'noDuplicateDecisions',
+  'reviewItems',
+  'reconciliations',
+  'recurringSeries',
+  'recurringOccurrences',
 ];
 
 // --- Creacion del backup ---
@@ -193,6 +201,10 @@ export function parseBackup(text: string): ProfileBackup {
     importTemplates: [],
     importBatches: [],
     noDuplicateDecisions: [],
+    reviewItems: [],
+    reconciliations: [],
+    recurringSeries: [],
+    recurringOccurrences: [],
   };
   const rawData = raw.data as Record<string, unknown>;
   const mutableData = data as unknown as Record<string, unknown[]>;
@@ -241,6 +253,10 @@ export function summarizeBackup(backup: ProfileBackup): BackupSummary {
       budgets: d.budgets.length,
       importTemplates: d.importTemplates.length,
       importBatches: d.importBatches.length,
+      reviewItems: d.reviewItems.length,
+      reconciliations: d.reconciliations.length,
+      recurringSeries: d.recurringSeries.length,
+      recurringOccurrences: d.recurringOccurrences.length,
     },
   };
 }
@@ -285,6 +301,10 @@ export function remapProfileData(
   const settingMap = buildIdMap(data.settings, makeId);
   const budgetMap = buildIdMap(data.budgets, makeId);
   const noDuplicateDecisionMap = buildIdMap(data.noDuplicateDecisions, makeId);
+  const reviewItemMap = buildIdMap(data.reviewItems, makeId);
+  const reconciliationMap = buildIdMap(data.reconciliations, makeId);
+  const recurringSeriesMap = buildIdMap(data.recurringSeries, makeId);
+  const recurringOccurrenceMap = buildIdMap(data.recurringOccurrences, makeId);
 
   // Los grupos de transferencia no son entidades: son un id compartido por las dos patas.
   // Se remapea de forma consistente (mismo valor origen -> mismo valor destino).
@@ -449,6 +469,53 @@ export function remapProfileData(
     rightTxId: remapRef(txMap, d.rightTxId),
   }));
 
+  // ReviewItem.entityId es POLIMORFICO segun entityType (DATA_MODEL seccion 16): se remapea
+  // contra el mapa de la tabla correspondiente, incluida 'recurringSeries' (fase 7: anomalias
+  // recurrentes). 'conflict' no se remapea (los conflictos de sincronizacion son device-local y
+  // nunca forman parte del backup, igual que la outbox); la tarea queda con una referencia que
+  // ya no resuelve tras restaurar, tal y como ocurriria si el conflicto se hubiera resuelto en
+  // otro dispositivo. La UI trata una referencia ausente como "ya no aplica" (ver reviewService),
+  // nunca como un error silencioso de datos.
+  const reviewItems = data.reviewItems.map((item) => {
+    const entityId =
+      item.entityType === 'transaction'
+        ? txMap.get(item.entityId) ?? item.entityId
+        : item.entityType === 'importBatch'
+          ? batchMap.get(item.entityId) ?? item.entityId
+          : item.entityType === 'recurringSeries'
+            ? recurringSeriesMap.get(item.entityId) ?? item.entityId
+            : item.entityId;
+    return {
+      ...item,
+      id: reviewItemMap.get(item.id)!,
+      profileId: targetProfileId,
+      entityId,
+    };
+  });
+
+  const reconciliations = data.reconciliations.map((r) => ({
+    ...r,
+    id: reconciliationMap.get(r.id)!,
+    profileId: targetProfileId,
+    accountId: accountMap.get(r.accountId) ?? r.accountId,
+  }));
+
+  const recurringSeries = data.recurringSeries.map((s) => ({
+    ...s,
+    id: recurringSeriesMap.get(s.id)!,
+    profileId: targetProfileId,
+    merchantId: remapRef(merchantMap, s.merchantId),
+    accountId: remapRef(accountMap, s.accountId),
+  }));
+
+  const recurringOccurrences = data.recurringOccurrences.map((o) => ({
+    ...o,
+    id: recurringOccurrenceMap.get(o.id)!,
+    profileId: targetProfileId,
+    seriesId: recurringSeriesMap.get(o.seriesId) ?? o.seriesId,
+    transactionId: remapRef(txMap, o.transactionId),
+  }));
+
   // Restaurar = datos FRESCOS en local: se resetean los campos de sincronizacion (revision 0,
   // syncStatus 'local', deletedAt null, lastSyncedAt null). Un perfil restaurado es local hasta que
   // el usuario lo migre a una cuenta de forma explicita (fase 2). Ningun tombstone llega aqui (el
@@ -469,6 +536,10 @@ export function remapProfileData(
     importTemplates: resetSync(importTemplates),
     importBatches: resetSync(importBatches),
     noDuplicateDecisions: resetSync(noDuplicateDecisions),
+    reviewItems: resetSync(reviewItems),
+    reconciliations: resetSync(reconciliations),
+    recurringSeries: resetSync(recurringSeries),
+    recurringOccurrences: resetSync(recurringOccurrences),
   };
 }
 

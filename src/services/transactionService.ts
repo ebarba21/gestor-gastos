@@ -580,6 +580,48 @@ export const transactionService = {
     return [a!, b!];
   },
 
+  // Vincula DOS movimientos EXISTENTES (p. ej. detectados como "transferencia candidata" por
+  // la bandeja de revision, ampliacion fase 6) como las dos patas de una transferencia interna.
+  // A diferencia de createTransfer (que crea un par nuevo desde cero), esto NUNCA reescribe
+  // concept/fecha/importe/comercio de los movimientos originales: solo los reclasifica
+  // (type='transfer', excludedFromStats=true, sin categoria) y les asigna un transferGroupId
+  // compartido (DATA_MODEL 6.1). Revalida los mismos requisitos duros que el motor de
+  // deteccion (cuentas distintas, importe absoluto igual, signos opuestos, ninguno ya
+  // vinculado): la sugerencia pudo quedar desactualizada entre la deteccion y la confirmacion.
+  async linkAsTransfer(profileId: string, idA: string, idB: string): Promise<[Transaction, Transaction]> {
+    requireProfileId(profileId);
+    assert(idA !== idB, 'Un movimiento no puede formar una transferencia consigo mismo.');
+    const [a, b] = await Promise.all([
+      transactionsRepo.getById(profileId, idA),
+      transactionsRepo.getById(profileId, idB),
+    ]);
+    assert(a !== undefined && b !== undefined, 'Alguno de los movimientos no existe en el perfil.');
+    assert(
+      a!.transferGroupId === null && b!.transferGroupId === null,
+      'Alguno de los movimientos ya pertenece a una transferencia.',
+    );
+    assert(a!.accountId !== b!.accountId, 'Una transferencia debe unir cuentas distintas.');
+    assert(
+      Math.abs(a!.amountCents) === Math.abs(b!.amountCents),
+      'El importe absoluto de las dos patas debe coincidir.',
+    );
+    assert(
+      (a!.amountCents > 0) !== (b!.amountCents > 0),
+      'Las dos patas de una transferencia deben tener signos opuestos.',
+    );
+    const transferGroupId = crypto.randomUUID();
+    const patch = {
+      type: 'transfer' as const,
+      transferGroupId,
+      categoryId: null,
+      subcategoryId: null,
+      excludedFromStats: true,
+    };
+    const updatedA = await transactionsRepo.update(profileId, idA, patch);
+    const updatedB = await transactionsRepo.update(profileId, idB, patch);
+    return [updatedA, updatedB];
+  },
+
   // Convierte un movimiento existente en una transferencia interna: lo enlaza como una
   // pata y crea la pata espejo en la cuenta indicada. El movimiento pasa a type='transfer'
   // y excluido de estadisticas; pierde categoria. No aplica a splits ni a lo ya enlazado.

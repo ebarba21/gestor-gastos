@@ -392,6 +392,148 @@ export interface NoDuplicateDecision extends SyncMeta {
   updatedAt: number;
 }
 
+// Bandeja de revision unificada (ampliacion, fase 6). Ver DATA_MODEL seccion 16 y ARCHITECTURE
+// seccion 17. `recurringAnomaly` se lista ya en el enum (fuente unica de tipos) pero ningun
+// generador la produce hasta la fase 7 (recurrencias).
+export type ReviewItemType =
+  | 'uncategorized'
+  | 'lowConfidenceRule'
+  | 'possibleDuplicate'
+  | 'transferCandidate'
+  | 'refundCandidate'
+  | 'stalePending'
+  | 'newMerchant'
+  | 'importError'
+  | 'syncConflict'
+  | 'recurringAnomaly';
+
+// Tabla de la entidad referida por un ReviewItem. Polimorfico: NUNCA se copia la entidad
+// entera (DATA_MODEL 16), solo se guarda la referencia. 'recurringSeries' se anade en la fase 7
+// para las anomalias recurrentes (subida de precio, ausencia, posible cancelacion, duplicado).
+export type ReviewItemEntityType = 'transaction' | 'importBatch' | 'conflict' | 'recurringSeries';
+
+export type ReviewItemStatus = 'open' | 'snoozed' | 'resolved' | 'dismissed';
+
+// Tarea de revision unificada. NO copia la entidad completa: solo referencia (entityType +
+// entityId) + metadata minima (referencias, nunca datos financieros completos). La generacion
+// es idempotente: como mucho una tarea ABIERTA por (profileId, type, entityId) (ver
+// src/services/reviewService.ts y el indice unico parcial remoto).
+export interface ReviewItem extends SyncMeta {
+  id: string;
+  profileId: string;
+  type: ReviewItemType;
+  entityType: ReviewItemEntityType;
+  entityId: string;
+  // Confianza orientativa por mil (0..1000) cuando aplique. Heuristica, no probabilidad real.
+  confidence: number;
+  reasonCodes: string[];
+  // Minima; referencias (p. ej. otro id de la pareja candidata), nunca copia de importes u
+  // otros datos financieros completos.
+  metadata: Record<string, unknown>;
+  status: ReviewItemStatus;
+  // Codigo corto de la accion aplicada al resolver (p. ej. 'categorized', 'linked:transfer').
+  // El detalle de la resolucion vive en metadata, nunca se resuelve en silencio.
+  resolution: string | null;
+  createdAt: number;
+  // Senal de cambio para sync (seccion 9 de DATA_MODEL: todas las entidades sincronizables
+  // llevan updatedAt); se actualiza en cada transicion de estado, no solo al resolver.
+  updatedAt: number;
+  resolvedAt: number | null;
+}
+
+// Estado de una conciliacion bancaria (ampliacion, fase 6). Ver FINANCIAL_ALGORITHMS seccion 6.
+export type ReconciliationStatus = 'balanced' | 'discrepancy' | 'acceptedWithDifference';
+
+// Conciliacion de una cuenta en una fecha de extracto (DATA_MODEL seccion 17). Guarda el saldo
+// del extracto, el saldo calculado por la app y la diferencia, para dejar constancia e
+// historial por cuenta.
+export interface Reconciliation extends SyncMeta {
+  id: string;
+  profileId: string;
+  accountId: string;
+  // YYYY-MM-DD del extracto.
+  statementDate: string;
+  statementBalanceCents: number;
+  computedBalanceCents: number;
+  // statementBalanceCents - computedBalanceCents. 0 = cuadra.
+  differenceCents: number;
+  status: ReconciliationStatus;
+  notes: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Recurrencias (ampliacion, fase 7). Ver DATA_MODEL seccion 18 y FINANCIAL_ALGORITHMS seccion 7.
+export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+export type RecurringDirection = 'expense' | 'income';
+// candidate: sugerida por el motor, sin confirmar. active: confirmada, se sigue. paused: el
+// usuario la pausa temporalmente (no genera ausencias ni entra en forecast). possiblyCancelled:
+// varias ausencias consecutivas (nunca por un unico retraso). cancelled: confirmada como fin.
+export type RecurringSeriesStatus =
+  | 'candidate'
+  | 'active'
+  | 'paused'
+  | 'possiblyCancelled'
+  | 'cancelled';
+export type RecurringOccurrenceStatus =
+  | 'expected'
+  | 'matched'
+  | 'missing'
+  | 'skipped'
+  | 'manuallyCompleted';
+
+// Serie recurrente detectada o confirmada (DATA_MODEL 18.1). Importe esperado = mediana de
+// las ocurrencias; tolerancias absolutas y relativas (ppm); nunca se confirma sola (nace
+// 'candidate'). `detectionVersion` versiona el algoritmo que la genero/actualizo por ultima vez.
+export interface RecurringSeries extends SyncMeta {
+  id: string;
+  profileId: string;
+  merchantId: string | null;
+  // Cuenta de la serie. NO esta en la lista literal de DATA_MODEL 18.1, pero FINANCIAL_ALGORITHMS
+  // 7.1 exige agrupar la deteccion "por comercio, direccion y CUENTA", y la seccion "Proximos
+  // cobros" exige mostrar la cuenta de cada cobro esperado (incluso antes de que exista un
+  // movimiento que la resuelva). Sin este campo ninguna de las dos reglas es satisfacible.
+  // Adicion aditiva (nullable) sobre una entidad nueva de esta misma fase; no reinterpreta ni
+  // elimina ningun campo existente (regla transversal del roadmap).
+  accountId: string | null;
+  name: string;
+  direction: RecurringDirection;
+  frequency: RecurringFrequency;
+  // Cada N periodos de `frequency` (p. ej. cada 2 meses).
+  interval: number;
+  expectedAmountCents: number;
+  amountToleranceCents: number;
+  // Tolerancia relativa en micro-fraccion 1e-6 (misma escala que los tipos de interes).
+  amountTolerancePpm: number;
+  expectedDayOfWeek: number | null; // 0..6, solo si frequency='weekly'
+  expectedDayOfMonth: number | null; // 1..31, si frequency='monthly'|'quarterly'|'yearly'
+  dateToleranceDays: number;
+  nextExpectedDate: string | null; // YYYY-MM-DD
+  status: RecurringSeriesStatus;
+  // Confianza orientativa por mil (0..1000). Heuristica, no probabilidad real.
+  confidence: number;
+  detectionVersion: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Ocurrencia esperada de una serie (DATA_MODEL 18.2). Registra el resultado de contrastar la
+// expectativa contra los movimientos reales: matched (se encontro), missing (no aparecio tras
+// la ventana de tolerancia), skipped (el usuario la omite explicitamente), manuallyCompleted
+// (el usuario la marca resuelta sin un movimiento vinculado, p. ej. pago en efectivo no
+// importado).
+export interface RecurringOccurrence extends SyncMeta {
+  id: string;
+  profileId: string;
+  seriesId: string;
+  transactionId: string | null;
+  expectedDate: string; // YYYY-MM-DD
+  expectedAmountCents: number;
+  status: RecurringOccurrenceStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // --- Ampliacion fase 2: estructuras de sincronizacion (DATA_MODEL secciones 11-13) ---
 //
 // Las entidades de esta seccion son DEVICE-LOCAL: viven solo en Dexie, NUNCA se sincronizan a
@@ -412,7 +554,11 @@ export type SyncEntityType =
   | 'importBatch'
   | 'merchant'
   | 'merchantAlias'
-  | 'noDuplicateDecision';
+  | 'noDuplicateDecision'
+  | 'reviewItem'
+  | 'reconciliation'
+  | 'recurringSeries'
+  | 'recurringOccurrence';
 
 export type MutationOperation = 'insert' | 'update' | 'delete';
 
