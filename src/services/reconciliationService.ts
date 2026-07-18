@@ -25,6 +25,9 @@ export interface ComputedBalanceResult {
 // `includePendingIds`) con date <= statementDate (comparacion lexicografica YYYY-MM-DD, sin
 // conversion de zona horaria). El saldo INCLUYE transferencias y movimientos con
 // excludedFromStats: el saldo no es lo mismo que las estadisticas (FINANCIAL_ALGORITHMS 6).
+// Se EXCLUYEN las lineas hijas de un split (parentId != null): el cargo real en la cuenta lo
+// aporta el movimiento padre; sumar tambien las hijas duplicaria el importe (misma regla que
+// exportService.computeAccountBalances, la funcion canonica de saldo de cuenta).
 export async function computeBalance(
   profileId: string,
   accountId: string,
@@ -46,6 +49,9 @@ export async function computeBalance(
   const excludedPendingIds: string[] = [];
   for (const tx of all) {
     if (tx.accountId !== accountId) continue;
+    // Linea hija de split: no suma al saldo (el importe lo aporta el padre). Se descarta antes
+    // que el filtro de pendientes para no listarla como pendiente excluido.
+    if (tx.parentId !== null) continue;
     if (tx.date > statementDate) continue;
     if (tx.pending && !includeSet.has(tx.id)) {
       excludedPendingIds.push(tx.id);

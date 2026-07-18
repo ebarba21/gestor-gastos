@@ -72,10 +72,18 @@ export const profilesRepo = {
     return (await db.profiles.toArray()).filter(isAlive);
   },
 
-  // Perfiles no archivados (ni tombstones).
-  async listActive(): Promise<Profile[]> {
+  // Perfiles no archivados (ni tombstones). Aislamiento por propietario (invariante 4): con una
+  // cuenta activa (`ownerUserId` no vacio) solo se devuelven los perfiles de esa cuenta mas los
+  // locales aun sin vincular (`ownerUserId === null`); nunca los de otra cuenta que compartiera
+  // este navegador. En modo local puro (sin `ownerUserId`) se devuelven todos, como siempre.
+  async listActive(ownerUserId?: string | null): Promise<Profile[]> {
     const all = await db.profiles.toArray();
-    return all.filter((p) => isAlive(p) && p.archivedAt === null);
+    return all.filter(
+      (p) =>
+        isAlive(p) &&
+        p.archivedAt === null &&
+        (!ownerUserId || p.ownerUserId === ownerUserId || p.ownerUserId === null),
+    );
   },
 
   async update(id: string, patch: ProfilePatch): Promise<Profile> {

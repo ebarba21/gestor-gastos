@@ -145,6 +145,40 @@ describe('perfil activo (localStorage)', () => {
   });
 });
 
+describe('aislamiento por propietario (ownerUserId) al listar', () => {
+  // Simula un navegador compartido: perfiles de dos cuentas distintas y uno local sin vincular.
+  async function seedMixedOwners() {
+    await profilesRepo.create({ name: 'De A', color: '#111', avatarEmoji: null, ownerUserId: 'user-a' });
+    await profilesRepo.create({ name: 'De B', color: '#222', avatarEmoji: null, ownerUserId: 'user-b' });
+    await profilesRepo.create({ name: 'Local', color: '#333', avatarEmoji: null }); // ownerUserId null
+  }
+
+  it('sin ownerUserId (modo local) devuelve todos los perfiles', async () => {
+    await seedMixedOwners();
+    const names = (await profileService.listProfiles()).map((p) => p.name).sort();
+    expect(names).toEqual(['De A', 'De B', 'Local']);
+  });
+
+  it('con una cuenta activa solo devuelve sus perfiles mas los locales sin vincular', async () => {
+    await seedMixedOwners();
+    const names = (await profileService.listProfiles('user-a')).map((p) => p.name).sort();
+    // Ve los suyos y el local sin vincular; NUNCA los de la cuenta B.
+    expect(names).toEqual(['De A', 'Local']);
+    expect(names).not.toContain('De B');
+  });
+
+  it('resolveActiveProfile no reabre el perfil de otra cuenta y limpia el id', async () => {
+    await seedMixedOwners();
+    const all = await profilesRepo.listActive();
+    const bProfile = all.find((p) => p.name === 'De B')!;
+    profileService.setActiveProfileId(bProfile.id);
+    // La sesion es de la cuenta A: el ultimo activo (de B) no debe resolverse.
+    const resolved = await profileService.resolveActiveProfile('user-a');
+    expect(resolved).toBeNull();
+    expect(profileService.getActiveProfileId()).toBeNull();
+  });
+});
+
 describe('deleteProfile', () => {
   it('borra el perfil en cascada y limpia el id activo si era el activo', async () => {
     const profile = await profileService.createProfile({ name: 'Temporal' });

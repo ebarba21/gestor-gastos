@@ -205,3 +205,10 @@ export function useAuth(): AuthContextValue {
   }
   return ctx;
 }
+
+// Variante tolerante: devuelve null si no hay AuthProvider (p. ej. tests que montan solo una parte
+// del arbol, o el modo local puro). La usa ProfileProvider para acotar la lista de perfiles al
+// propietario de la sesion sin exigir que AuthProvider este montado.
+export function useAuthOptional(): AuthContextValue | null {
+  return useContext(AuthContext);
+}

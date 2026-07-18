@@ -127,6 +127,37 @@ describe('reconciliationService.computeBalance', () => {
     expect(computedBalanceCents).toBe(-3000);
   });
 
+  it('cuenta el cargo de un split una sola vez (padre), no padre + hijas', async () => {
+    const account = await makeAccount(0);
+    // Padre del split: conserva el importe completo del cargo, excluido de stats.
+    const parent = await transactionsRepo.create(
+      PROFILE_A,
+      txInput({
+        accountId: account.id,
+        amountCents: -10000,
+        isSplitParent: true,
+        excludedFromStats: true,
+        date: '2026-01-10',
+      }),
+    );
+    // Lineas hijas en la MISMA cuenta cuya suma es el importe del padre.
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ accountId: account.id, amountCents: -6000, parentId: parent.id, date: '2026-01-10' }),
+    );
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ accountId: account.id, amountCents: -4000, parentId: parent.id, date: '2026-01-10' }),
+    );
+    const { computedBalanceCents } = await reconciliationService.computeBalance(
+      PROFILE_A,
+      account.id,
+      '2026-01-15',
+    );
+    // El cargo real es -10000 (el del padre), no -20000 (padre + hijas).
+    expect(computedBalanceCents).toBe(-10000);
+  });
+
   it('excluye por defecto los movimientos pending, y los lista aparte', async () => {
     const account = await makeAccount(0);
     const pendingTx = await transactionsRepo.create(

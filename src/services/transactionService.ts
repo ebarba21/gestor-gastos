@@ -442,6 +442,16 @@ export const transactionService = {
   async markAsRefund(profileId: string, id: string, refundOfId: string): Promise<Transaction> {
     requireProfileId(profileId);
     assert(id !== refundOfId, 'Un movimiento no puede ser reembolso de si mismo.');
+    // El movimiento marcado como reembolso debe ser un ingreso: la semantica de estadisticas
+    // (FINANCIAL_ALGORITHMS 3) solo trata como reembolso un income con refundOfId. Sin esta
+    // comprobacion, marcar un gasto como reembolso dejaria un enlace que las stats ignoran en
+    // silencio (choca con "sin errores silenciosos").
+    const refund = await transactionsRepo.getById(profileId, id);
+    assert(refund !== undefined, 'El movimiento marcado como reembolso no existe en el perfil.');
+    assert(
+      refund!.type === 'income',
+      'Un reembolso debe ser un movimiento de ingreso (income) que compensa un gasto.',
+    );
     const original = await transactionsRepo.getById(profileId, refundOfId);
     assert(original !== undefined, 'El gasto original del reembolso no existe en el perfil.');
     assert(

@@ -74,9 +74,11 @@ export interface UpdateProfileInput {
 }
 
 export const profileService = {
-  // Perfiles no archivados, ordenados por fecha de creacion (los mas antiguos primero).
-  async listProfiles(): Promise<Profile[]> {
-    const profiles = await profilesRepo.listActive();
+  // Perfiles no archivados, ordenados por fecha de creacion (los mas antiguos primero). Con
+  // cuenta activa se pasa el `ownerUserId` de la sesion para no listar perfiles de otra cuenta
+  // que compartiera el navegador (invariante 4; ver profilesRepo.listActive).
+  async listProfiles(ownerUserId?: string | null): Promise<Profile[]> {
+    const profiles = await profilesRepo.listActive(ownerUserId);
     return profiles.sort((a, b) => a.createdAt - b.createdAt);
   },
 
@@ -152,12 +154,13 @@ export const profileService = {
     }
   },
 
-  // Resuelve el perfil activo al arrancar: el id guardado solo vale si el perfil
-  // sigue existiendo (no archivado). Si no, limpia la preferencia obsoleta.
-  async resolveActiveProfile(): Promise<Profile | null> {
+  // Resuelve el perfil activo al arrancar: el id guardado solo vale si el perfil sigue existiendo
+  // (no archivado) Y pertenece a la sesion activa. Si no, limpia la preferencia obsoleta. Pasar el
+  // `ownerUserId` evita reabrir el perfil de otra cuenta que hubiera quedado como "ultimo activo".
+  async resolveActiveProfile(ownerUserId?: string | null): Promise<Profile | null> {
     const storedId = profileService.getActiveProfileId();
     if (!storedId) return null;
-    const profiles = await profilesRepo.listActive();
+    const profiles = await profilesRepo.listActive(ownerUserId);
     const match = profiles.find((p) => p.id === storedId);
     if (!match) {
       profileService.clearActiveProfileId();

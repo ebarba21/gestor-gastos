@@ -33,8 +33,11 @@ clientes simulados y las politicas RLS con un test SQL (ver mas abajo).
 
 ## Sincronizacion con Supabase (opcional)
 
-La sincronizacion completa llega en la fase 2. La fase 1 deja preparados el esquema remoto, la
-autenticacion, la seguridad (RLS) y las abstracciones. Para habilitar la cuenta autenticada:
+La ampliacion esta implementada de extremo a extremo (Auth + RLS, sincronizacion local-first con
+outbox idempotente y resolucion de conflictos, migracion, reconstruccion de dispositivo, PIN, sesion
+cifrada, passkeys, comercios, duplicados, bandeja, conciliacion, recurrencias, forecast y deudas). El
+estado de verificacion y las pruebas manuales pendientes estan en `docs/CHECKLIST_AMPLIACION_FINAL.md`.
+La cuenta es OPCIONAL: sin ella la app funciona 100% en local. Para habilitar la cuenta autenticada:
 
 ### 1. Variables de entorno
 

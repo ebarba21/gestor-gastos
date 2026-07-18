@@ -115,4 +115,6 @@ create policy transaction_tags_update on public.transaction_tags
   using (owner_user_id = auth.uid())
   with check (owner_user_id = auth.uid() and public.profile_is_owned(profile_id));
 
--- Sin politica DELETE: borrado logico via UPDATE de deleted_at.
+-- Sin politica DELETE. transaction_tags es una tabla puente sin deleted_at ni revision: la
+-- relacion de etiquetas es la proyeccion de transactions.tag_ids (fuente de verdad), por lo que
+-- no usa tombstone; se reescribe al cambiar las etiquetas del movimiento.
