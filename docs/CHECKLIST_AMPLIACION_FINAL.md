@@ -539,6 +539,7 @@ Al cerrar la ampliacion se ejecutaron los dos auditores obligatorios del proyect
 ## Pruebas manuales pendientes (con pasos exactos)
 
 Requieren tu dispositivo real, una cuenta real o red; no se pueden automatizar desde el repositorio.
+Guia detallada paso a paso (que hacer / que debe pasar / si falla): `docs/GUIA_VALIDACION_MANUAL.md`.
 
 1. **Configurar `.env.local`**: copia `.env.example` a `.env.local` y rellena `VITE_SUPABASE_URL` y
    `VITE_SUPABASE_PUBLISHABLE_KEY` (Dashboard > Project Settings > API). Nunca `service_role`.
