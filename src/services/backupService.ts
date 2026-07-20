@@ -19,13 +19,19 @@ import { backupRepo, type ProfileDataTables } from '../db/backupRepo';
 import { profilesRepo } from '../db/profilesRepo';
 import { normalizeProfileName } from './profileService';
 import { requireProfileId } from '../lib/validation';
+import { computeFingerprints } from '../lib/duplicateFingerprint';
 
 // Marcadores del envelope. Sirven para reconocer el fichero y rechazar cualquier otro.
 export const BACKUP_APP = 'gestor-gastos';
 export const BACKUP_KIND = 'profile-backup';
 // Version del FORMATO del envelope de backup (independiente de la version del esquema de
-// datos). Se incrementa si cambia la estructura del envelope, no las entidades.
-export const BACKUP_FORMAT_VERSION = 1;
+// datos). v2 (fase 2): el backup excluye tombstones (bajas logicas) y device-local (outbox,
+// conflictos, migracion, cursores), y la restauracion resetea los campos de sincronizacion a
+// local (revision 0, syncStatus 'local'). La estructura del envelope no cambia respecto a v1, por
+// lo que los backups v1 siguen siendo restaurables.
+export const BACKUP_FORMAT_VERSION = 2;
+// Version minima de formato que esta app sabe leer (los envelopes v1 y v2 son compatibles).
+const MIN_BACKUP_FORMAT_VERSION = 1;
 
 export interface ProfileBackup {
   app: typeof BACKUP_APP;
@@ -59,10 +65,19 @@ export interface BackupSummary {
     accounts: number;
     categories: number;
     tags: number;
+    merchants: number;
+    merchantAliases: number;
     rules: number;
     budgets: number;
     importTemplates: number;
     importBatches: number;
+    reviewItems: number;
+    reconciliations: number;
+    recurringSeries: number;
+    recurringOccurrences: number;
+    debts: number;
+    debtPayments: number;
+    debtScenarios: number;
   };
 }
 
@@ -71,11 +86,21 @@ const TABLE_KEYS: readonly (keyof ProfileDataTables)[] = [
   'accounts',
   'categories',
   'tags',
+  'merchants',
+  'merchantAliases',
   'transactions',
   'rules',
   'budgets',
   'importTemplates',
   'importBatches',
+  'noDuplicateDecisions',
+  'reviewItems',
+  'reconciliations',
+  'recurringSeries',
+  'recurringOccurrences',
+  'debts',
+  'debtPayments',
+  'debtScenarios',
 ];
 
 // --- Creacion del backup ---
@@ -141,9 +166,13 @@ export function parseBackup(text: string): ProfileBackup {
   if (raw.app !== BACKUP_APP || raw.kind !== BACKUP_KIND) {
     throw new BackupError('El archivo no es un backup de perfil de Gestor de Gastos.');
   }
-  if (typeof raw.backupFormatVersion !== 'number' || raw.backupFormatVersion !== BACKUP_FORMAT_VERSION) {
+  if (
+    typeof raw.backupFormatVersion !== 'number' ||
+    raw.backupFormatVersion < MIN_BACKUP_FORMAT_VERSION ||
+    raw.backupFormatVersion > BACKUP_FORMAT_VERSION
+  ) {
     throw new BackupError(
-      `Formato de backup incompatible (${String(raw.backupFormatVersion)}). Esta version de la app usa el formato ${BACKUP_FORMAT_VERSION}.`,
+      `Formato de backup incompatible (${String(raw.backupFormatVersion)}). Esta version de la app admite del formato ${MIN_BACKUP_FORMAT_VERSION} al ${BACKUP_FORMAT_VERSION}.`,
     );
   }
   const schemaVersion = raw.schemaVersion;
@@ -170,11 +199,21 @@ export function parseBackup(text: string): ProfileBackup {
     accounts: [],
     categories: [],
     tags: [],
+    merchants: [],
+    merchantAliases: [],
     transactions: [],
     rules: [],
     budgets: [],
     importTemplates: [],
     importBatches: [],
+    noDuplicateDecisions: [],
+    reviewItems: [],
+    reconciliations: [],
+    recurringSeries: [],
+    recurringOccurrences: [],
+    debts: [],
+    debtPayments: [],
+    debtScenarios: [],
   };
   const rawData = raw.data as Record<string, unknown>;
   const mutableData = data as unknown as Record<string, unknown[]>;
@@ -217,10 +256,19 @@ export function summarizeBackup(backup: ProfileBackup): BackupSummary {
       accounts: d.accounts.length,
       categories: d.categories.length,
       tags: d.tags.length,
+      merchants: d.merchants.length,
+      merchantAliases: d.merchantAliases.length,
       rules: d.rules.length,
       budgets: d.budgets.length,
       importTemplates: d.importTemplates.length,
       importBatches: d.importBatches.length,
+      reviewItems: d.reviewItems.length,
+      reconciliations: d.reconciliations.length,
+      recurringSeries: d.recurringSeries.length,
+      recurringOccurrences: d.recurringOccurrences.length,
+      debts: d.debts.length,
+      debtPayments: d.debtPayments.length,
+      debtScenarios: d.debtScenarios.length,
     },
   };
 }
@@ -256,12 +304,22 @@ export function remapProfileData(
   const accountMap = buildIdMap(data.accounts, makeId);
   const categoryMap = buildIdMap(data.categories, makeId);
   const tagMap = buildIdMap(data.tags, makeId);
+  const merchantMap = buildIdMap(data.merchants, makeId);
+  const merchantAliasMap = buildIdMap(data.merchantAliases, makeId);
   const ruleMap = buildIdMap(data.rules, makeId);
   const templateMap = buildIdMap(data.importTemplates, makeId);
   const batchMap = buildIdMap(data.importBatches, makeId);
   const txMap = buildIdMap(data.transactions, makeId);
   const settingMap = buildIdMap(data.settings, makeId);
   const budgetMap = buildIdMap(data.budgets, makeId);
+  const noDuplicateDecisionMap = buildIdMap(data.noDuplicateDecisions, makeId);
+  const reviewItemMap = buildIdMap(data.reviewItems, makeId);
+  const reconciliationMap = buildIdMap(data.reconciliations, makeId);
+  const recurringSeriesMap = buildIdMap(data.recurringSeries, makeId);
+  const recurringOccurrenceMap = buildIdMap(data.recurringOccurrences, makeId);
+  const debtMap = buildIdMap(data.debts, makeId);
+  const debtPaymentMap = buildIdMap(data.debtPayments, makeId);
+  const debtScenarioMap = buildIdMap(data.debtScenarios, makeId);
 
   // Los grupos de transferencia no son entidades: son un id compartido por las dos patas.
   // Se remapea de forma consistente (mismo valor origen -> mismo valor destino).
@@ -298,32 +356,88 @@ export function remapProfileData(
     profileId: targetProfileId,
   }));
 
-  const transactions = data.transactions.map((t) => ({
-    ...t,
-    id: txMap.get(t.id)!,
+  const merchants = data.merchants.map((m) => ({
+    ...m,
+    id: merchantMap.get(m.id)!,
     profileId: targetProfileId,
-    accountId: remapRef(accountMap, t.accountId) ?? t.accountId,
-    categoryId: remapRef(categoryMap, t.categoryId),
-    subcategoryId: remapRef(categoryMap, t.subcategoryId),
-    tagIds: t.tagIds.map((id) => tagMap.get(id) ?? id),
-    ruleId: remapRef(ruleMap, t.ruleId),
-    transferGroupId:
-      t.transferGroupId === null ? null : transferGroupMap.get(t.transferGroupId) ?? t.transferGroupId,
-    parentId: remapRef(txMap, t.parentId),
-    refundOfId: remapRef(txMap, t.refundOfId),
-    importBatchId: remapRef(batchMap, t.importBatchId),
+    defaultCategoryId: remapRef(categoryMap, m.defaultCategoryId),
+    defaultSubcategoryId: remapRef(categoryMap, m.defaultSubcategoryId),
+    defaultTagIds: m.defaultTagIds.map((id) => tagMap.get(id) ?? id),
   }));
+
+  const merchantAliases = data.merchantAliases.map((a) => ({
+    ...a,
+    id: merchantAliasMap.get(a.id)!,
+    profileId: targetProfileId,
+    merchantId: merchantMap.get(a.merchantId) ?? a.merchantId,
+  }));
+
+  // Traduccion huella tolerante ANTIGUA -> NUEVA (recalculada tras remapear accountId/
+  // merchantId, ver mas abajo), para poder traducir tambien las NoDuplicateDecision ya
+  // guardadas (leftFingerprint/rightFingerprint). Si dos transacciones distintas compartian
+  // la misma huella antigua, comparten la misma huella nueva (la formula solo depende de
+  // ids remapeados de forma consistente), asi que el mapeo nunca pierde informacion.
+  const normalizedFingerprintMap = new Map<string, string>();
+
+  const transactions = data.transactions.map((t) => {
+    const accountId = remapRef(accountMap, t.accountId) ?? t.accountId;
+    const merchantId = remapRef(merchantMap, t.merchantId);
+    // exactFingerprint/normalizedFingerprint incluyen literalmente accountId y merchantId
+    // como entrada (lib/duplicateFingerprint.ts). Tras remapearlos a ids nuevos hay que
+    // RECALCULAR las huellas explicitamente: si se conservaran las antiguas, el nivel
+    // "exact" del motor de duplicados dejaria de detectar una reimportacion real de este
+    // movimiento tras restaurar el backup (falso negativo que puede duplicar saldo,
+    // hallazgo de auditoria financiera).
+    const { exactFingerprint, normalizedFingerprint } = computeFingerprints({
+      accountId,
+      date: t.date,
+      amountCents: t.amountCents,
+      currency: t.currency,
+      normalizedConcept: t.normalizedConcept,
+      merchantId,
+    });
+    normalizedFingerprintMap.set(t.normalizedFingerprint, normalizedFingerprint);
+    return {
+      ...t,
+      id: txMap.get(t.id)!,
+      profileId: targetProfileId,
+      accountId,
+      categoryId: remapRef(categoryMap, t.categoryId),
+      subcategoryId: remapRef(categoryMap, t.subcategoryId),
+      tagIds: t.tagIds.map((id) => tagMap.get(id) ?? id),
+      ruleId: remapRef(ruleMap, t.ruleId),
+      transferGroupId:
+        t.transferGroupId === null ? null : transferGroupMap.get(t.transferGroupId) ?? t.transferGroupId,
+      parentId: remapRef(txMap, t.parentId),
+      refundOfId: remapRef(txMap, t.refundOfId),
+      importBatchId: remapRef(batchMap, t.importBatchId),
+      merchantId,
+      // El pendiente que este movimiento sustituyo (si lo hizo) nunca se exporta en el backup
+      // (backupRepo filtra los tombstones, y un pendiente sustituido siempre queda
+      // logicamente borrado): remapear su id antiguo apuntaria a un id inexistente en el
+      // perfil restaurado, violando la FK compuesta en el primer push. Se anula explicitamente
+      // (no hay pendiente que restaurar; la trazabilidad de esa sustitucion concreta no
+      // sobrevive a un backup, igual que el propio pendiente no sobrevive).
+      pendingReplacementId: null,
+      exactFingerprint,
+      normalizedFingerprint,
+    };
+  });
 
   const rules = data.rules.map((r) => ({
     ...r,
     id: ruleMap.get(r.id)!,
     profileId: targetProfileId,
-    // Condiciones sobre cuenta: su value es un accountId y debe remapearse.
-    conditions: r.conditions.map((cond) =>
-      cond.field === 'account' && typeof cond.value === 'string'
-        ? { ...cond, value: accountMap.get(cond.value) ?? cond.value }
-        : { ...cond },
-    ),
+    // Condiciones sobre cuenta/comercio: su value es un id y debe remapearse.
+    conditions: r.conditions.map((cond) => {
+      if (cond.field === 'account' && typeof cond.value === 'string') {
+        return { ...cond, value: accountMap.get(cond.value) ?? cond.value };
+      }
+      if (cond.field === 'merchant' && typeof cond.value === 'string') {
+        return { ...cond, value: merchantMap.get(cond.value) ?? cond.value };
+      }
+      return { ...cond };
+    }),
     action: {
       ...r.action,
       setCategoryId: remapRef(categoryMap, r.action.setCategoryId),
@@ -353,16 +467,125 @@ export function remapProfileData(
     templateId: remapRef(templateMap, batch.templateId),
   }));
 
+  // Las huellas (leftFingerprint/rightFingerprint) son hashes de contenido, no ids, pero
+  // incluyen accountId/merchantId como entrada: se traducen con normalizedFingerprintMap
+  // (calculado arriba junto con las transacciones remapeadas) para que sigan coincidiendo
+  // con las huellas recalculadas de los movimientos restaurados. Si una huella no aparece en
+  // el mapa (el movimiento que la origino no esta en este backup, p. ej. ya se habia borrado),
+  // se conserva tal cual: no hay mejor opcion sin ese movimiento. Solo se remapean ademas las
+  // referencias directas a movimientos (leftTxId/rightTxId).
+  const noDuplicateDecisions = data.noDuplicateDecisions.map((d) => ({
+    ...d,
+    id: noDuplicateDecisionMap.get(d.id)!,
+    profileId: targetProfileId,
+    leftFingerprint: normalizedFingerprintMap.get(d.leftFingerprint) ?? d.leftFingerprint,
+    rightFingerprint: normalizedFingerprintMap.get(d.rightFingerprint) ?? d.rightFingerprint,
+    leftTxId: remapRef(txMap, d.leftTxId),
+    rightTxId: remapRef(txMap, d.rightTxId),
+  }));
+
+  // ReviewItem.entityId es POLIMORFICO segun entityType (DATA_MODEL seccion 16): se remapea
+  // contra el mapa de la tabla correspondiente, incluida 'recurringSeries' (fase 7: anomalias
+  // recurrentes). 'conflict' no se remapea (los conflictos de sincronizacion son device-local y
+  // nunca forman parte del backup, igual que la outbox); la tarea queda con una referencia que
+  // ya no resuelve tras restaurar, tal y como ocurriria si el conflicto se hubiera resuelto en
+  // otro dispositivo. La UI trata una referencia ausente como "ya no aplica" (ver reviewService),
+  // nunca como un error silencioso de datos.
+  const reviewItems = data.reviewItems.map((item) => {
+    const entityId =
+      item.entityType === 'transaction'
+        ? txMap.get(item.entityId) ?? item.entityId
+        : item.entityType === 'importBatch'
+          ? batchMap.get(item.entityId) ?? item.entityId
+          : item.entityType === 'recurringSeries'
+            ? recurringSeriesMap.get(item.entityId) ?? item.entityId
+            : item.entityId;
+    return {
+      ...item,
+      id: reviewItemMap.get(item.id)!,
+      profileId: targetProfileId,
+      entityId,
+    };
+  });
+
+  const reconciliations = data.reconciliations.map((r) => ({
+    ...r,
+    id: reconciliationMap.get(r.id)!,
+    profileId: targetProfileId,
+    accountId: accountMap.get(r.accountId) ?? r.accountId,
+  }));
+
+  const recurringSeries = data.recurringSeries.map((s) => ({
+    ...s,
+    id: recurringSeriesMap.get(s.id)!,
+    profileId: targetProfileId,
+    merchantId: remapRef(merchantMap, s.merchantId),
+    accountId: remapRef(accountMap, s.accountId),
+  }));
+
+  const recurringOccurrences = data.recurringOccurrences.map((o) => ({
+    ...o,
+    id: recurringOccurrenceMap.get(o.id)!,
+    profileId: targetProfileId,
+    seriesId: recurringSeriesMap.get(o.seriesId) ?? o.seriesId,
+    transactionId: remapRef(txMap, o.transactionId),
+  }));
+
+  const debts = data.debts.map((d) => ({
+    ...d,
+    id: debtMap.get(d.id)!,
+    profileId: targetProfileId,
+    linkedAccountId: remapRef(accountMap, d.linkedAccountId),
+    linkedCategoryId: remapRef(categoryMap, d.linkedCategoryId),
+  }));
+
+  const debtPayments = data.debtPayments.map((p) => ({
+    ...p,
+    id: debtPaymentMap.get(p.id)!,
+    profileId: targetProfileId,
+    debtId: debtMap.get(p.debtId) ?? p.debtId,
+    transactionId: remapRef(txMap, p.transactionId),
+  }));
+
+  // oneTimeExtraPayments es un array EMBEBIDO (no una tabla, DATA_MODEL 19.3): cada entrada
+  // referencia una deuda por debtId, que hay que remapear igual que cualquier otra referencia.
+  const debtScenarios = data.debtScenarios.map((s) => ({
+    ...s,
+    id: debtScenarioMap.get(s.id)!,
+    profileId: targetProfileId,
+    oneTimeExtraPayments: s.oneTimeExtraPayments.map((e) => ({
+      ...e,
+      debtId: debtMap.get(e.debtId) ?? e.debtId,
+    })),
+  }));
+
+  // Restaurar = datos FRESCOS en local: se resetean los campos de sincronizacion (revision 0,
+  // syncStatus 'local', deletedAt null, lastSyncedAt null). Un perfil restaurado es local hasta que
+  // el usuario lo migre a una cuenta de forma explicita (fase 2). Ningun tombstone llega aqui (el
+  // backup ya los excluye), pero el reset garantiza consistencia aunque el backup fuera v1 synced.
+  const resetSync = <T extends object>(rows: T[]): T[] =>
+    rows.map((row) => ({ ...row, ...syncDefaults() }));
+
   return {
-    settings,
-    accounts,
-    categories,
-    tags,
-    transactions,
-    rules,
-    budgets,
-    importTemplates,
-    importBatches,
+    settings: resetSync(settings),
+    accounts: resetSync(accounts),
+    categories: resetSync(categories),
+    tags: resetSync(tags),
+    merchants: resetSync(merchants),
+    merchantAliases: resetSync(merchantAliases),
+    transactions: resetSync(transactions),
+    rules: resetSync(rules),
+    budgets: resetSync(budgets),
+    importTemplates: resetSync(importTemplates),
+    importBatches: resetSync(importBatches),
+    noDuplicateDecisions: resetSync(noDuplicateDecisions),
+    reviewItems: resetSync(reviewItems),
+    reconciliations: resetSync(reconciliations),
+    recurringSeries: resetSync(recurringSeries),
+    recurringOccurrences: resetSync(recurringOccurrences),
+    debts: resetSync(debts),
+    debtPayments: resetSync(debtPayments),
+    debtScenarios: resetSync(debtScenarios),
   };
 }
 

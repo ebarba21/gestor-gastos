@@ -11,6 +11,7 @@ export {
 } from './remoteRepo';
 export {
   serializeCents,
+  serializeCentsNullable,
   deserializeCents,
   deserializeCentsNullable,
   assertIntegerCents,

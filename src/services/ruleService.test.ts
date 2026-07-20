@@ -60,6 +60,7 @@ function etx(over: Partial<EvaluableTransaction> = {}): EvaluableTransaction {
     date: '2026-03-15',
     accountId: 'acc-1',
     type: 'expense',
+    merchantId: null,
     ...over,
   };
 }
@@ -87,6 +88,31 @@ function newTx(over: Partial<NewTransaction> = {}): NewTransaction {
     excludedFromStats: false,
     importBatchId: null,
     dedupeHash: `hash-${hashCounter}`,
+    rawConcept: 'COMPRA MERCADONA',
+    normalizedConcept: 'compra mercadona',
+    normalizationVersion: 1,
+    merchantId: null,
+    merchantMatchSource: 'none',
+    merchantMatchConfidence: 0,
+    bankTransactionId: null,
+    bookingDate: null,
+    valueDate: null,
+    pending: false,
+    currency: 'EUR',
+    balanceAfterCents: null,
+    bankReference: null,
+    operationType: null,
+    sourceRowHash: 'row-hash',
+    exactFingerprint: 'exact-fp',
+    normalizedFingerprint: 'norm-fp',
+    fingerprintVersion: 1,
+    sourceFileHash: null,
+    sourceFileSize: null,
+    duplicateStatus: 'unique',
+    duplicateConfidence: 0,
+    duplicateReasonCodes: [],
+    duplicateCandidateIds: [],
+    pendingReplacementId: null,
     ...over,
   };
 }
@@ -207,6 +233,28 @@ describe('conditionMatches - cuenta y tipo', () => {
     ).toBe(true);
     expect(
       conditionMatches(cond({ field: 'type', operator: 'equals', value: 'income' }), etx()),
+    ).toBe(false);
+  });
+
+  it('merchant equals compara merchantId (integracion con comercios, fase 4)', () => {
+    expect(
+      conditionMatches(
+        cond({ field: 'merchant', operator: 'equals', value: 'merch-1' }),
+        etx({ merchantId: 'merch-1' }),
+      ),
+    ).toBe(true);
+    expect(
+      conditionMatches(
+        cond({ field: 'merchant', operator: 'equals', value: 'merch-1' }),
+        etx({ merchantId: 'merch-2' }),
+      ),
+    ).toBe(false);
+    // Sin comercio asociado (merchantId null), nunca casa.
+    expect(
+      conditionMatches(
+        cond({ field: 'merchant', operator: 'equals', value: 'merch-1' }),
+        etx({ merchantId: null }),
+      ),
     ).toBe(false);
   });
 });
@@ -361,6 +409,15 @@ describe('validacion de reglas', () => {
   it('rechaza between de importe sin segundo valor', () => {
     expect(() =>
       validateCondition(cond({ field: 'amount', operator: 'between', value: 100, value2: null })),
+    ).toThrow(ValidationError);
+  });
+
+  it('acepta una condicion de comercio valida y rechaza una vacia', () => {
+    expect(() =>
+      validateCondition(cond({ field: 'merchant', operator: 'equals', value: 'merch-1' })),
+    ).not.toThrow();
+    expect(() =>
+      validateCondition(cond({ field: 'merchant', operator: 'equals', value: '' })),
     ).toThrow(ValidationError);
   });
 

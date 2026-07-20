@@ -347,6 +347,66 @@ describe('transferencias', () => {
     expect(restored.transferGroupId).toBeNull();
     expect(await transactionsRepo.count(A)).toBe(1);
   });
+
+  // linkAsTransfer (ampliacion fase 6): vincula DOS movimientos YA EXISTENTES (p. ej.
+  // detectados por la bandeja de revision como "transferencia candidata"), sin crear ninguno
+  // nuevo ni reescribir concepto/fecha/importe/comercio de ninguno de los dos.
+  describe('linkAsTransfer', () => {
+    it('vincula dos movimientos existentes sin tocar concept/date/amountCents', async () => {
+      const out = await transactionService.create(
+        A,
+        input({ accountId: 'acc-1', amountCents: -5000, concept: 'Salida banco' }),
+      );
+      const inTx = await transactionService.create(
+        A,
+        input({ accountId: 'acc-2', amountCents: 5000, type: 'income', concept: 'Entrada banco' }),
+      );
+      const [updatedOut, updatedIn] = await transactionService.linkAsTransfer(A, out.id, inTx.id);
+      expect(updatedOut.type).toBe('transfer');
+      expect(updatedIn.type).toBe('transfer');
+      expect(updatedOut.transferGroupId).toBe(updatedIn.transferGroupId);
+      expect(updatedOut.excludedFromStats).toBe(true);
+      expect(updatedIn.excludedFromStats).toBe(true);
+      // Concepto/fecha/importe originales intactos (a diferencia de createTransfer).
+      expect(updatedOut.concept).toBe('Salida banco');
+      expect(updatedIn.concept).toBe('Entrada banco');
+      expect(updatedOut.amountCents).toBe(-5000);
+      expect(updatedIn.amountCents).toBe(5000);
+    });
+
+    it('rechaza vincular movimientos de la misma cuenta', async () => {
+      const a = await transactionService.create(A, input({ accountId: 'acc-1', amountCents: -5000 }));
+      const b = await transactionService.create(
+        A,
+        input({ accountId: 'acc-1', amountCents: 5000, type: 'income' }),
+      );
+      await expect(transactionService.linkAsTransfer(A, a.id, b.id)).rejects.toThrow(ValidationError);
+    });
+
+    it('rechaza vincular si el importe absoluto no coincide', async () => {
+      const a = await transactionService.create(A, input({ accountId: 'acc-1', amountCents: -5000 }));
+      const b = await transactionService.create(
+        A,
+        input({ accountId: 'acc-2', amountCents: 4000, type: 'income' }),
+      );
+      await expect(transactionService.linkAsTransfer(A, a.id, b.id)).rejects.toThrow(ValidationError);
+    });
+
+    it('rechaza vincular si ya pertenece a otra transferencia', async () => {
+      const [out, income] = await transactionService.createTransfer(A, {
+        fromAccountId: 'o',
+        toAccountId: 'd',
+        amountCents: 5000,
+        date: '2026-01-20',
+      });
+      const c = await transactionService.create(
+        A,
+        input({ accountId: 'acc-3', amountCents: 5000, type: 'income' }),
+      );
+      await expect(transactionService.linkAsTransfer(A, out.id, c.id)).rejects.toThrow(ValidationError);
+      await expect(transactionService.linkAsTransfer(A, income.id, c.id)).rejects.toThrow(ValidationError);
+    });
+  });
 });
 
 describe('reembolsos', () => {

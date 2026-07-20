@@ -2,13 +2,13 @@
 
 Resumen completo de lo que hace la aplicacion. Es una PWA de gestion de gastos personales, local-first, multiusuario por perfiles, sin APIs de pago para sus funciones esenciales y con una cuenta de sincronizacion privada OPCIONAL.
 
-Nota de estado: la app funciona hoy 100% en local. Se esta ampliando (ver `specs/IMPLEMENTATION_ROADMAP.md`) con una cuenta opcional para sincronizar entre dispositivos, PIN y passkeys, comercios normalizados, duplicados avanzados, bandeja de revision, conciliacion, recurrencias, forecast y un modulo de deudas. Las funciones marcadas como "en construccion" describen ese objetivo.
+Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta opcional para sincronizar entre dispositivos, PIN y passkeys, comercios normalizados, duplicados avanzados, bandeja de revision, conciliacion, recurrencias, forecast y modulo de deudas) esta implementada de extremo a extremo y cubierta por tests; el estado de verificacion y las pruebas manuales pendientes (que requieren cuenta, red o dispositivo reales) estan en `docs/CHECKLIST_AMPLIACION_FINAL.md`. La cuenta y el resto de la ampliacion son OPCIONALES: el modo local sin cuenta sigue siendo ciudadano de primera clase.
 
 ---
 
 ## 1. Filosofia y garantias de base (redaccion honesta)
 
-- **Sin APIs de pago para lo esencial**: las funciones nucleo (registrar, importar, categorizar, analizar, exportar, backup) funcionan sin cuenta, sin red y sin nada que pagar. La sincronizacion opcional usa Supabase dentro de su plan gratuito actual; no se promete "coste cero para siempre" porque los limites y precios los fija el proveedor. El modo local nunca deja de ser gratuito.
+- **Sin APIs de pago para lo esencial**: las funciones nucleo (registrar, importar, categorizar, analizar, exportar, backup) funcionan sin cuenta, sin red y sin nada que pagar. La sincronizacion opcional usa Supabase dentro de su plan gratuito actual; no se promete "coste cero para siempre" porque los limites y precios los fija el proveedor. El modo local no requiere pagos (es software cliente estatico, sin API).
 - **Local-first**: IndexedDB de tu dispositivo es siempre la base operativa; la app funciona offline. **Sin cuenta, ningun dato financiero sale del dispositivo.** Si activas la cuenta, solo los datos procesados sincronizados salen del dispositivo hacia tu proyecto Supabase, protegidos por autenticacion y por Row Level Security. Los archivos bancarios originales no se suben por defecto.
 - **Privacidad real y explicada, no "total"**: sin telemetria ni analytics. La app NO ofrece privacidad total: no protege frente a un dispositivo comprometido, ni frente al propio proveedor de infraestructura, ni frente al robo de tu contrasena. Explica con precision que protege y que no (ver `specs/CLOUD_SYNC_SECURITY.md`).
 - **Red controlada**: en runtime, la app solo habla con sus propios assets (service worker) y, si activas la cuenta, con el endpoint de Supabase de tu proyecto. Ningun otro dominio; sin CDNs ni fuentes remotas en ejecucion.
@@ -138,7 +138,7 @@ Nota de estado: la app funciona hoy 100% en local. Se esta ampliando (ver `specs
 
 **Beneficio**: la comodidad de una app de verdad (icono, offline, movil) sin pasar por ninguna tienda; usable sin internet y, si quieres, sincronizada entre tus dispositivos.
 
-## 11 bis. Cuenta privada y sincronizacion (opcional, en construccion)
+## 11 bis. Cuenta privada y sincronizacion (opcional)
 
 - **Cuenta opcional**: puedes seguir usando la app solo en local o activar una cuenta (email y contrasena) para llevar tus perfiles a varios dispositivos. La cuenta identifica a la persona; los perfiles siguen organizando tus datos (una cuenta puede tener varios perfiles).
 - **Sincronizacion privada**: tu dispositivo sigue mandando (todo se guarda primero en local); una copia privada se sincroniza con Supabase, protegida por autenticacion y RLS. Estados claros: sincronizado, cambios pendientes, sincronizando, sin conexion, conflicto, error.
@@ -146,12 +146,12 @@ Nota de estado: la app funciona hoy 100% en local. Se esta ampliando (ver `specs
 - **Otro dispositivo**: inicias sesion y la app reconstruye tus perfiles; despues funciona offline igual que antes.
 - **Los archivos bancarios originales no se suben**: solo los datos ya procesados y las huellas necesarias.
 
-## 11 ter. Seguridad de acceso: PIN y passkeys (opcional, en construccion)
+## 11 ter. Seguridad de acceso: PIN y passkeys (opcional)
 
 - **PIN local** opcional (min. 6 digitos) con bloqueo automatico configurable; nunca se guarda en claro y tu sesion se cifra con una clave derivada del PIN.
 - **Passkeys**: desbloqueo con lo que ofrezca tu dispositivo (huella, cara, PIN del sistema o llave fisica) via el estandar del navegador. La biometria la gestiona tu sistema operativo: **la app nunca recibe tus datos biometricos**. Siempre queda la contrasena/PIN como alternativa.
 
-## 11 quater. Comercios, revision y analisis avanzado (en construccion)
+## 11 quater. Comercios, revision y analisis avanzado
 
 - **Comercios normalizados**: "AMZN Mktp ES", "AMAZON EU" y "Amazon.es*1234" se reconocen como Amazon, sin perder nunca el texto original del banco.
 - **Duplicados con niveles de confianza** y una **bandeja de revision** que reune las excepciones tras importar (sin categorizar, posibles duplicados, transferencias/reembolsos candidatos, comercios nuevos, errores), mas **conciliacion** de saldo con tu extracto.
@@ -163,7 +163,7 @@ Nota de estado: la app funciona hoy 100% en local. Se esta ampliando (ver `specs
 - Confirmacion previa con recuento en toda accion destructiva o masiva; doble confirmacion en las irreversibles (borrar perfil, restaurar backup).
 - **Deshacer** disponible en las operaciones reversibles: borrado y edicion masiva, importaciones completas, aplicacion retroactiva de reglas.
 - Mensajes de exito y error visibles (toasts); nada falla en silencio.
-- **Bloqueo de acceso** con PIN y passkeys (en construccion): protege la app en tu dispositivo, con la sesion cifrada; el cifrado de la base local completa sigue fuera de alcance por ahora.
+- **Bloqueo de acceso** con PIN y passkeys (opcional): protege la app en tu dispositivo, con la sesion cifrada; el cifrado de la base local completa sigue fuera de alcance por ahora.
 
 **Beneficio**: puedes trastear sin miedo; los errores se avisan y casi todo tiene vuelta atras.
 
@@ -184,5 +184,5 @@ Nota de estado: la app funciona hoy 100% en local. Se esta ampliando (ver `specs
 - **Privacidad real y transparente**: en modo local, tus finanzas no salen del dispositivo. Con cuenta, se sincronizan de forma privada protegidas por autenticacion y RLS, y la app te explica que protege y que no (no promete privacidad total).
 - **Exactitud financiera**: centimos enteros, tipos de interes en representacion entera, reembolsos, splits y transferencias con la semantica correcta, todo cubierto por tests.
 - **Rapidez**: de extracto bancario a analisis completo en minutos, con listas fluidas incluso con muchos anos de historico.
-- **Insight accionable**: compara contra tu propio historico, proyecta el cierre de mes por rango, sigue tu ahorro/inversion y (en construccion) planifica tus deudas.
+- **Insight accionable**: compara contra tu propio historico, proyecta el cierre de mes por rango, sigue tu ahorro/inversion y planifica tus deudas (Snowball/Avalanche).
 - **Tuyo de verdad**: exportaciones a Excel y backups portables por perfil; y, si quieres, tus datos en tus dispositivos con una cuenta privada. Sin lock-in del lado local.

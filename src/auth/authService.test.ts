@@ -28,7 +28,7 @@ interface FakeAuth {
   signInWithPassword: (
     args: unknown,
   ) => Promise<{ data: { user: unknown; session: unknown }; error: unknown }>;
-  signOut: () => Promise<{ error: unknown }>;
+  signOut: (options?: { scope?: string }) => Promise<{ error: unknown }>;
   getSession: () => Promise<{ data: { session: unknown }; error: unknown }>;
   getUser: () => Promise<{ data: { user: unknown }; error: unknown }>;
   resetPasswordForEmail: (email: string, opts?: unknown) => Promise<{ error: unknown }>;
@@ -98,6 +98,46 @@ describe('createAuthService', () => {
   it('signOut resuelve sin error', async () => {
     const { client } = makeAuthClient();
     await expect(createAuthService(client).signOut()).resolves.toBeUndefined();
+  });
+
+  it('signOutOthers usa el scope oficial "others" del SDK', async () => {
+    const signOut = vi.fn().mockResolvedValue({ error: null });
+    const { client } = makeAuthClient({ signOut });
+    await createAuthService(client).signOutOthers();
+    expect(signOut).toHaveBeenCalledWith({ scope: 'others' });
+  });
+
+  it('reauthenticate vuelve a verificar la contrasena contra el email de la sesion activa', async () => {
+    const signInWithPassword = vi.fn().mockResolvedValue({
+      data: { user: fakeUser(), session: fakeSession() },
+      error: null,
+    });
+    const { client } = makeAuthClient({ signInWithPassword });
+    const session = await createAuthService(client).reauthenticate('password123');
+    expect(session).toBeTruthy();
+    expect(signInWithPassword).toHaveBeenCalledWith({
+      email: 'a@test.local',
+      password: 'password123',
+    });
+  });
+
+  it('reauthenticate traduce credenciales invalidas', async () => {
+    const { client } = makeAuthClient({
+      signInWithPassword: async () => ({
+        data: { user: null, session: null },
+        error: { message: 'Invalid login credentials', status: 400 },
+      }),
+    });
+    await expect(createAuthService(client).reauthenticate('bad')).rejects.toMatchObject({
+      code: 'AUTH_INVALID_CREDENTIALS',
+    });
+  });
+
+  it('reauthenticate falla sin filtrar detalles si no hay sesion activa', async () => {
+    const { client } = makeAuthClient({
+      getUser: async () => ({ data: { user: null }, error: null }),
+    });
+    await expect(createAuthService(client).reauthenticate('x')).rejects.toBeInstanceOf(AuthError);
   });
 
   it('updatePassword devuelve el usuario actualizado', async () => {

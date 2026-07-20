@@ -5,6 +5,7 @@ import {
   SupabaseConfigError,
   SUPABASE_URL_ENV,
   SUPABASE_PUBLISHABLE_KEY_ENV,
+  ENABLE_PASSKEYS_ENV,
 } from './env';
 
 describe('resolveSupabaseConfig', () => {
@@ -50,6 +51,35 @@ describe('resolveSupabaseConfig', () => {
       [SUPABASE_PUBLISHABLE_KEY_ENV]: '  pk  ',
     });
     expect(result.status).toBe('configured');
+  });
+
+  it('passkeys desactivadas por defecto (integracion experimental, off salvo opt-in explicito)', () => {
+    const result = resolveSupabaseConfig({
+      [SUPABASE_URL_ENV]: 'https://abc.supabase.co',
+      [SUPABASE_PUBLISHABLE_KEY_ENV]: 'pk_test_123',
+    });
+    expect(result.status).toBe('configured');
+    if (result.status === 'configured') expect(result.config.enablePasskeys).toBe(false);
+  });
+
+  it('VITE_ENABLE_PASSKEYS=true activa el flag explicitamente', () => {
+    const result = resolveSupabaseConfig({
+      [SUPABASE_URL_ENV]: 'https://abc.supabase.co',
+      [SUPABASE_PUBLISHABLE_KEY_ENV]: 'pk_test_123',
+      [ENABLE_PASSKEYS_ENV]: 'true',
+    });
+    expect(result.status).toBe('configured');
+    if (result.status === 'configured') expect(result.config.enablePasskeys).toBe(true);
+  });
+
+  it('cualquier valor distinto de "true" cuenta como desactivado', () => {
+    const result = resolveSupabaseConfig({
+      [SUPABASE_URL_ENV]: 'https://abc.supabase.co',
+      [SUPABASE_PUBLISHABLE_KEY_ENV]: 'pk_test_123',
+      [ENABLE_PASSKEYS_ENV]: '1',
+    });
+    expect(result.status).toBe('configured');
+    if (result.status === 'configured') expect(result.config.enablePasskeys).toBe(false);
   });
 });
 

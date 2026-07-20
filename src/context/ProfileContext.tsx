@@ -20,6 +20,7 @@ import {
   type CreateProfileInput,
   type UpdateProfileInput,
 } from '../services/profileService';
+import { useAuthOptional } from '../auth';
 
 type Status = 'loading' | 'ready';
 
@@ -45,13 +46,21 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
 
-  // Carga inicial: perfiles + resolucion del perfil activo guardado en localStorage.
+  // Propietario de la sesion activa (null en modo local puro o si no hay AuthProvider). Acota la
+  // lista de perfiles a los de esta cuenta (invariante 4): en un navegador compartido por varias
+  // cuentas, una cuenta nunca ve los perfiles de otra. Al cambiar de cuenta se recargan y, si el
+  // perfil activo era de otra cuenta, se cae al selector.
+  const auth = useAuthOptional();
+  const ownerUserId = auth?.user?.id ?? null;
+
+  // Carga inicial y recarga al cambiar de propietario: perfiles + resolucion del perfil activo
+  // guardado en localStorage (solo valido si pertenece a la sesion activa).
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const [list, active] = await Promise.all([
-        profileService.listProfiles(),
-        profileService.resolveActiveProfile(),
+        profileService.listProfiles(ownerUserId),
+        profileService.resolveActiveProfile(ownerUserId),
       ]);
       if (cancelled) return;
       setProfiles(list);
@@ -61,19 +70,19 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ownerUserId]);
 
   const reload = useCallback(async () => {
-    const list = await profileService.listProfiles();
+    const list = await profileService.listProfiles(ownerUserId);
     setProfiles(list);
-    // Si el perfil activo dejo de existir, se cae al selector y se limpia la
-    // preferencia obsoleta en localStorage (no se arrastra hasta el proximo arranque).
+    // Si el perfil activo dejo de existir (o no pertenece a la sesion), se cae al selector y se
+    // limpia la preferencia obsoleta en localStorage (no se arrastra hasta el proximo arranque).
     setActiveProfileId((current) => {
       if (current && list.some((p) => p.id === current)) return current;
       profileService.clearActiveProfileId();
       return null;
     });
-  }, []);
+  }, [ownerUserId]);
 
   const switchProfile = useCallback((id: string) => {
     profileService.setActiveProfileId(id);

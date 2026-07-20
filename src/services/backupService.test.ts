@@ -11,7 +11,9 @@ import { rulesRepo } from '../db/rulesRepo';
 import { budgetsRepo } from '../db/budgetsRepo';
 import { importTemplatesRepo } from '../db/importTemplatesRepo';
 import { importBatchesRepo } from '../db/importBatchesRepo';
+import { noDuplicateDecisionsRepo } from '../db/noDuplicateDecisionsRepo';
 import { backupRepo } from '../db/backupRepo';
+import { computeFingerprints } from '../lib/duplicateFingerprint';
 import {
   backupService,
   parseBackup,
@@ -22,9 +24,12 @@ import {
   BACKUP_FORMAT_VERSION,
 } from './backupService';
 import { SCHEMA_VERSION } from '../db/index';
+import { pinService } from '../security/pinService';
+import { __resetForTests as __resetSessionStorageForTests } from '../security/encryptedSessionStorage';
 
 beforeEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()));
+  __resetSessionStorageForTests();
 });
 
 function txInput(overrides: Partial<NewTransaction> = {}): NewTransaction {
@@ -48,6 +53,31 @@ function txInput(overrides: Partial<NewTransaction> = {}): NewTransaction {
     excludedFromStats: false,
     importBatchId: null,
     dedupeHash: 'hash',
+    rawConcept: 'Compra',
+    normalizedConcept: 'compra',
+    normalizationVersion: 1,
+    merchantId: null,
+    merchantMatchSource: 'none',
+    merchantMatchConfidence: 0,
+    bankTransactionId: null,
+    bookingDate: null,
+    valueDate: null,
+    pending: false,
+    currency: 'EUR',
+    balanceAfterCents: null,
+    bankReference: null,
+    operationType: null,
+    sourceRowHash: 'row-hash',
+    exactFingerprint: 'exact-fp',
+    normalizedFingerprint: 'norm-fp',
+    fingerprintVersion: 1,
+    sourceFileHash: null,
+    sourceFileSize: null,
+    duplicateStatus: 'unique',
+    duplicateConfidence: 0,
+    duplicateReasonCodes: [],
+    duplicateCandidateIds: [],
+    pendingReplacementId: null,
     ...overrides,
   };
 }
@@ -126,7 +156,24 @@ async function seedRichProfile(name: string) {
   const tplt = await importTemplatesRepo.create(pid, {
     name: 'Banco X',
     sourceFormat: 'csv',
-    columnMap: { date: 0, concept: 1, amount: 2, debit: null, credit: null, account: null, notes: null },
+    columnMap: {
+      date: 0,
+      concept: 1,
+      amount: 2,
+      debit: null,
+      credit: null,
+      account: null,
+      notes: null,
+      bankTransactionId: null,
+      bookingDate: null,
+      valueDate: null,
+      pending: null,
+      merchant: null,
+      currency: null,
+      balanceAfter: null,
+      bankReference: null,
+      operationType: null,
+    },
     dateFormat: 'dd/MM/yyyy',
     decimalSeparator: ',',
     thousandSeparator: '.',
@@ -141,7 +188,10 @@ async function seedRichProfile(name: string) {
     rowsTotal: 5,
     rowsImported: 4,
     rowsSkippedDuplicate: 1,
+    rowsLinked: 0,
     status: 'committed',
+    sourceFileHash: null,
+    sourceFileSize: null,
   });
 
   // Movimiento categorizado por regla, etiquetado y de un lote de importacion.
@@ -503,6 +553,30 @@ describe('validacion de archivos corruptos o de version incompatible', () => {
   });
 });
 
+describe('el backup NUNCA incluye seguridad local (PIN, sesion cifrada, passkeys)', () => {
+  it('createBackup no expone deviceSecurity/encryptedSession/webauthnCredentials aunque existan', async () => {
+    const a = await seedRichProfile('Perfil A');
+    // Activa PIN de verdad: hay verificador, sal y (potencialmente) sesion cifrada en Dexie.
+    await pinService.enablePin('123456', '123456');
+    expect((await db.deviceSecurity.toArray()).length).toBeGreaterThan(0);
+
+    const backup = await backupService.createBackup(a.pid);
+    const serialized = backupService.serializeBackup(backup);
+
+    // Ninguna clave de las tablas device-local aparece en el objeto de datos del backup.
+    expect(Object.keys(backup.data)).not.toContain('deviceSecurity');
+    expect(Object.keys(backup.data)).not.toContain('encryptedSession');
+    expect(Object.keys(backup.data)).not.toContain('webauthnCredentials');
+
+    // Ni el verificador del PIN ni nada relacionado aparece en el JSON serializado.
+    const security = await pinService.getSecurity();
+    expect(security.pinVerifier).toBeTruthy();
+    expect(serialized).not.toContain(security.pinVerifier as string);
+    expect(serialized.toLowerCase()).not.toContain('pinverifier');
+    expect(serialized.toLowerCase()).not.toContain('pinsalt');
+  });
+});
+
 describe('remapProfileData (funcion pura)', () => {
   it('regenera ids y remapea referencias de forma consistente', async () => {
     const a = await seedRichProfile('Perfil A');
@@ -527,5 +601,90 @@ describe('remapProfileData (funcion pura)', () => {
     const patas = remapped.transactions.filter((t) => t.transferGroupId !== null);
     expect(new Set(patas.map((t) => t.transferGroupId)).size).toBe(1);
     expect(patas[0]!.transferGroupId).not.toBe(a.grp);
+  });
+});
+
+describe('fase 5: huellas de duplicado tras backup + restauracion', () => {
+  it('recalcula exactFingerprint/normalizedFingerprint con el accountId remapeado, y una decision "no duplicado" ya tomada sigue cubriendo el movimiento restaurado', async () => {
+    const profile = await profilesRepo.create({ name: 'Origen', color: '#123456', avatarEmoji: null });
+    const pid = profile.id;
+    const acc = await accountsRepo.create(pid, {
+      name: 'Banco',
+      kind: 'bank',
+      currency: 'EUR',
+      color: null,
+      openingBalanceCents: 0,
+      archivedAt: null,
+    });
+
+    // Huellas REALES (no el fixture generico de txInput), como las calcularia la app al
+    // importar o dar de alta el movimiento: dependen literalmente de accountId.
+    const originalFp = computeFingerprints({
+      accountId: acc.id,
+      date: '2026-01-15',
+      amountCents: -1234,
+      currency: 'EUR',
+      normalizedConcept: 'compra mercadona',
+      merchantId: null,
+    });
+    const tx = await transactionsRepo.create(
+      pid,
+      txInput({
+        accountId: acc.id,
+        amountCents: -1234,
+        concept: 'Compra Mercadona',
+        normalizedConcept: 'compra mercadona',
+        exactFingerprint: originalFp.exactFingerprint,
+        normalizedFingerprint: originalFp.normalizedFingerprint,
+      }),
+    );
+
+    // Decision "no duplicado" ya tomada por el usuario contra la huella de otro movimiento
+    // (que no forma parte de este backup, p. ej. ya se habia borrado): debe seguir cubriendo
+    // ESTE movimiento despues de restaurar, aunque su huella cambie de valor.
+    const otherFingerprint = 'huella-de-otro-movimiento-no-incluido-en-el-backup';
+    await noDuplicateDecisionsRepo.create(pid, {
+      leftFingerprint: originalFp.normalizedFingerprint,
+      rightFingerprint: otherFingerprint,
+      leftTxId: tx.id,
+      rightTxId: null,
+      reason: null,
+    });
+
+    const backup = await backupService.createBackup(pid);
+    const newProfile = await backupService.restoreAsNewProfile(backup);
+
+    const snap = await backupRepo.readProfileData(newProfile.id);
+    const restoredTx = snap.data.transactions[0]!;
+    const restoredAcc = snap.data.accounts[0]!;
+    expect(restoredAcc.id).not.toBe(acc.id);
+    expect(restoredTx.accountId).toBe(restoredAcc.id);
+
+    // Las huellas se RECALCULARON con el accountId nuevo: ya no coinciden con las
+    // originales, pero SI coinciden con lo que produciria el motor de duplicados si se
+    // reimportara la misma operacion en el perfil restaurado (si se hubieran conservado las
+    // huellas antiguas, una reimportacion real dejaria de detectarse como "exact" tras
+    // restaurar un backup: falso negativo que puede duplicar saldo).
+    expect(restoredTx.exactFingerprint).not.toBe(originalFp.exactFingerprint);
+    expect(restoredTx.normalizedFingerprint).not.toBe(originalFp.normalizedFingerprint);
+    const expectedFp = computeFingerprints({
+      accountId: restoredAcc.id,
+      date: restoredTx.date,
+      amountCents: restoredTx.amountCents,
+      currency: restoredTx.currency,
+      normalizedConcept: restoredTx.normalizedConcept,
+      merchantId: restoredTx.merchantId,
+    });
+    expect(restoredTx.exactFingerprint).toBe(expectedFp.exactFingerprint);
+    expect(restoredTx.normalizedFingerprint).toBe(expectedFp.normalizedFingerprint);
+
+    // La decision "no duplicado" del perfil original sigue cubriendo este movimiento tras la
+    // restauracion: su huella se tradujo junto con la del movimiento remapeado.
+    const stillCovered = await noDuplicateDecisionsRepo.findForPair(
+      newProfile.id,
+      restoredTx.normalizedFingerprint,
+      otherFingerprint,
+    );
+    expect(stillCovered).toBe(true);
   });
 });

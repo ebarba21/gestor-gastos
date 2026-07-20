@@ -14,6 +14,7 @@ import {
   MAX_NOTES_LENGTH,
 } from '../../services/transactionService';
 import { ruleService } from '../../services/ruleService';
+import { merchantService } from '../../services/merchantService';
 import { eurosToCents } from '../../lib/money';
 
 const TYPE_LABELS: Record<'expense' | 'income', string> = {
@@ -180,6 +181,9 @@ export function TransactionFormModal({
           // categorizo manualmente (sin categoria elegida en el alta). Si ninguna regla casa,
           // no cambia nada. La categorizacion manual del usuario siempre prevalece.
           await ruleService.applyToTransaction(profileId, created.id);
+          // Asociacion de comercio (fase 4): igual que las reglas, solo actua si aun no hay
+          // asociacion manual y respeta el orden de asociacion determinista del motor.
+          await merchantService.applyToTransaction(profileId, created.id);
         }
       }
       showToast(isEdit ? 'Movimiento actualizado.' : 'Movimiento creado.', 'success');

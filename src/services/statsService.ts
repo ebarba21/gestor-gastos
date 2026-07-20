@@ -679,6 +679,43 @@ export function computeRecurringExpenses(
   return result.slice(0, limit);
 }
 
+// --- Ranking de gasto por comercio (fase 4) ---
+
+export interface MerchantSpend {
+  merchantId: string;
+  occurrences: number;
+  totalCents: number; // magnitud positiva del gasto
+}
+
+// Ranking de gasto por comercio en el periodo (lineas que cuentan en estadisticas). Solo
+// considera movimientos YA asociados a un comercio (merchantId != null); el nombre a mostrar
+// lo resuelve la UI con un mapa id->nombre, igual que con categorias/cuentas. Orden por gasto
+// total desc.
+export function computeMerchantSpend(
+  txsInPeriod: Transaction[],
+  ctx: StatsContext,
+  limit: number,
+): MerchantSpend[] {
+  const totals = new Map<string, { occurrences: number; total: number }>();
+  for (const t of txsInPeriod) {
+    if (!countsInStats(t) || t.type !== 'expense') continue;
+    // Las aportaciones a ahorro o inversion no son gasto: no entran en el ranking de comercios.
+    if (isApartFromExpense(t, ctx)) continue;
+    if (t.merchantId === null) continue;
+    const g = totals.get(t.merchantId) ?? { occurrences: 0, total: 0 };
+    g.occurrences += 1;
+    g.total += expenseMagnitude(t);
+    totals.set(t.merchantId, g);
+  }
+  const result: MerchantSpend[] = [...totals.entries()].map(([merchantId, g]) => ({
+    merchantId,
+    occurrences: g.occurrences,
+    totalCents: g.total,
+  }));
+  result.sort((a, b) => b.totalCents - a.totalCents);
+  return result.slice(0, limit);
+}
+
 // --- Comparativa contra el promedio de meses anteriores ---
 
 export interface Comparison {
@@ -1047,6 +1084,7 @@ export interface DashboardParams {
   recurringMinMonths?: number; // meses distintos minimos para recurrente (por defecto 3)
   recurringLimit?: number; // numero de recurrentes (por defecto 8)
   comparisonMonthsBack?: number; // meses previos para la comparativa (por defecto 3)
+  merchantLimit?: number; // numero de comercios en el ranking (por defecto 5)
 }
 
 export interface DashboardData {
@@ -1059,6 +1097,7 @@ export interface DashboardData {
   monthly: MonthPoint[];
   topExpenses: TopExpense[];
   recurring: RecurringExpense[];
+  merchantSpend: MerchantSpend[];
   comparison: Comparison;
   forecast: Forecast;
   // Analitica de ahorro e inversion de la ventana de evolucion. SIEMPRE sin filtro
@@ -1097,6 +1136,7 @@ export function computeDashboard(
     recurringMinMonths = 3,
     recurringLimit = 8,
     comparisonMonthsBack = 3,
+    merchantLimit = 5,
   } = params;
 
   // Acotar una sola vez el conjunto del periodo seleccionado (sin filtro cruzado).
@@ -1135,6 +1175,7 @@ export function computeDashboard(
       recurringLimit,
       ctx,
     ),
+    merchantSpend: computeMerchantSpend(inPeriodFiltered, ctx, merchantLimit),
     comparison: computeComparison(allTxFiltered, anchorISO, comparisonMonthsBack, ctx, today),
     forecast: computeForecast(allTxFiltered, anchorISO, ctx, today),
     // Sin filtro cruzado a proposito (ver DashboardData.savingsInvestment).

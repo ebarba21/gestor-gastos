@@ -5,7 +5,7 @@ import { db } from './index';
 import { createProfileRepo } from './baseRepo';
 import { requireProfileId } from '../lib/validation';
 
-const base = createProfileRepo<ImportTemplate>(db.importTemplates, 'ImportTemplate');
+const base = createProfileRepo<ImportTemplate>(db.importTemplates, 'ImportTemplate', 'importTemplate');
 
 export const importTemplatesRepo = {
   ...base,

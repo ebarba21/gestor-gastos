@@ -100,3 +100,9 @@ export function useToast(): ToastContextValue {
   }
   return ctx;
 }
+
+// Variante tolerante: devuelve null si no hay ToastProvider (p. ej. en tests que montan solo una
+// parte del arbol). Mismo patron que useSyncOptional/useLockOptional.
+export function useToastOptional(): ToastContextValue | null {
+  return useContext(ToastContext);
+}

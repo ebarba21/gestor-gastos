@@ -3,14 +3,24 @@ import DashboardPage from './pages/DashboardPage';
 import TransactionsPage from './pages/TransactionsPage';
 import ImportPage from './pages/ImportPage';
 import RulesPage from './pages/RulesPage';
+import MerchantsPage from './pages/MerchantsPage';
+import ReviewInboxPage from './pages/ReviewInboxPage';
+import ReconciliationPage from './pages/ReconciliationPage';
+import RecurringSeriesPage from './pages/RecurringSeriesPage';
+import DebtsPage from './pages/DebtsPage';
 import CategoriesPage from './pages/CategoriesPage';
 import AccountsPage from './pages/AccountsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import ExportPage from './pages/ExportPage';
 import SettingsPage from './pages/SettingsPage';
+import SecurityPage from './pages/SecurityPage';
 import AccountPage from './pages/AccountPage';
+import SyncPage from './pages/SyncPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
 import { ThemeToggle } from './components/common';
+import { SyncBadge } from './components/sync';
+import { ReviewBadge } from './components/review';
+import { LockGate } from './components/security';
 
 interface NavItem {
   to: string;
@@ -23,12 +33,19 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/movimientos', label: 'Movimientos' },
   { to: '/importar', label: 'Importar' },
   { to: '/reglas', label: 'Reglas' },
+  { to: '/comercios', label: 'Comercios' },
+  { to: '/bandeja', label: 'Bandeja de revision' },
+  { to: '/conciliacion', label: 'Conciliacion' },
+  { to: '/recurrencias', label: 'Recurrencias' },
+  { to: '/deudas', label: 'Deudas' },
   { to: '/categorias', label: 'Categorias' },
   { to: '/cuentas', label: 'Cuentas' },
   { to: '/presupuestos', label: 'Presupuestos' },
   { to: '/exportar', label: 'Exportar' },
   { to: '/cuenta', label: 'Cuenta' },
+  { to: '/sincronizacion', label: 'Sincronizacion' },
   { to: '/ajustes', label: 'Ajustes' },
+  { to: '/ajustes/seguridad', label: 'Seguridad' },
 ];
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
@@ -49,6 +66,10 @@ function AppLayout() {
         <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold">Gestor de Gastos</span>
+            {/* Insignia de estado de sincronizacion (solo con cuenta activa). */}
+            <SyncBadge />
+            {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). */}
+            <ReviewBadge />
             {/* Conmutador de tema, accesible desde cualquier seccion. */}
             <ThemeToggle className="md:ml-auto" />
           </div>
@@ -73,12 +94,19 @@ function AppLayout() {
           <Route path="/movimientos" element={<TransactionsPage />} />
           <Route path="/importar" element={<ImportPage />} />
           <Route path="/reglas" element={<RulesPage />} />
+          <Route path="/comercios" element={<MerchantsPage />} />
+          <Route path="/bandeja" element={<ReviewInboxPage />} />
+          <Route path="/conciliacion" element={<ReconciliationPage />} />
+          <Route path="/recurrencias" element={<RecurringSeriesPage />} />
+          <Route path="/deudas" element={<DebtsPage />} />
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/cuentas" element={<AccountsPage />} />
           <Route path="/presupuestos" element={<BudgetsPage />} />
           <Route path="/exportar" element={<ExportPage />} />
           <Route path="/cuenta" element={<AccountPage />} />
+          <Route path="/sincronizacion" element={<SyncPage />} />
           <Route path="/ajustes" element={<SettingsPage />} />
+          <Route path="/ajustes/seguridad" element={<SecurityPage />} />
         </Routes>
       </main>
     </div>
@@ -86,11 +114,15 @@ function AppLayout() {
 }
 
 export default function App() {
-  // El gate garantiza que solo se renderiza la app cuando hay un perfil activo:
+  // LockGate va POR FUERA de ProfileGate: mientras la app esta bloqueada por PIN, ni siquiera el
+  // selector de perfil es visible (CLOUD_SYNC_SECURITY seccion 4, ARCHITECTURE seccion 4). El
+  // gate de perfil garantiza ademas que solo se renderiza la app cuando hay un perfil activo:
   // asi ninguna seccion de datos accede sin profileId (aislamiento por diseno).
   return (
-    <ProfileGate>
-      <AppLayout />
-    </ProfileGate>
+    <LockGate>
+      <ProfileGate>
+        <AppLayout />
+      </ProfileGate>
+    </LockGate>
   );
 }

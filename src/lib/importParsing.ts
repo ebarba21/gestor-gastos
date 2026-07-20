@@ -214,6 +214,75 @@ function assertIso(iso: string, original: CellValue): void {
   }
 }
 
+// --- Metadatos bancarios opcionales (fase 5) ---
+//
+// A diferencia de fecha/concepto/importe (obligatorios: un fallo bloquea la fila), estos
+// campos son metadatos SUPLEMENTARIOS: si la celda esta vacia o no se puede interpretar, el
+// campo queda en null sin bloquear la fila ni marcarla como error (serian falsos positivos
+// que impedirian importar movimientos legitimos por un dato accesorio mal formado).
+
+// Texto libre opcional: recorta espacios; cadena vacia -> null.
+export function parseOptionalText(value: CellValue): string | null {
+  if (isBlankCell(value)) return null;
+  const text = value instanceof Date ? '' : String(value).trim();
+  return text.length > 0 ? text : null;
+}
+
+// Fecha opcional (fecha contable/valor): igual que parseDateToIso pero nunca lanza. Vacia o
+// no interpretable -> null.
+export function parseOptionalDate(value: CellValue, dateFormat: string): string | null {
+  if (isBlankCell(value)) return null;
+  try {
+    return parseDateToIso(value, dateFormat);
+  } catch {
+    return null;
+  }
+}
+
+// Importe opcional (p. ej. saldo posterior): igual que parseAmountToCents pero nunca lanza.
+export function parseOptionalAmountCents(value: CellValue, format: AmountFormat): number | null {
+  if (isBlankCell(value)) return null;
+  try {
+    return parseAmountToCents(value, format);
+  } catch {
+    return null;
+  }
+}
+
+// Palabras que, en la columna de "pendiente", indican una operacion NO confirmada. Se compara
+// contra el texto ya normalizado (minusculas, sin acentos).
+const PENDING_WORDS = new Set([
+  'pendiente',
+  'pending',
+  'no confirmado',
+  'sin confirmar',
+  'provisional',
+  'p',
+  'si',
+  'sí',
+  'yes',
+  'true',
+  '1',
+]);
+
+// Interpreta la columna "pendiente" como booleano. Vacia o no reconocida -> false (confirmado
+// por defecto, coherente con el valor por defecto de altas manuales).
+export function parsePendingFlag(value: CellValue): boolean {
+  if (isBlankCell(value)) return false;
+  if (typeof value === 'boolean') return value;
+  const text = String(value).trim().toLowerCase();
+  return PENDING_WORDS.has(text);
+}
+
+// Codigo de moneda opcional (ISO 4217, 3 letras). Texto no reconocible -> null (el llamante
+// aplica un valor por defecto, p. ej. la moneda de la cuenta destino).
+export function parseOptionalCurrency(value: CellValue): string | null {
+  const text = parseOptionalText(value);
+  if (text === null) return null;
+  const code = text.toUpperCase().replace(/[^A-Z]/g, '');
+  return /^[A-Z]{3}$/.test(code) ? code : null;
+}
+
 // --- Deteccion automatica de columnas y formato (sugerencia editable) ---
 
 // Palabras clave por campo interno (normalizadas: minusculas, sin acentos).
@@ -225,9 +294,28 @@ const FIELD_KEYWORDS: Record<keyof ColumnMap, string[]> = {
   credit: ['abono', 'haber', 'credito', 'ingreso', 'entrada', 'cobro'],
   account: ['cuenta', 'account', 'tarjeta', 'iban'],
   notes: ['nota', 'notas', 'observaciones', 'observacion', 'comentario'],
+  // --- Ampliacion fase 5: metadatos bancarios opcionales ---
+  bankTransactionId: [
+    'id operacion',
+    'id de operacion',
+    'identificador operacion',
+    'transaction id',
+    'numero operacion',
+    'num operacion',
+  ],
+  bookingDate: ['fecha contable', 'f contable', 'booking date'],
+  valueDate: ['fecha valor operacion', 'value date'],
+  pending: ['pendiente', 'estado operacion', 'status'],
+  merchant: ['comercio', 'merchant', 'beneficiario', 'payee'],
+  currency: ['moneda', 'currency', 'divisa'],
+  balanceAfter: ['saldo', 'balance', 'saldo posterior', 'saldo disponible', 'saldo despues'],
+  bankReference: ['referencia bancaria', 'ref bancaria', 'numero referencia'],
+  operationType: ['tipo operacion', 'tipo de operacion', 'operation type', 'tipo movimiento'],
 };
 
-// Orden de campos a resolver. amount y debit/credit son excluyentes (segun la estrategia).
+// Orden de campos a resolver. amount y debit/credit son excluyentes (segun la estrategia). Los
+// campos obligatorios van primero; los metadatos opcionales de fase 5 al final para no
+// competir por una columna con los campos nucleo si hay ambiguedad.
 const DETECT_ORDER: (keyof ColumnMap)[] = [
   'date',
   'debit',
@@ -236,6 +324,15 @@ const DETECT_ORDER: (keyof ColumnMap)[] = [
   'concept',
   'account',
   'notes',
+  'bankTransactionId',
+  'bookingDate',
+  'valueDate',
+  'pending',
+  'merchant',
+  'currency',
+  'balanceAfter',
+  'bankReference',
+  'operationType',
 ];
 
 export interface DetectedMapping {
@@ -284,6 +381,15 @@ export function detectColumnMapping(headers: string[]): DetectedMapping {
     credit: amountStrategy === 'debitCredit' ? found.credit ?? null : null,
     account: found.account ?? null,
     notes: found.notes ?? null,
+    bankTransactionId: found.bankTransactionId ?? null,
+    bookingDate: found.bookingDate ?? null,
+    valueDate: found.valueDate ?? null,
+    pending: found.pending ?? null,
+    merchant: found.merchant ?? null,
+    currency: found.currency ?? null,
+    balanceAfter: found.balanceAfter ?? null,
+    bankReference: found.bankReference ?? null,
+    operationType: found.operationType ?? null,
   };
 
   return { columnMap, amountStrategy };

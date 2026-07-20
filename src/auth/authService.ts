@@ -26,10 +26,18 @@ export interface AuthService {
   signUp(email: string, password: string, emailRedirectTo?: string): Promise<SignUpResult>;
   signIn(email: string, password: string): Promise<Session>;
   signOut(): Promise<void>;
+  // Cierra las sesiones de OTROS dispositivos/pestañas, conservando la actual (CLOUD_SYNC_SECURITY
+  // seccion 1: "cierre de otras sesiones si el SDK lo soporta de forma oficial"). Usa el scope
+  // oficial `others` del SDK.
+  signOutOthers(): Promise<void>;
   getSession(): Promise<Session | null>;
   getUser(): Promise<User | null>;
   requestPasswordReset(email: string, redirectTo?: string): Promise<void>;
   updatePassword(newPassword: string): Promise<User>;
+  // Reautenticacion para acciones sensibles (cambio de contrasena, recuperacion de PIN):
+  // vuelve a verificar la contrasena de cuenta contra el email de la sesion activa mediante el
+  // metodo oficial signInWithPassword. Lanza AuthError si no hay sesion o si falla.
+  reauthenticate(password: string): Promise<Session>;
   resendConfirmation(email: string, emailRedirectTo?: string): Promise<void>;
   // El evento se propaga para poder detectar PASSWORD_RECOVERY (enlace de recuperacion) y
   // llevar al usuario a la pantalla de cambio de contrasena. Ver AuthContext.
@@ -75,6 +83,11 @@ export function createAuthService(client: AppSupabaseClient): AuthService {
       if (error) throw toAuthError(error);
     },
 
+    async signOutOthers() {
+      const { error } = await client.auth.signOut({ scope: 'others' });
+      if (error) throw toAuthError(error);
+    },
+
     async getSession() {
       const { data, error } = await client.auth.getSession();
       if (error) throw toAuthError(error);
@@ -101,6 +114,21 @@ export function createAuthService(client: AppSupabaseClient): AuthService {
         const mapped = toAuthError(error);
         if (mapped.code === 'AUTH_NETWORK' || mapped.code === 'AUTH_RATE_LIMITED') throw mapped;
       }
+    },
+
+    async reauthenticate(password) {
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError) throw toAuthError(userError);
+      const email = userData.user?.email;
+      if (!email) {
+        throw new AuthError('AUTH_UNKNOWN', 'No hay una sesion activa que reautenticar.');
+      }
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if (error) throw toAuthError(error);
+      if (!data.session) {
+        throw new AuthError('AUTH_UNKNOWN', 'No se pudo reautenticar.');
+      }
+      return data.session;
     },
 
     async updatePassword(newPassword) {
@@ -147,6 +175,8 @@ export const authService: AuthService & { isConfigured(): boolean } = {
   signUp: (email, password, redirect) => createAuthService(requireClient()).signUp(email, password, redirect),
   signIn: (email, password) => createAuthService(requireClient()).signIn(email, password),
   signOut: () => createAuthService(requireClient()).signOut(),
+  signOutOthers: () => createAuthService(requireClient()).signOutOthers(),
+  reauthenticate: (password) => createAuthService(requireClient()).reauthenticate(password),
   getSession: () => createAuthService(requireClient()).getSession(),
   getUser: () => createAuthService(requireClient()).getUser(),
   requestPasswordReset: (email, redirect) =>

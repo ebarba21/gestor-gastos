@@ -4,8 +4,12 @@
 //   - NUNCA lanza en tiempo de import: si no hay configuracion, la app sigue en modo local.
 //   - Se crea una unica instancia y se reutiliza (evita multiples canales de auth).
 //   - Solo la clave publicable llega aqui (ver env.ts, invariante 7 de CLAUDE.md).
-//   - El almacenamiento de sesion se dejara envolver en fase 3 (cifrado con PIN). En fase 1
-//     se usa el storage por defecto del SDK; la sesion se persiste para restaurarla.
+//   - El almacenamiento de sesion (fase 3) pasa SIEMPRE por encryptedSessionStorage: sin PIN
+//     activo se comporta igual que el storage por defecto del SDK (localStorage); con PIN
+//     activo, cifra (ver src/security/encryptedSessionStorage.ts). El modo lo decide el estado
+//     interno de ese modulo, no esta configuracion.
+//   - Passkeys (WebAuthn) son un opt-in EXPERIMENTAL del propio SDK: solo se activa si
+//     VITE_ENABLE_PASSKEYS=true (ver CLOUD_SYNC_SECURITY seccion 11 y env.ts).
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 import {
@@ -14,6 +18,7 @@ import {
   SupabaseConfigError,
   type SupabaseConfig,
 } from './env';
+import { encryptedSessionStorage } from '../../security/encryptedSessionStorage';
 
 export type AppSupabaseClient = SupabaseClient<Database>;
 
@@ -23,13 +28,15 @@ let cachedKey: string | null = null;
 // Crea (o reutiliza) el cliente para una configuracion dada. Exportado para tests que
 // inyectan una configuracion concreta sin depender del entorno real.
 export function createSupabaseClient(config: SupabaseConfig): AppSupabaseClient {
-  const key = `${config.url}::${config.publishableKey}`;
+  const key = `${config.url}::${config.publishableKey}::${config.enablePasskeys}`;
   if (cached && cachedKey === key) return cached;
   cached = createClient<Database>(config.url, config.publishableKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      storage: encryptedSessionStorage,
+      ...(config.enablePasskeys ? { experimental: { passkey: true } } : {}),
     },
   });
   cachedKey = key;

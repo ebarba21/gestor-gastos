@@ -2,11 +2,11 @@
 import type { Account, AccountKind } from './schema';
 import type { CreateInput, UpdateInput } from './baseRepo';
 import { db } from './index';
-import { createProfileRepo } from './baseRepo';
+import { createProfileRepo, isAlive } from './baseRepo';
 import { requireProfileId } from '../lib/validation';
 import { assertCents } from '../lib/money';
 
-const base = createProfileRepo<Account>(db.accounts, 'Account');
+const base = createProfileRepo<Account>(db.accounts, 'Account', 'account');
 
 export const accountsRepo = {
   ...base,
@@ -25,12 +25,12 @@ export const accountsRepo = {
   // Cuentas no archivadas del perfil.
   async listActive(profileId: string): Promise<Account[]> {
     requireProfileId(profileId);
-    const all = await db.accounts.where('profileId').equals(profileId).toArray();
+    const all = await db.accounts.where('profileId').equals(profileId).filter(isAlive).toArray();
     return all.filter((a) => a.archivedAt === null);
   },
 
   async listByKind(profileId: string, kind: AccountKind): Promise<Account[]> {
     requireProfileId(profileId);
-    return db.accounts.where('[profileId+kind]').equals([profileId, kind]).toArray();
+    return db.accounts.where('[profileId+kind]').equals([profileId, kind]).filter(isAlive).toArray();
   },
 };

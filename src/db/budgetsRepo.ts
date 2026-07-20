@@ -2,11 +2,11 @@
 import type { Budget, BudgetScope } from './schema';
 import type { CreateInput, UpdateInput } from './baseRepo';
 import { db } from './index';
-import { createProfileRepo } from './baseRepo';
+import { createProfileRepo, isAlive } from './baseRepo';
 import { requireProfileId } from '../lib/validation';
 import { assertCents } from '../lib/money';
 
-const base = createProfileRepo<Budget>(db.budgets, 'Budget');
+const base = createProfileRepo<Budget>(db.budgets, 'Budget', 'budget');
 
 export const budgetsRepo = {
   ...base,
@@ -25,12 +25,12 @@ export const budgetsRepo = {
   // Presupuestos no archivados del perfil.
   async listActive(profileId: string): Promise<Budget[]> {
     requireProfileId(profileId);
-    const all = await db.budgets.where('profileId').equals(profileId).toArray();
+    const all = await db.budgets.where('profileId').equals(profileId).filter(isAlive).toArray();
     return all.filter((b) => b.archivedAt === null);
   },
 
   async listByScope(profileId: string, scope: BudgetScope): Promise<Budget[]> {
     requireProfileId(profileId);
-    return db.budgets.where('[profileId+scope]').equals([profileId, scope]).toArray();
+    return db.budgets.where('[profileId+scope]').equals([profileId, scope]).filter(isAlive).toArray();
   },
 };

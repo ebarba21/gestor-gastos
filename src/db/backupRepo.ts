@@ -9,15 +9,26 @@ import type {
   Account,
   Budget,
   Category,
+  Debt,
+  DebtPayment,
+  DebtScenario,
   ImportBatch,
   ImportTemplate,
+  Merchant,
+  MerchantAlias,
+  NoDuplicateDecision,
   Profile,
+  Reconciliation,
+  RecurringOccurrence,
+  RecurringSeries,
+  ReviewItem,
   Rule,
   Setting,
   Tag,
   Transaction,
 } from './schema';
 import { childTables, db } from './index';
+import { isAlive } from './baseRepo';
 import { NotFoundError, requireProfileId } from '../lib/validation';
 
 // Conjunto completo de datos hijos de un perfil (todo menos la fila Profile). El orden de
@@ -27,11 +38,21 @@ export interface ProfileDataTables {
   accounts: Account[];
   categories: Category[];
   tags: Tag[];
+  merchants: Merchant[];
+  merchantAliases: MerchantAlias[];
   transactions: Transaction[];
   rules: Rule[];
   budgets: Budget[];
   importTemplates: ImportTemplate[];
   importBatches: ImportBatch[];
+  noDuplicateDecisions: NoDuplicateDecision[];
+  reviewItems: ReviewItem[];
+  reconciliations: Reconciliation[];
+  recurringSeries: RecurringSeries[];
+  recurringOccurrences: RecurringOccurrence[];
+  debts: Debt[];
+  debtPayments: DebtPayment[];
+  debtScenarios: DebtScenario[];
 }
 
 export interface ProfileSnapshot {
@@ -55,21 +76,41 @@ export const backupRepo = {
         accounts,
         categories,
         tags,
+        merchants,
+        merchantAliases,
         transactions,
         rules,
         budgets,
         importTemplates,
         importBatches,
+        noDuplicateDecisions,
+        reviewItems,
+        reconciliations,
+        recurringSeries,
+        recurringOccurrences,
+        debts,
+        debtPayments,
+        debtScenarios,
       ] = await Promise.all([
-        db.settings.where('profileId').equals(profileId).toArray(),
-        db.accounts.where('profileId').equals(profileId).toArray(),
-        db.categories.where('profileId').equals(profileId).toArray(),
-        db.tags.where('profileId').equals(profileId).toArray(),
-        db.transactions.where('profileId').equals(profileId).toArray(),
-        db.rules.where('profileId').equals(profileId).toArray(),
-        db.budgets.where('profileId').equals(profileId).toArray(),
-        db.importTemplates.where('profileId').equals(profileId).toArray(),
-        db.importBatches.where('profileId').equals(profileId).toArray(),
+        db.settings.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.accounts.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.categories.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.tags.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.merchants.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.merchantAliases.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.transactions.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.rules.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.budgets.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.importTemplates.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.importBatches.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.noDuplicateDecisions.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.reviewItems.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.reconciliations.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.recurringSeries.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.recurringOccurrences.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.debts.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.debtPayments.where('profileId').equals(profileId).filter(isAlive).toArray(),
+        db.debtScenarios.where('profileId').equals(profileId).filter(isAlive).toArray(),
       ]);
 
       return {
@@ -79,11 +120,21 @@ export const backupRepo = {
           accounts,
           categories,
           tags,
+          merchants,
+          merchantAliases,
           transactions,
           rules,
           budgets,
           importTemplates,
           importBatches,
+          noDuplicateDecisions,
+          reviewItems,
+          reconciliations,
+          recurringSeries,
+          recurringOccurrences,
+          debts,
+          debtPayments,
+          debtScenarios,
         },
       };
     });
@@ -132,9 +183,23 @@ async function bulkAddAll(data: ProfileDataTables): Promise<void> {
   if (data.accounts.length > 0) await db.accounts.bulkAdd(data.accounts);
   if (data.categories.length > 0) await db.categories.bulkAdd(data.categories);
   if (data.tags.length > 0) await db.tags.bulkAdd(data.tags);
+  if (data.merchants.length > 0) await db.merchants.bulkAdd(data.merchants);
+  if (data.merchantAliases.length > 0) await db.merchantAliases.bulkAdd(data.merchantAliases);
   if (data.transactions.length > 0) await db.transactions.bulkAdd(data.transactions);
   if (data.rules.length > 0) await db.rules.bulkAdd(data.rules);
   if (data.budgets.length > 0) await db.budgets.bulkAdd(data.budgets);
   if (data.importTemplates.length > 0) await db.importTemplates.bulkAdd(data.importTemplates);
   if (data.importBatches.length > 0) await db.importBatches.bulkAdd(data.importBatches);
+  if (data.noDuplicateDecisions.length > 0) {
+    await db.noDuplicateDecisions.bulkAdd(data.noDuplicateDecisions);
+  }
+  if (data.reviewItems.length > 0) await db.reviewItems.bulkAdd(data.reviewItems);
+  if (data.reconciliations.length > 0) await db.reconciliations.bulkAdd(data.reconciliations);
+  if (data.recurringSeries.length > 0) await db.recurringSeries.bulkAdd(data.recurringSeries);
+  if (data.recurringOccurrences.length > 0) {
+    await db.recurringOccurrences.bulkAdd(data.recurringOccurrences);
+  }
+  if (data.debts.length > 0) await db.debts.bulkAdd(data.debts);
+  if (data.debtPayments.length > 0) await db.debtPayments.bulkAdd(data.debtPayments);
+  if (data.debtScenarios.length > 0) await db.debtScenarios.bulkAdd(data.debtScenarios);
 }

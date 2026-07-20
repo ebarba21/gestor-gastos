@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type {
   Account,
   Category,
+  Merchant,
   Rule,
   RuleAction,
   RuleCondition,
@@ -27,7 +28,7 @@ import {
 } from '../../services/ruleService';
 import { eurosToCents } from '../../lib/money';
 
-const FIELDS: readonly RuleConditionField[] = ['concept', 'amount', 'date', 'account', 'type'];
+const FIELDS: readonly RuleConditionField[] = ['concept', 'amount', 'date', 'account', 'type', 'merchant'];
 
 const FIELD_LABELS: Record<RuleConditionField, string> = {
   concept: 'Concepto',
@@ -35,6 +36,7 @@ const FIELD_LABELS: Record<RuleConditionField, string> = {
   date: 'Fecha',
   account: 'Cuenta',
   type: 'Tipo',
+  merchant: 'Comercio',
 };
 
 const OPERATOR_LABELS: Record<RuleConditionOperator, string> = {
@@ -134,6 +136,7 @@ interface RuleFormModalProps {
   accounts: Account[];
   categories: Category[];
   tags: Tag[];
+  merchants: Merchant[];
   onSaved: () => void | Promise<void>;
   rule?: Rule | null;
 }
@@ -145,6 +148,7 @@ export function RuleFormModal({
   accounts,
   categories,
   tags,
+  merchants,
   onSaved,
   rule,
 }: RuleFormModalProps) {
@@ -183,6 +187,7 @@ export function RuleFormModal({
     [categories, categoryId, subcategoryId],
   );
   const activeAccounts = useMemo(() => accounts.filter((a) => a.archivedAt === null), [accounts]);
+  const activeMerchants = useMemo(() => merchants.filter((m) => m.archivedAt === null), [merchants]);
 
   useEffect(() => {
     if (!open) return;
@@ -348,6 +353,22 @@ export function RuleFormModal({
           {(['expense', 'income', 'transfer'] as const).map((t) => (
             <option key={t} value={t}>
               {TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    if (c.field === 'merchant') {
+      return (
+        <select
+          value={c.value}
+          onChange={(e) => updateCondition(index, { value: e.target.value })}
+          className={smallSelect}
+        >
+          <option value="">Elige comercio</option>
+          {activeMerchants.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.canonicalName}
             </option>
           ))}
         </select>

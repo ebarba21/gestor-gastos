@@ -14,8 +14,31 @@ import type {
   Budget,
   ImportTemplate,
   ImportBatch,
+  Merchant,
+  MerchantAlias,
+  NoDuplicateDecision,
+  ReviewItem,
+  Reconciliation,
+  RecurringSeries,
+  RecurringOccurrence,
+  Debt,
+  DebtPayment,
+  DebtScenario,
   SyncMeta,
+  OutboxMutation,
+  Conflict,
+  ProfileMigration,
+  SyncState,
+  DeviceSecurity,
+  EncryptedSessionRow,
+  WebAuthnCredentialRef,
 } from './schema';
+import { backfillMerchantFields, type LegacyTransactionRow } from './merchantMigration';
+import {
+  backfillDuplicateFields,
+  backfillImportBatchFields,
+  type LegacyTransactionRowV6,
+} from './duplicateMigration';
 
 export class GestorGastosDB extends Dexie {
   profiles!: Table<Profile, string>;
@@ -28,6 +51,30 @@ export class GestorGastosDB extends Dexie {
   budgets!: Table<Budget, string>;
   importTemplates!: Table<ImportTemplate, string>;
   importBatches!: Table<ImportBatch, string>;
+  // Comercios normalizados (ampliacion, fase 4).
+  merchants!: Table<Merchant, string>;
+  merchantAliases!: Table<MerchantAlias, string>;
+  // Deteccion avanzada de duplicados (ampliacion, fase 5).
+  noDuplicateDecisions!: Table<NoDuplicateDecision, string>;
+  // Bandeja de revision y conciliacion bancaria (ampliacion, fase 6).
+  reviewItems!: Table<ReviewItem, string>;
+  reconciliations!: Table<Reconciliation, string>;
+  // Recurrencias y forecast por rango (ampliacion, fase 7).
+  recurringSeries!: Table<RecurringSeries, string>;
+  recurringOccurrences!: Table<RecurringOccurrence, string>;
+  // Deudas y planificador (ampliacion, fase 8).
+  debts!: Table<Debt, string>;
+  debtPayments!: Table<DebtPayment, string>;
+  debtScenarios!: Table<DebtScenario, string>;
+  // Tablas device-local de la ampliacion (fase 2). NO se sincronizan ni entran en backups.
+  outbox!: Table<OutboxMutation, string>;
+  conflicts!: Table<Conflict, string>;
+  profileMigrations!: Table<ProfileMigration, string>;
+  syncState!: Table<SyncState, [string, string]>;
+  // Tablas device-local de la ampliacion (fase 3). NO se sincronizan ni entran en backups.
+  deviceSecurity!: Table<DeviceSecurity, string>;
+  encryptedSession!: Table<EncryptedSessionRow, string>;
+  webauthnCredentials!: Table<WebAuthnCredentialRef, string>;
 
   constructor() {
     super('gestor-gastos');
@@ -112,13 +159,282 @@ export class GestorGastosDB extends Dexie {
             if (row.lastSyncedAt === undefined) row.lastSyncedAt = defaults.lastSyncedAt;
           });
       });
+
+    // Version 3 (ampliacion, fase 2): motor de sincronizacion local-first. Aditiva:
+    //   - Anade indices por syncStatus para localizar rapido filas 'pending'/'conflict'.
+    //   - Crea tablas DEVICE-LOCAL (outbox, conflicts, profileMigrations, syncState) que NO se
+    //     sincronizan ni entran en backups. No transforma datos financieros (solo crea tablas
+    //     vacias e indices); el upgrade no necesita tocar filas existentes.
+    // El resto de indices se mantiene igual que en la version 2.
+    this.version(3).stores({
+      profiles: 'id, archivedAt, name, ownerUserId, syncStatus',
+      settings: 'id, &profileId, [profileId+syncStatus]',
+      accounts:
+        'id, profileId, [profileId+kind], [profileId+archivedAt], [profileId+syncStatus]',
+      categories:
+        'id, profileId, [profileId+parentId], [profileId+kind], [profileId+archivedAt], ' +
+        '[profileId+syncStatus]',
+      tags: 'id, profileId, [profileId+name], [profileId+syncStatus]',
+      transactions:
+        'id, profileId, ' +
+        '[profileId+date], [profileId+accountId], [profileId+categoryId], ' +
+        '[profileId+type], [profileId+statsFlag], [profileId+transferGroupId], ' +
+        '[profileId+parentId], [profileId+refundOfId], [profileId+importBatchId], ' +
+        '[profileId+dedupeHash], [profileId+syncStatus], *tagIds',
+      rules:
+        'id, profileId, [profileId+enabled], [profileId+priority], [profileId+syncStatus]',
+      budgets:
+        'id, profileId, [profileId+scope], [profileId+archivedAt], [profileId+syncStatus]',
+      importTemplates: 'id, profileId, [profileId+name], [profileId+syncStatus]',
+      importBatches:
+        'id, profileId, [profileId+importedAt], [profileId+status], [profileId+syncStatus]',
+      // Cola de salida: idempotencia por mutationId (PK). Indices para el planificador de push
+      // (por usuario+estado), agrupacion por perfil/entidad, coalescing/rebase por entidad y
+      // orden por creacion (respeta dependencias).
+      outbox:
+        'mutationId, [userId+status], [profileId+entityType], [entityType+entityId], ' +
+        'status, createdAt',
+      conflicts: 'id, [profileId+status], [userId+status], entityId, status',
+      profileMigrations: 'id, [userId+profileId], profileId, status',
+      // Cursor de descarga por (profileId, entityType). Clave primaria compuesta.
+      syncState: '[profileId+entityType], profileId',
+    });
+
+    // Version 4 (ampliacion, fase 3): seguridad de acceso local (PIN, sesion cifrada,
+    // passkeys). Aditiva: crea tres tablas DEVICE-LOCAL nuevas y vacias (DATA_MODEL seccion
+    // 10.2). No transforma ninguna tabla existente ni datos financieros; no necesita .upgrade().
+    // Estas tablas NUNCA se sincronizan ni entran en backups (no se anaden a childTables ni a
+    // ProfileDataTables/backupRepo.ts).
+    this.version(4).stores({
+      // Fila unica de configuracion de seguridad del dispositivo (PIN, bloqueo automatico).
+      deviceSecurity: 'id',
+      // Sesion de Supabase cifrada; key = la clave de storage que pide el SDK de Auth.
+      encryptedSession: 'key',
+      // Referencias locales a passkeys registradas (la credencial vive en el autenticador/SO).
+      webauthnCredentials: 'id, credentialId',
+    });
+
+    // Version 5 (ampliacion, fase 4): comercios normalizados (DATA_MODEL seccion 14). Aditiva:
+    //   - Crea las tablas nuevas merchants/merchantAliases (sincronizables, entran en backup).
+    //   - transactions gana los campos de comercio (rawConcept, normalizedConcept,
+    //     normalizationVersion, merchantId, merchantMatchSource, merchantMatchConfidence) y los
+    //     indices [profileId+merchantId] y [profileId+normalizedConcept]. El upgrade rellena los
+    //     defaults en las filas existentes: rawConcept = concept actual, normalizedConcept
+    //     calculado con la version vigente del algoritmo, sin comercio asociado (el motor de
+    //     asociacion y la revision de candidatos son un paso posterior explicito del usuario,
+    //     nunca una fusion automatica silenciosa).
+    this.version(5)
+      .stores({
+        merchants: 'id, profileId, [profileId+normalizedName], [profileId+archivedAt], [profileId+syncStatus]',
+        merchantAliases:
+          'id, profileId, merchantId, [profileId+normalizedAlias], [profileId+enabled], ' +
+          '[profileId+syncStatus]',
+        transactions:
+          'id, profileId, ' +
+          '[profileId+date], [profileId+accountId], [profileId+categoryId], ' +
+          '[profileId+type], [profileId+statsFlag], [profileId+transferGroupId], ' +
+          '[profileId+parentId], [profileId+refundOfId], [profileId+importBatchId], ' +
+          '[profileId+dedupeHash], [profileId+syncStatus], [profileId+merchantId], ' +
+          '[profileId+normalizedConcept], *tagIds',
+      })
+      .upgrade(async (tx) => {
+        const profiles = await tx.table('profiles').toArray();
+        const ownerByProfile = new Map<string, string | null>(
+          profiles.map((p: { id: string; ownerUserId: string | null }) => [p.id, p.ownerUserId ?? null]),
+        );
+        const ts = now();
+        const toEnqueue: Array<{ userId: string; profileId: string; entityId: string; entity: Record<string, unknown> }> = [];
+        await tx
+          .table('transactions')
+          .toCollection()
+          .modify((row: LegacyTransactionRow) => {
+            const touched = backfillMerchantFields(row);
+            // Los campos nuevos son datos de negocio: si la fila ya estaba confirmada en
+            // remoto (syncStatus 'synced') y el perfil esta vinculado a una cuenta, hay que
+            // subir la correccion para no perder la normalizacion en otros dispositivos.
+            const userId = ownerByProfile.get(row.profileId) ?? null;
+            if (touched && userId && row.syncStatus === 'synced') {
+              row.syncStatus = 'pending';
+              toEnqueue.push({
+                userId,
+                profileId: row.profileId,
+                entityId: row.id as string,
+                entity: { ...row },
+              });
+            }
+          });
+        for (const item of toEnqueue) {
+          await tx.table('outbox').add({
+            mutationId: newId(),
+            userId: item.userId,
+            profileId: item.profileId,
+            entityType: 'transaction',
+            entityId: item.entityId,
+            operation: 'update',
+            payload: item.entity,
+            baseRevision: (item.entity.revision as number) ?? 0,
+            createdAt: ts,
+            attempts: 0,
+            lastAttemptAt: null,
+            lastError: null,
+            status: 'queued',
+          });
+        }
+      });
+
+    // Version 6 (ampliacion, fase 5): deteccion avanzada de duplicados (DATA_MODEL seccion
+    // 15). Aditiva:
+    //   - Crea la tabla nueva noDuplicateDecisions (sincronizable, entra en backup).
+    //   - transactions gana los metadatos bancarios y huellas versionadas (bankTransactionId,
+    //     fechas contable/valor, pendiente, moneda, saldo posterior, referencia, tipo de
+    //     operacion, sourceRowHash, exactFingerprint, normalizedFingerprint,
+    //     fingerprintVersion, sourceFileHash, sourceFileSize, duplicateStatus,
+    //     duplicateConfidence, duplicateReasonCodes, duplicateCandidateIds,
+    //     pendingReplacementId) y los indices [profileId+bankTransactionId],
+    //     [profileId+normalizedFingerprint], [profileId+exactFingerprint] y
+    //     [profileId+duplicateStatus]. NUNCA se declara `&` (unico) sobre la huella
+    //     normalizada: dos compras reales identicas son legitimas (DATA_MODEL 15.1).
+    //   - importBatches gana sourceFileHash/sourceFileSize (detectar "archivo repetido") y su
+    //     indice [profileId+sourceFileHash].
+    //   - El upgrade rellena los defaults en las filas existentes: sin metadatos bancarios,
+    //     huellas calculadas con el algoritmo vigente, duplicateStatus='unique' (no se
+    //     re-evalua el historico contra el motor en la migracion; el recalculo es explicito,
+    //     nunca en silencio).
+    this.version(6)
+      .stores({
+        noDuplicateDecisions:
+          'id, profileId, [profileId+leftFingerprint], [profileId+rightFingerprint], ' +
+          '[profileId+syncStatus]',
+        transactions:
+          'id, profileId, ' +
+          '[profileId+date], [profileId+accountId], [profileId+categoryId], ' +
+          '[profileId+type], [profileId+statsFlag], [profileId+transferGroupId], ' +
+          '[profileId+parentId], [profileId+refundOfId], [profileId+importBatchId], ' +
+          '[profileId+dedupeHash], [profileId+syncStatus], [profileId+merchantId], ' +
+          '[profileId+normalizedConcept], [profileId+bankTransactionId], ' +
+          '[profileId+normalizedFingerprint], [profileId+exactFingerprint], ' +
+          '[profileId+duplicateStatus], *tagIds',
+        importBatches:
+          'id, profileId, [profileId+importedAt], [profileId+status], ' +
+          '[profileId+syncStatus], [profileId+sourceFileHash]',
+      })
+      .upgrade(async (tx) => {
+        const profiles = await tx.table('profiles').toArray();
+        const ownerByProfile = new Map<string, string | null>(
+          profiles.map((p: { id: string; ownerUserId: string | null }) => [
+            p.id,
+            p.ownerUserId ?? null,
+          ]),
+        );
+        const ts = now();
+        const toEnqueue: Array<{
+          userId: string;
+          profileId: string;
+          entityId: string;
+          entity: Record<string, unknown>;
+        }> = [];
+        await tx
+          .table('transactions')
+          .toCollection()
+          .modify((row: LegacyTransactionRowV6 & { id: string; profileId: string; syncStatus?: string }) => {
+            const touched = backfillDuplicateFields(row);
+            const userId = ownerByProfile.get(row.profileId) ?? null;
+            if (touched && userId && row.syncStatus === 'synced') {
+              row.syncStatus = 'pending';
+              toEnqueue.push({
+                userId,
+                profileId: row.profileId,
+                entityId: row.id,
+                entity: { ...row },
+              });
+            }
+          });
+        await tx
+          .table('importBatches')
+          .toCollection()
+          .modify((row: Record<string, unknown>) => {
+            backfillImportBatchFields(row);
+          });
+        for (const item of toEnqueue) {
+          await tx.table('outbox').add({
+            mutationId: newId(),
+            userId: item.userId,
+            profileId: item.profileId,
+            entityType: 'transaction',
+            entityId: item.entityId,
+            operation: 'update',
+            payload: item.entity,
+            baseRevision: (item.entity.revision as number) ?? 0,
+            createdAt: ts,
+            attempts: 0,
+            lastAttemptAt: null,
+            lastError: null,
+            status: 'queued',
+          });
+        }
+      });
+
+    // Version 7 (ampliacion, fase 6): bandeja de revision y conciliacion (DATA_MODEL secciones
+    // 16-17). Aditiva: crea dos tablas nuevas y vacias (reviewItems, reconciliations), ambas
+    // sincronizables y con backup. SIN `.upgrade()` de datos: no hay filas legacy de estas
+    // entidades que transformar (son enteramente nuevas). La generacion inicial de tareas a
+    // partir del estado actual del perfil ("recuento" del roadmap) NO se hace aqui: es una
+    // operacion de NEGOCIO (reviewService.runFullScan), no una migracion de esquema; ejecutarla
+    // dentro de un upgrade de apertura de BD violaria "nunca en silencio" y podria ser costosa
+    // con miles de movimientos. La bandeja la dispara de forma explicita (boton + una vez por
+    // perfil) tal y como describe src/services/reviewService.ts.
+    this.version(7).stores({
+      // [profileId+type+entityId]: clave de idempotencia (mismo criterio que el indice unico
+      // parcial remoto "review_items_open_dedup_uk" sobre (profile_id, type, entity_id) con
+      // status='open'). [profileId+entityType+entityId]: navegacion inversa desde una entidad
+      // (p. ej. un movimiento) a sus tareas de revision, sin importar el tipo.
+      reviewItems:
+        'id, profileId, [profileId+status], [profileId+type], ' +
+        '[profileId+type+entityId], [profileId+entityType+entityId], [profileId+syncStatus]',
+      reconciliations:
+        'id, profileId, [profileId+accountId], [profileId+statementDate], ' +
+        '[profileId+syncStatus]',
+    });
+
+    // Version 8 (ampliacion, fase 7): recurrencias y forecast por rango (DATA_MODEL seccion
+    // 18). Aditiva: crea dos tablas nuevas y vacias (recurringSeries, recurringOccurrences),
+    // ambas sincronizables y con backup. SIN `.upgrade()` de datos: no hay filas legacy de
+    // estas entidades que transformar (son enteramente nuevas). La deteccion inicial de series
+    // candidatas a partir del historico NO se hace aqui: es una operacion de NEGOCIO
+    // (recurringSeriesService.runDetection), no una migracion de esquema, mismo criterio que
+    // reviewService.runFullScan en la version 7.
+    this.version(8).stores({
+      // [profileId+status]: listar candidatas/activas/pausadas. merchantId: navegar desde un
+      // comercio a sus series.
+      recurringSeries:
+        'id, profileId, [profileId+status], merchantId, [profileId+syncStatus]',
+      // [profileId+seriesId]: ocurrencias de una serie. [profileId+status]: pendientes/ausentes
+      // globales. [profileId+expectedDate]: proximos cobros ordenados por fecha.
+      recurringOccurrences:
+        'id, profileId, [profileId+seriesId], [profileId+status], ' +
+        '[profileId+expectedDate], [profileId+syncStatus]',
+    });
+
+    // Version 9 (ampliacion, fase 8): deudas y planificador (DATA_MODEL seccion 19). Aditiva:
+    // crea tres tablas nuevas y vacias (debts, debtPayments, debtScenarios), todas
+    // sincronizables y con backup. SIN `.upgrade()` de datos: no hay filas legacy de estas
+    // entidades que transformar (son enteramente nuevas), mismo criterio que las versiones 7 y 8.
+    this.version(9).stores({
+      // [profileId+status]: listar activas/pagadas/archivadas. linkedAccountId: navegar desde
+      // una cuenta a sus deudas vinculadas.
+      debts: 'id, profileId, [profileId+status], linkedAccountId, [profileId+syncStatus]',
+      // [profileId+debtId]: pagos de una deuda. [profileId+date]: historial ordenado por fecha.
+      debtPayments:
+        'id, profileId, [profileId+debtId], [profileId+date], [profileId+syncStatus]',
+      debtScenarios: 'id, profileId, [profileId+strategy], [profileId+syncStatus]',
+    });
   }
 }
 
 // Version del esquema de datos (Dexie). Fuente unica: la usan los backups para saber con
 // que version se generaron y decidir si son restaurables (DATA_MODEL seccion 7). Debe
 // coincidir con la ultima db.version(n) declarada arriba.
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 9;
 
 // Singleton de la base de datos usado por todos los repositorios.
 export const db = new GestorGastosDB();
@@ -129,11 +445,21 @@ export const childTables: readonly Table<{ profileId: string }, string>[] = [
   db.accounts,
   db.categories,
   db.tags,
+  db.merchants,
+  db.merchantAliases,
   db.transactions,
   db.rules,
   db.budgets,
   db.importTemplates,
   db.importBatches,
+  db.noDuplicateDecisions,
+  db.reviewItems,
+  db.reconciliations,
+  db.recurringSeries,
+  db.recurringOccurrences,
+  db.debts,
+  db.debtPayments,
+  db.debtScenarios,
 ];
 
 // Helpers de identidad y tiempo. Claves primarias no autoincrementales para que los

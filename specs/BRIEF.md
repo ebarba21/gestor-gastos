@@ -2,6 +2,13 @@
 
 Este documento es la fuente de requisitos original. A partir de el se generan PRD.md, ARCHITECTURE.md y DATA_MODEL.md.
 
+> Nota de alcance (posterior a la ampliacion): este brief refleja los requisitos ORIGINALES del MVP
+> local. Con la ampliacion (cuenta de sincronizacion privada OPCIONAL con Supabase) ya no es correcta
+> la formulacion absoluta "Coste 0 euros en todo momento" ni "sin backend": las funciones esenciales
+> siguen sin APIs de pago y operan sin cuenta y sin red, pero la sincronizacion opcional usa Supabase
+> dentro de su plan gratuito actual (los limites y precios los fija el proveedor). El modelo real y
+> vigente esta en `PRD.md`, `CLOUD_SYNC_SECURITY.md` y `CLAUDE.md` (invariante 14).
+
 ## Criterio de arquitectura
 
 - PWA responsive, usable e instalable en PC y movil.

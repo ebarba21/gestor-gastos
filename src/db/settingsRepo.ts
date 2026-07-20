@@ -2,6 +2,8 @@
 // Exige profileId. Ver DATA_MODEL 2.2.
 import type { Setting, SyncMeta } from './schema';
 import { db, newId, now, syncDefaults } from './index';
+import { isAlive } from './baseRepo';
+import { enqueueMutation, ownerOfProfile } from './outboxWrite';
 import { requireProfileId } from '../lib/validation';
 
 // Los campos de sincronizacion los fija el repositorio (syncDefaults), no el llamante.
@@ -23,7 +25,7 @@ export function defaultSettingInput(): SettingInput {
 }
 
 async function getRow(profileId: string): Promise<Setting | undefined> {
-  const rows = await db.settings.where('profileId').equals(profileId).toArray();
+  const rows = await db.settings.where('profileId').equals(profileId).filter(isAlive).toArray();
   return rows[0];
 }
 
@@ -45,7 +47,24 @@ export const settingsRepo = {
       createdAt: ts,
       updatedAt: ts,
     };
-    await db.settings.add(entity);
+    await db.transaction('rw', [db.settings, db.profiles, db.outbox], async () => {
+      const userId = await ownerOfProfile(profileId);
+      if (userId) {
+        entity.syncStatus = 'pending';
+        await db.settings.add(entity);
+        await enqueueMutation({
+          userId,
+          profileId,
+          entityType: 'setting',
+          entityId: entity.id,
+          operation: 'insert',
+          entity: entity as unknown as Record<string, unknown>,
+          baseRevision: 0,
+        });
+      } else {
+        await db.settings.add(entity);
+      }
+    });
     return entity;
   },
 
@@ -56,8 +75,26 @@ export const settingsRepo = {
       // Sin errores silenciosos: crear con defaults + patch si no existe.
       return settingsRepo.create(profileId, { ...defaultSettingInput(), ...patch });
     }
-    const updated: Setting = { ...existing, ...patch, updatedAt: now() };
-    await db.settings.put(updated);
+    let updated!: Setting;
+    await db.transaction('rw', [db.settings, db.profiles, db.outbox], async () => {
+      updated = { ...existing, ...patch, updatedAt: now() };
+      const userId = await ownerOfProfile(profileId);
+      if (userId) {
+        updated.syncStatus = 'pending';
+        await db.settings.put(updated);
+        await enqueueMutation({
+          userId,
+          profileId,
+          entityType: 'setting',
+          entityId: updated.id,
+          operation: 'update',
+          entity: updated as unknown as Record<string, unknown>,
+          baseRevision: existing.revision ?? 0,
+        });
+      } else {
+        await db.settings.put(updated);
+      }
+    });
     return updated;
   },
 };
