@@ -117,11 +117,23 @@ export async function migrateProfile(
       }
     });
 
-    // 2) Subir por lotes (idempotente).
-    await runPush(client, userId, {
-      signal: options.signal,
-      onProgress: (p) => options.onProgress?.({ phase: 'push', push: p }),
-    });
+    // 2) Subir por lotes (idempotente). runPush NO bloquea ante un insert cuyo padre aun no se
+    //    ha subido (FK diferida, REMOTE_CONSTRAINT): lo marca fallido y sigue, para reintentarlo
+    //    mas tarde (ver pushEngine.ts). Por eso una sola pasada puede dejar hijos pendientes y
+    //    verificar justo despues daria un FALSO NEGATIVO ("los recuentos no coinciden") aunque los
+    //    datos acaben subiendo en el siguiente ciclo de sync. Se repite el push hasta drenar la
+    //    cola o hasta que una pasada no aplique nada (progreso nulo: o no queda nada, o lo que
+    //    queda esta genuinamente atascado y entonces la verificacion debe reflejar el fallo). El
+    //    tope acota el peor caso (cada pasada desbloquea al menos un nivel de dependencias).
+    const maxPasses = CHILD_PUSH_ORDER.length + 2;
+    for (let pass = 0; pass < maxPasses; pass += 1) {
+      if (options.signal?.aborted) break;
+      const result = await runPush(client, userId, {
+        signal: options.signal,
+        onProgress: (p) => options.onProgress?.({ phase: 'push', push: p }),
+      });
+      if (result.stopped || result.pushed === 0) break;
+    }
 
     // 3) Validar recuentos remotos por entidad (el perfil ademas debe existir en remoto).
     options.onProgress?.({ phase: 'verify' });

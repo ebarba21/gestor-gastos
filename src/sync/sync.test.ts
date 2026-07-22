@@ -284,6 +284,27 @@ describe('sincronizacion local-first (fase 2)', () => {
     expect(await countPending(USER)).toBe(0);
   });
 
+  it('migracion: reintenta inserts diferidos por FK antes de verificar (no falso negativo)', async () => {
+    const remote = new FakeRemote();
+    const client = remote.asClient();
+    const profile = await localProfile('FK diferida');
+    const account = await accountsRepo.create(profile.id, accountInput());
+    await transactionsRepo.create(profile.id, txInput(account.id));
+    await transactionsRepo.create(profile.id, txInput(account.id));
+
+    // La primera pasada de push falla los dos inserts de transactions, como si su cuenta/categoria
+    // padre aun no estuviera en remoto (FK diferida, 23503). runPush no bloquea: los deja para
+    // reintentar. El bucle de migracion debe reintentar hasta drenar y acabar VERIFICADO, no dar
+    // un falso negativo por verificar tras una sola pasada.
+    remote.failInserts('transactions', 2);
+
+    const record = await migrateProfile(client, USER, profile.id);
+
+    expect(record.status).toBe('verified');
+    expect(remote.count('transactions')).toBe(2);
+    expect(await countPending(USER)).toBe(0);
+  });
+
   it('la migracion es idempotente: reejecutar no duplica', async () => {
     const remote = new FakeRemote();
     const client = remote.asClient();

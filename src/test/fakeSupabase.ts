@@ -15,6 +15,9 @@ export class FakeRemote {
   private tables = new Map<string, Map<string, Row>>();
   // Reloj del servidor: ISO creciente para updated_at (garantiza orden estable en el PULL).
   private tick = 1_700_000_000_000;
+  // Fallos de insert forzados por tabla (para simular una FK cuyo padre aun no se ha subido:
+  // el primer intento devuelve 23503 y el reintento posterior ya casa). Ver failInserts.
+  private forcedInsertFailures = new Map<string, number>();
 
   private table(name: string): Map<string, Row> {
     let t = this.tables.get(name);
@@ -42,6 +45,22 @@ export class FakeRemote {
 
   all(name: string): Row[] {
     return [...this.table(name).values()];
+  }
+
+  // Fuerza que los proximos `times` inserts/upserts de una tabla fallen con 23503 (foreign_key),
+  // como si el padre referenciado aun no existiera en remoto. El reintento posterior (cuando el
+  // padre ya se ha subido) casa normalmente. Sirve para reproducir la FK diferida de la migracion.
+  failInserts(name: string, times: number): void {
+    this.forcedInsertFailures.set(name, times);
+  }
+
+  // Consume un fallo forzado de insert para la tabla, si queda alguno. Devuelve el error a emitir
+  // (formato PostgREST) o null si no hay fallo pendiente.
+  _consumeForcedInsertFailure(name: string): Row | null {
+    const remaining = this.forcedInsertFailures.get(name) ?? 0;
+    if (remaining <= 0) return null;
+    this.forcedInsertFailures.set(name, remaining - 1);
+    return { code: '23503', message: 'insert or update violates foreign key constraint' };
   }
 
   // Simula la escritura de OTRO dispositivo: bump de revision + updated_at + last_mutation_id.
@@ -200,6 +219,11 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: unknown; count?: 
 
   private run(): { data: unknown; error: unknown; count?: number | null } {
     try {
+      if (this.mode === 'insert' || this.mode === 'upsert') {
+        // Fallo forzado (FK diferida simulada): se emite antes de escribir, como haria Postgres.
+        const forced = this.remote._consumeForcedInsertFailure(this.name);
+        if (forced) return { data: null, error: forced };
+      }
       if (this.mode === 'insert') {
         const rows = this.remote._insertOrUpsert(this.name, this.payload, false);
         return this.shape(rows);
