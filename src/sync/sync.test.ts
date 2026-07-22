@@ -406,7 +406,10 @@ describe('sincronizacion local-first (fase 2)', () => {
 
     expect(remote.count('transactions')).toBe(1000);
     expect(await countPending(USER)).toBe(0);
-  }, 60000);
+    // Timeout holgado: subir 1000 movimientos por lotes (dos pasadas) tarda ~50s aislado y mas
+    // cuando la suite completa corre en paralelo y carga la CPU. 60s se quedaba justo y hacia
+    // fallar el run completo por reloj (no por correctitud). 120s da margen sin enmascarar nada.
+  }, 120000);
 
   it('no sincroniza mientras la app esta bloqueada por PIN (CLOUD_SYNC_SECURITY seccion 6)', async () => {
     const remote = new FakeRemote();
