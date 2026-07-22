@@ -5,7 +5,7 @@
 // El CONSUMO no se persiste: se calcula en runtime sobre los movimientos del periodo,
 // reutilizando las primitivas compartidas de statsService (las mismas que usara el
 // dashboard). Asi se garantiza que el consumo mostrado coincide con la suma de movimientos
-// que cuentan en estadisticas (PRD 6), respetando exclusiones, transferencias, splits y
+// que cuentan en estadísticas (PRD 6), respetando exclusiones, transferencias, splits y
 // reembolsos.
 import type { Budget, BudgetDirection, BudgetPeriod, BudgetScope, Transaction } from '../db/schema';
 import { budgetsRepo } from '../db/budgetsRepo';
@@ -43,8 +43,8 @@ export const BUDGET_DIRECTIONS: readonly BudgetDirection[] = ['expense', 'income
 
 export const BUDGET_SCOPE_LABELS: Record<BudgetScope, string> = {
   overall: 'Global',
-  category: 'Categoria',
-  subcategory: 'Subcategoria',
+  category: 'Categoría',
+  subcategory: 'Subcategoría',
   account: 'Cuenta',
 };
 
@@ -56,7 +56,7 @@ export const BUDGET_PERIOD_LABELS: Record<BudgetPeriod, string> = {
 };
 
 export const BUDGET_DIRECTION_LABELS: Record<BudgetDirection, string> = {
-  expense: 'Limite de gasto',
+  expense: 'Límite de gasto',
   income: 'Objetivo de ingreso/ahorro',
 };
 
@@ -159,8 +159,8 @@ async function validateInput(profileId: string, input: BudgetInput): Promise<voi
   assertCents(input.limitCents);
   assert(input.limitCents > 0, 'El importe del presupuesto debe ser mayor que cero.');
   assert(BUDGET_SCOPES.includes(input.scope), 'Ambito de presupuesto no valido.');
-  assert(BUDGET_PERIODS.includes(input.period), 'Periodo de presupuesto no valido.');
-  assert(BUDGET_DIRECTIONS.includes(input.direction), 'Direccion de presupuesto no valida.');
+  assert(BUDGET_PERIODS.includes(input.period), 'Periodo de presupuesto no válido.');
+  assert(BUDGET_DIRECTIONS.includes(input.direction), 'Dirección de presupuesto no válida.');
 
   // Coherencia ambito <-> scopeId y existencia de la entidad referenciada en el perfil.
   if (input.scope === 'overall') {

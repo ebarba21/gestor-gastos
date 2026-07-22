@@ -55,7 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     heading: 'Organización',
     items: [
-      { to: '/categorias', label: 'Categorías', icon: 'categorias' },
+      { to: '/categorias', label: 'Categorías', icon: 'categorías' },
       { to: '/reglas', label: 'Reglas', icon: 'reglas' },
       { to: '/comercios', label: 'Comercios', icon: 'comercios' },
       { to: '/cuentas', label: 'Cuentas bancarias', icon: 'cuentas' },
@@ -67,7 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/presupuestos', label: 'Presupuestos', icon: 'presupuestos' },
       { to: '/recurrencias', label: 'Recurrencias', icon: 'recurrencias' },
       { to: '/deudas', label: 'Deudas', icon: 'deudas' },
-      { to: '/conciliacion', label: 'Conciliación', icon: 'conciliacion' },
+      { to: '/conciliacion', label: 'Conciliación', icon: 'conciliación' },
     ],
   },
   {
@@ -75,7 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/exportar', label: 'Exportar', icon: 'exportar' },
       { to: '/cuenta', label: 'Mi cuenta', icon: 'cuenta' },
-      { to: '/sincronizacion', label: 'Sincronización', icon: 'sincronizacion' },
+      { to: '/sincronizacion', label: 'Sincronización', icon: 'sincronización' },
       { to: '/ajustes', label: 'Ajustes', icon: 'ajustes' },
       { to: '/ajustes/seguridad', label: 'Seguridad', icon: 'seguridad' },
     ],

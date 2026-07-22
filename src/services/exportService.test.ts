@@ -98,7 +98,7 @@ describe('computeAccountBalances', () => {
       tx({ id: 'p', accountId: 'acc1', amountCents: -3000, isSplitParent: true, excludedFromStats: true }),
       tx({ accountId: 'acc1', amountCents: -1000, parentId: 'p' }),
       tx({ accountId: 'acc1', amountCents: -2000, parentId: 'p' }),
-      // Transferencia: ambas patas afectan al saldo aunque esten excluidas de estadisticas.
+      // Transferencia: ambas patas afectan al saldo aunque esten excluidas de estadísticas.
       tx({ accountId: 'acc1', type: 'transfer', amountCents: -3000, excludedFromStats: true }), // salida
       tx({ accountId: 'acc2', type: 'transfer', amountCents: 3000, excludedFromStats: true }), // entrada
     ];

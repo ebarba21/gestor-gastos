@@ -134,7 +134,7 @@ describe('scoreCandidate: nivel strongNormalized', () => {
 });
 
 describe('scoreCandidate: nivel possible y weak (dos compras reales identicas)', () => {
-  it('mismo importe/cuenta, concepto DISTINTO, fecha proxima -> possible', () => {
+  it('mismo importe/cuenta, concepto DISTINTO, fecha próxima -> possible', () => {
     const d = draft({ normalizedConcept: 'compra 1', date: '2026-01-15' });
     const e = existing({ normalizedConcept: 'compra 2', date: '2026-01-18' }); // 3 dias
     const score = scoreCandidate(d, e);

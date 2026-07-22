@@ -171,7 +171,7 @@ export function DashboardSection() {
                 onSelectCategory={toggleCategoryFilter}
               />
             </Card>
-            <Card title="Proximos cobros" subtitle="Series recurrentes confirmadas">
+            <Card title="Próximos cobros" subtitle="Series recurrentes confirmadas">
               <UpcomingChargesCard charges={upcomingCharges} loading={recurringLoading} />
             </Card>
           </div>

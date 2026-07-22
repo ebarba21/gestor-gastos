@@ -117,7 +117,7 @@ describe('validacion de creacion', () => {
 
   it('valida existencia y tipo de la referencia de ambito', async () => {
     const { foodId, superId } = await seed(A);
-    // Categoria inexistente.
+    // Categoría inexistente.
     await expect(
       createBudget(A, { scope: 'category', scopeId: 'no-existe' }),
     ).rejects.toThrow(ValidationError);

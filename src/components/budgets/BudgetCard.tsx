@@ -64,7 +64,7 @@ export function BudgetCard({
           </div>
           <p className="mt-0.5 truncate text-xs text-slate-500">
             {describeScope(evaluation, categoryNames, accountNames)} ·{' '}
-            {isExpense ? 'Limite de gasto' : 'Objetivo de ingreso'} ·{' '}
+            {isExpense ? 'Límite de gasto' : 'Objetivo de ingreso'} ·{' '}
             {BUDGET_PERIOD_LABELS[budget.period]}
           </p>
         </div>

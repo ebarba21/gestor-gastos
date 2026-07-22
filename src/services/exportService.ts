@@ -65,7 +65,7 @@ const TX_STATUS_LABELS: Record<TransactionStatus, string> = {
 const CATEGORIZED_BY_LABELS: Record<CategorizedBy, string> = {
   manual: 'Manual',
   rule: 'Regla',
-  import: 'Importacion',
+  import: 'Importación',
   none: 'Sin categorizar',
 };
 
@@ -84,7 +84,7 @@ function nameOf(map: Map<string, string>, id: string | null): string {
 // Saldo actual de cada cuenta = saldo inicial + suma de importes de sus movimientos. Se
 // excluyen las lineas hijas de un split (parentId != null): el importe real en la cuenta lo
 // aporta el movimiento padre; sumar tambien las hijas duplicaria el importe. Transferencias
-// y movimientos excluidos de estadisticas SI afectan al saldo (DATA_MODEL seccion 6.4).
+// y movimientos excluidos de estadísticas SI afectan al saldo (DATA_MODEL seccion 6.4).
 export function computeAccountBalances(
   accounts: Account[],
   transactions: Transaction[],
@@ -108,14 +108,14 @@ const TX_HEADER: ExportCell[] = [
   'Concepto original',
   'Importe (EUR)',
   'Tipo',
-  'Categoria',
-  'Subcategoria',
+  'Categoría',
+  'Subcategoría',
   'Cuenta',
   'Comercio',
   'Etiquetas',
   'Estado',
   'Notas',
-  'Excluido de estadisticas',
+  'Excluido de estadísticas',
   'Categorizado por',
 ];
 
@@ -191,7 +191,7 @@ export function buildAccountsSheet(
 
 export function buildCategoriesSheet(categories: Category[]): SheetSpec {
   const nameById = new Map(categories.map((c) => [c.id, c.name]));
-  const header: ExportCell[] = ['Nombre', 'Tipo', 'Categoria padre', 'Icono', 'Orden', 'Archivada'];
+  const header: ExportCell[] = ['Nombre', 'Tipo', 'Categoría padre', 'Icono', 'Orden', 'Archivada'];
   const kindLabel: Record<Category['kind'], string> = {
     expense: 'Gasto',
     income: 'Ingreso',
@@ -232,8 +232,8 @@ const MATCH_TYPE_LABELS: Record<MerchantAlias['matchType'], string> = {
 export function buildMerchantsSheet(merchants: Merchant[], names: NameLookups): SheetSpec {
   const header: ExportCell[] = [
     'Nombre',
-    'Categoria por defecto',
-    'Subcategoria por defecto',
+    'Categoría por defecto',
+    'Subcategoría por defecto',
     'Etiquetas por defecto',
     'Notas',
     'Archivado',
@@ -300,7 +300,7 @@ export function buildDebtsSheet(
     'Proxima fecha de pago',
     'Plazo restante (meses)',
     'Cuenta vinculada',
-    'Categoria vinculada',
+    'Categoría vinculada',
     'Estado',
   ];
   const rows = debts.map((d) => [
@@ -366,7 +366,7 @@ export function buildRulesSheet(rules: Rule[], names: NameLookups): SheetSpec {
     'Asignar categoria',
     'Asignar subcategoria',
     'Anadir etiquetas',
-    'Excluir de estadisticas',
+    'Excluir de estadísticas',
     'Detener al casar',
   ];
   const rows = rules.map((r) => [
@@ -401,7 +401,7 @@ export function buildBudgetsSheet(
     'Nombre',
     'Ambito',
     'Objetivo',
-    'Direccion',
+    'Dirección',
     'Periodo',
     'Desde',
     'Hasta',
@@ -459,7 +459,7 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   const porCategoria: SheetSpec = {
     name: 'Gasto por categoria',
     rows: [
-      ['Categoria', 'Gasto bruto (EUR)', 'Reembolsos (EUR)', 'Gasto neto (EUR)'],
+      ['Categoría', 'Gasto bruto (EUR)', 'Reembolsos (EUR)', 'Gasto neto (EUR)'],
       ...data.byCategory.map((c) => [
         c.categoryId === null ? 'Sin categoria' : nameOf(names.categoryNames, c.categoryId),
         eur(c.grossCents),
@@ -485,7 +485,7 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   const topGastos: SheetSpec = {
     name: 'Top gastos',
     rows: [
-      ['Fecha', 'Concepto', 'Importe (EUR)', 'Categoria', 'Cuenta'],
+      ['Fecha', 'Concepto', 'Importe (EUR)', 'Categoría', 'Cuenta'],
       ...data.topExpenses.map((t) => [
         t.date,
         t.concept,

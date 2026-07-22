@@ -10,15 +10,15 @@ export type NavIconName =
   | 'reglas'
   | 'comercios'
   | 'bandeja'
-  | 'conciliacion'
+  | 'conciliación'
   | 'recurrencias'
   | 'deudas'
-  | 'categorias'
+  | 'categorías'
   | 'cuentas'
   | 'presupuestos'
   | 'exportar'
   | 'cuenta'
-  | 'sincronizacion'
+  | 'sincronización'
   | 'ajustes'
   | 'seguridad';
 
@@ -62,7 +62,7 @@ const PATHS: Record<NavIconName, ReactNode> = {
       <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
     </>
   ),
-  conciliacion: (
+  conciliación: (
     <>
       <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       <path d="m9 11 3 3L22 4" />
@@ -82,7 +82,7 @@ const PATHS: Record<NavIconName, ReactNode> = {
       <path d="M2 10h20" />
     </>
   ),
-  categorias: (
+  categorías: (
     <>
       <path d="M20.59 13.41 13.42 20.59a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
       <path d="M7 7h.01" />
@@ -119,7 +119,7 @@ const PATHS: Record<NavIconName, ReactNode> = {
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
     </>
   ),
-  sincronizacion: (
+  sincronización: (
     <>
       <path d="M21 2v6h-6" />
       <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />

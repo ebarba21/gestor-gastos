@@ -203,7 +203,7 @@ export function TransactionFormModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         {limited && (
           <p className="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-400">
-            Este es un movimiento especial (transferencia o split). Aqui solo puedes editar
+            Este es un movimiento especial (transferencia o split). Aquí solo puedes editar
             fecha, concepto, notas, estado y etiquetas. El importe y la cuenta se gestionan
             desde sus acciones.
           </p>

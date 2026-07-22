@@ -120,7 +120,7 @@ export function DebtsSection() {
             <p className="mt-1 text-lg font-semibold text-slate-100">{(summary.weightedAverageRatePpm / 10000).toFixed(2)}%</p>
           </div>
           <div className={cardClass}>
-            <p className="text-xs text-slate-500">Proximo pago</p>
+            <p className="text-xs text-slate-500">Próximo pago</p>
             <p className="mt-1 text-lg font-semibold text-slate-100">{summary.earliestNextPaymentDate ?? '-'}</p>
           </div>
         </div>

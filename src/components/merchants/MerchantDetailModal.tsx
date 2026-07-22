@@ -201,8 +201,8 @@ export function MerchantDetailModal({
               <button
                 type="button"
                 onClick={() => setPriority((p) => p + 1)}
-                aria-label="Mas prioridad"
-                title="Mas prioridad (se evalua antes)"
+                aria-label="Más prioridad"
+                title="Más prioridad (se evalua antes)"
                 className="px-1 text-slate-400 hover:text-slate-100"
               >
                 ▲
@@ -255,8 +255,8 @@ export function MerchantDetailModal({
                     <button
                       type="button"
                       onClick={() => void adjustPriority(a, 1)}
-                      aria-label="Mas prioridad"
-                      title="Mas prioridad (se evalua antes)"
+                      aria-label="Más prioridad"
+                      title="Más prioridad (se evalua antes)"
                       className="px-1 hover:text-slate-100"
                     >
                       ▲

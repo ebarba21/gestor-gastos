@@ -144,7 +144,7 @@ export function DebtForm({ initial = null, accounts, categories, onSubmit, onCan
           />
         </label>
         <label className={labelClass}>
-          Proxima fecha de pago
+          Próxima fecha de pago
           <input
             type="date"
             value={nextPaymentDate}

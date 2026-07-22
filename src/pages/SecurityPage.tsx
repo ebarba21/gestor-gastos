@@ -191,7 +191,7 @@ function EnablePinForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={handle} className={`${CARD} space-y-4`} noValidate>
       <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Activar PIN</h3>
-      <p className="text-sm text-slate-400">Minimo 6 digitos. Solo números.</p>
+      <p className="text-sm text-slate-400">Mínimo 6 digitos. Solo números.</p>
       <PinFields
         fields={[
           { id: 'pin-new', label: 'PIN nuevo', value: pin, onChange: setPin },

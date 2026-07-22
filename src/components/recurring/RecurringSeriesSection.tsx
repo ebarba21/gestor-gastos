@@ -226,7 +226,7 @@ export function RecurringSeriesSection() {
             className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-100"
           />
           <input
-            aria-label="Proxima fecha esperada"
+            aria-label="Próxima fecha esperada"
             type="date"
             value={addDraft.nextExpectedDate}
             onChange={(e) => setAddDraft((d) => ({ ...d, nextExpectedDate: e.target.value }))}
@@ -642,9 +642,9 @@ export function RecurringSeriesSection() {
         </div>
       )}
 
-      {/* Proximos cobros, agrupados por mes (agenda/calendario). */}
+      {/* Próximos cobros, agrupados por mes (agenda/calendario). */}
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-300">Proximos cobros e ingresos</h3>
+        <h3 className="text-sm font-semibold text-slate-300">Próximos cobros e ingresos</h3>
         {upcomingCharges.length === 0 ? (
           <p className="text-xs text-slate-500">No hay cobros previstos en los próximos meses.</p>
         ) : (

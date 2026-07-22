@@ -38,7 +38,7 @@ export const REASON_CODE_LABELS: Record<DuplicateReasonCode, string> = {
   sameMerchant: 'Mismo comercio',
   sameNormalizedConcept: 'Mismo concepto normalizado',
   pendingConfirmedMatch: 'Sustituye a un movimiento pendiente',
-  weakDateProximity: 'Fecha proxima, sin mas coincidencias',
+  weakDateProximity: 'Fecha próxima, sin más coincidencias',
 };
 
 // Decisiones que puede tomar el usuario sobre una fila con posible duplicado (alcance fase 5,
@@ -127,7 +127,7 @@ function daysBetweenIso(a: string, b: string): number {
 // 6) de un movimiento real y distinto. Por eso solo se ofrecen en los niveles de identidad
 // fuerte (exact/strongNormalized/pendingReplaced, que comparten bankTransactionId, huella
 // exacta o comercio/concepto dentro de una ventana estricta). En los niveles heuristicos mas
-// debiles (possible/weak: solo mismo importe+cuenta+moneda y fecha proxima, SIN comercio ni
+// debiles (possible/weak: solo mismo importe+cuenta+moneda y fecha próxima, SIN comercio ni
 // concepto compartido) el usuario solo puede omitir, importar o marcar explicitamente como no
 // duplicado (hallazgo de auditoria financiera: un "vincular" erroneo contra un candidato weak
 // puede corromper la conciliacion de un movimiento no relacionado).

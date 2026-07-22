@@ -13,8 +13,8 @@ import { ReviewItemDetailModal } from './ReviewItemDetailModal';
 
 const STATUS_OPTIONS: ReviewItemStatus[] = ['open', 'snoozed', 'resolved', 'dismissed'];
 const SORT_OPTIONS: { value: 'newest' | 'oldest' | 'confidence'; label: string }[] = [
-  { value: 'newest', label: 'Mas recientes' },
-  { value: 'oldest', label: 'Mas antiguas' },
+  { value: 'newest', label: 'Más recientes' },
+  { value: 'oldest', label: 'Más antiguas' },
   { value: 'confidence', label: 'Mayor confianza' },
 ];
 
