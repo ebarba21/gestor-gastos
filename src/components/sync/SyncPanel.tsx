@@ -4,6 +4,7 @@
 // Nunca expone secretos ni datos financieros completos.
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useProfiles } from '../../hooks/useProfiles';
 import { useSync } from '../../sync/SyncContext';
 import {
   listOpenConflictsByUser,
@@ -25,6 +26,9 @@ function formatDate(ts: number | null): string {
 export function SyncPanel(): React.ReactElement {
   const sync = useSync();
   const { userId, client, enabled } = sync;
+  // La reconstruccion y la migracion crean/vinculan perfiles: hay que recargar la lista del
+  // contexto para que el selector de perfil se actualice en vivo (sin recargar la pagina).
+  const { reload: reloadProfiles } = useProfiles();
 
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [pending, setPending] = useState<OutboxMutation[]>([]);
@@ -79,6 +83,8 @@ export function SyncPanel(): React.ReactElement {
     } finally {
       setBusy(null);
       await reload();
+      // Migrar vincula el perfil a la cuenta; refrescar el selector para reflejar el cambio.
+      await reloadProfiles();
     }
   };
 
@@ -91,6 +97,9 @@ export function SyncPanel(): React.ReactElement {
     } finally {
       setBusy(null);
       await reload();
+      // El selector de perfil vive en otro contexto: recargarlo para que aparezcan los perfiles
+      // reconstruidos sin necesidad de refrescar la pagina.
+      await reloadProfiles();
     }
   };
 
