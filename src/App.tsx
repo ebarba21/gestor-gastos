@@ -17,6 +17,7 @@ import SecurityPage from './pages/SecurityPage';
 import AccountPage from './pages/AccountPage';
 import SyncPage from './pages/SyncPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
+import { NavIcon, type NavIconName } from './components/nav/NavIcon';
 import { ThemeToggle } from './components/common';
 import { SyncBadge } from './components/sync';
 import { ReviewBadge } from './components/review';
@@ -25,32 +26,65 @@ import { LockGate } from './components/security';
 interface NavItem {
   to: string;
   label: string;
+  icon: NavIconName;
   end?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/movimientos', label: 'Movimientos' },
-  { to: '/importar', label: 'Importar' },
-  { to: '/reglas', label: 'Reglas' },
-  { to: '/comercios', label: 'Comercios' },
-  { to: '/bandeja', label: 'Bandeja de revision' },
-  { to: '/conciliacion', label: 'Conciliacion' },
-  { to: '/recurrencias', label: 'Recurrencias' },
-  { to: '/deudas', label: 'Deudas' },
-  { to: '/categorias', label: 'Categorias' },
-  { to: '/cuentas', label: 'Cuentas' },
-  { to: '/presupuestos', label: 'Presupuestos' },
-  { to: '/exportar', label: 'Exportar' },
-  { to: '/cuenta', label: 'Cuenta' },
-  { to: '/sincronizacion', label: 'Sincronizacion' },
-  { to: '/ajustes', label: 'Ajustes' },
-  { to: '/ajustes/seguridad', label: 'Seguridad' },
+interface NavGroup {
+  heading: string;
+  items: NavItem[];
+}
+
+// Navegacion agrupada por tarea, con icono por opcion. Agrupar + iconos hace la barra mas
+// legible que una lista plana de 17 enlaces. "Cuentas bancarias" y "Mi cuenta" se nombran asi
+// (en vez de "Cuentas"/"Cuenta") para no confundir el modulo de cuentas financieras con la
+// cuenta de sincronizacion. Las rutas no cambian: solo las etiquetas visibles.
+const NAV_GROUPS: NavGroup[] = [
+  {
+    heading: 'Resumen',
+    items: [{ to: '/', label: 'Dashboard', icon: 'dashboard', end: true }],
+  },
+  {
+    heading: 'Dia a dia',
+    items: [
+      { to: '/movimientos', label: 'Movimientos', icon: 'movimientos' },
+      { to: '/importar', label: 'Importar', icon: 'importar' },
+      { to: '/bandeja', label: 'Bandeja de revision', icon: 'bandeja' },
+    ],
+  },
+  {
+    heading: 'Organizacion',
+    items: [
+      { to: '/categorias', label: 'Categorias', icon: 'categorias' },
+      { to: '/reglas', label: 'Reglas', icon: 'reglas' },
+      { to: '/comercios', label: 'Comercios', icon: 'comercios' },
+      { to: '/cuentas', label: 'Cuentas bancarias', icon: 'cuentas' },
+    ],
+  },
+  {
+    heading: 'Planificacion',
+    items: [
+      { to: '/presupuestos', label: 'Presupuestos', icon: 'presupuestos' },
+      { to: '/recurrencias', label: 'Recurrencias', icon: 'recurrencias' },
+      { to: '/deudas', label: 'Deudas', icon: 'deudas' },
+      { to: '/conciliacion', label: 'Conciliacion', icon: 'conciliacion' },
+    ],
+  },
+  {
+    heading: 'Datos y cuenta',
+    items: [
+      { to: '/exportar', label: 'Exportar', icon: 'exportar' },
+      { to: '/cuenta', label: 'Mi cuenta', icon: 'cuenta' },
+      { to: '/sincronizacion', label: 'Sincronizacion', icon: 'sincronizacion' },
+      { to: '/ajustes', label: 'Ajustes', icon: 'ajustes' },
+      { to: '/ajustes/seguridad', label: 'Seguridad', icon: 'seguridad' },
+    ],
+  },
 ];
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return [
-    'whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+    'flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors',
     isActive
       ? 'bg-slate-800 text-slate-50'
       : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
@@ -78,11 +112,22 @@ function AppLayout() {
             <ProfileSwitcher />
           </div>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
-          {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
-              {item.label}
-            </NavLink>
+        <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:gap-0.5 md:overflow-visible">
+          {NAV_GROUPS.map((group) => (
+            // display:contents en movil para que los enlaces fluyan en la fila horizontal; en PC
+            // el grupo pasa a bloque y muestra su encabezado (oculto en movil para no cortar el
+            // scroll horizontal).
+            <div key={group.heading} className="contents md:block">
+              <p className="hidden px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-slate-500 first:pt-1 md:block">
+                {group.heading}
+              </p>
+              {group.items.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
+                  <NavIcon name={item.icon} className="h-4 w-4 shrink-0" />
+                  <span>{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
       </aside>

@@ -59,7 +59,7 @@ export function AccountsSection() {
   return (
     <section>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-100">Cuentas</h2>
+        <h2 className="text-xl font-semibold text-slate-100">Cuentas bancarias</h2>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
