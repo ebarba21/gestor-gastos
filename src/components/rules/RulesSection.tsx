@@ -39,7 +39,7 @@ const OPERATOR_LABELS: Record<RuleCondition['operator'], string> = {
   eq: '=',
   between: 'entre',
   before: 'antes de',
-  after: 'despues de',
+  after: 'después de',
 };
 const TYPE_LABELS: Record<string, string> = {
   expense: 'Gasto',
@@ -84,7 +84,7 @@ function formatCondition(c: RuleCondition, maps: NameMaps): string {
 function formatAction(rule: Rule, maps: NameMaps): string {
   const parts: string[] = [];
   if (rule.action.setCategoryId) {
-    const cat = maps.categoryNames.get(rule.action.setCategoryId) ?? '(categoria)';
+    const cat = maps.categoryNames.get(rule.action.setCategoryId) ?? '(categoría)';
     const sub = rule.action.setSubcategoryId
       ? ` / ${maps.categoryNames.get(rule.action.setSubcategoryId) ?? '(sub)'}`
       : '';
@@ -96,7 +96,7 @@ function formatAction(rule: Rule, maps: NameMaps): string {
   }
   if (rule.action.setExcludedFromStats === true) parts.push('excluir de estadisticas');
   if (rule.action.setExcludedFromStats === false) parts.push('incluir en estadisticas');
-  return parts.length > 0 ? parts.join(' · ') : '(sin accion)';
+  return parts.length > 0 ? parts.join(' · ') : '(sin acción)';
 }
 
 export function RulesSection() {
@@ -250,7 +250,7 @@ export function RulesSection() {
         <EmptyState
           icon="⚙️"
           title="Sin reglas"
-          description="Crea una regla para categorizar automaticamente tus movimientos, o importalas desde un fichero."
+          description="Crea una regla para categorizar automáticamente tus movimientos, o importalas desde un fichero."
         />
       ) : (
         <div className="space-y-2">
@@ -373,14 +373,14 @@ export function RulesSection() {
           deleting ? (
             <span>
               Vas a eliminar la regla <strong className="text-slate-100">{deleting.name}</strong>.
-              Los movimientos que categorizo conservan su categoria actual (no se recalculan).
+              Los movimientos que categorizo conservan su categoría actual (no se recalculan).
             </span>
           ) : null
         }
         buttons={deleteButtons}
       />
 
-      {/* Aplicacion retroactiva con simulacion previa */}
+      {/* Aplicación retroactiva con simulación previa */}
       <Modal
         open={applyOpen}
         onClose={() => !applyBusy && setApplyOpen(false)}
@@ -401,7 +401,7 @@ export function RulesSection() {
                 setSimulation(null);
               }}
             />
-            Recategorizar tambien los movimientos categorizados a mano
+            Recategorizar también los movimientos categorizados a mano
           </label>
           {!applyOverrideManual && (
             <p className="text-xs text-slate-500">

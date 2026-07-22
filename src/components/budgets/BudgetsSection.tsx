@@ -120,7 +120,7 @@ export function BudgetsSection() {
         <EmptyState
           icon="🎯"
           title="Sin presupuestos ni metas"
-          description="Fija limites de gasto u objetivos de ingreso por categoria, subcategoria, cuenta o globales, y sigue su consumo por periodo."
+          description="Fija límites de gasto u objetivos de ingreso por categoría, subcategoría, cuenta o globales, y sigue su consumo por periodo."
           action={
             <button
               type="button"
@@ -188,7 +188,7 @@ export function BudgetsSection() {
           deleting ? (
             <span>
               Vas a eliminar el presupuesto{' '}
-              <strong className="text-slate-100">{deleting.name}</strong>. Esta accion no borra
+              <strong className="text-slate-100">{deleting.name}</strong>. Esta acción no borra
               ningun movimiento; solo el presupuesto ({formatCents(deleting.limitCents)}).
             </span>
           ) : null

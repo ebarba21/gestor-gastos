@@ -15,7 +15,7 @@ interface Props {
   preview: ImportPreview;
   accountNames: Map<string, string>;
   onToggleRow: (rowIndex: number) => void;
-  onDecisionChange: (rowIndex: number, decision: DuplicateAction) => void;
+  onDecisionChange: (rowIndex: number, decisión: DuplicateAction) => void;
   onApplyToEquivalents: (rowIndex: number) => void;
   onIncludeAllValid: () => void;
   onExcludeDuplicates: () => void;
@@ -95,7 +95,7 @@ export function PreviewStep({
       </div>
       <p className="text-xs text-slate-500">
         La confianza mostrada es orientativa (heuristica), no una probabilidad real. Nunca se
-        borra ni se sustituye nada sin tu confirmacion explicita.
+        borra ni se sustituye nada sin tu confirmación explicita.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -172,7 +172,7 @@ interface RowProps {
   row: PreviewRow;
   accountNames: Map<string, string>;
   onToggle: (rowIndex: number) => void;
-  onDecisionChange: (rowIndex: number, decision: DuplicateAction) => void;
+  onDecisionChange: (rowIndex: number, decisión: DuplicateAction) => void;
   onApplyToEquivalents: (rowIndex: number) => void;
   locale: string;
   currency: string;
@@ -243,7 +243,7 @@ function PreviewRowView({
               value={row.decision ?? 'import'}
               onChange={(e) => onDecisionChange(row.rowIndex, e.target.value as DuplicateAction)}
               className="rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-xs text-slate-200"
-              aria-label={`Decision para la fila ${row.rowIndex + 1}`}
+              aria-label={`Decisión para la fila ${row.rowIndex + 1}`}
             >
               {row.availableDecisions.map((d) => (
                 <option key={d} value={d}>
@@ -255,7 +255,7 @@ function PreviewRowView({
               type="button"
               onClick={() => onApplyToEquivalents(row.rowIndex)}
               className="text-xs text-slate-500 underline decoration-dotted hover:text-slate-300"
-              title="Aplica esta seleccion e decision a todas las filas con el mismo nivel de coincidencia"
+              title="Aplica esta selección e decisión a todas las filas con el mismo nivel de coincidencia"
             >
               Aplicar a equivalentes
             </button>

@@ -120,7 +120,7 @@ export function AccountsSection() {
                   </span>
                 )}
                 {/* En movil el grupo de acciones ocupa toda la fila inferior y se alinea a la
-                    derecha; en PC vuelve a su ancho natural en la misma linea. */}
+                    derecha; en PC vuelve a su ancho natural en la misma línea. */}
                 <div className="flex w-full shrink-0 justify-end gap-1 text-xs sm:w-auto">
                   {!archived ? (
                     <>
@@ -183,7 +183,7 @@ export function AccountsSection() {
           deleting ? (
             <span>
               Vas a eliminar la cuenta <strong className="text-slate-100">{deleting.name}</strong>.
-              Si tiene movimientos no se podra eliminar: archivala para conservar el historico.
+              Si tiene movimientos no se podrá eliminar: archivala para conservar el historico.
             </span>
           ) : null
         }

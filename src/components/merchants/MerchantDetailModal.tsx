@@ -165,7 +165,7 @@ export function MerchantDetailModal({
           <h4 className="text-sm font-semibold text-slate-200">Alias</h4>
           <p className="mt-0.5 text-xs text-slate-500">
             Textos bancarios que se reconocen como este comercio. Se evaluan por prioridad (menor
-            numero = mayor prioridad); el exacto siempre tiene preferencia sobre el resto.
+            número = mayor prioridad); el exacto siempre tiene preferencia sobre el resto.
           </p>
 
           <div className="mt-2 flex flex-wrap items-end gap-2">
@@ -192,7 +192,7 @@ export function MerchantDetailModal({
                 type="button"
                 onClick={() => setPriority((p) => p - 1)}
                 aria-label="Menos prioridad"
-                title="Menos prioridad (se evalua mas tarde)"
+                title="Menos prioridad (se evalua más tarde)"
                 className="px-1 text-slate-400 hover:text-slate-100"
               >
                 ▼
@@ -214,7 +214,7 @@ export function MerchantDetailModal({
               disabled={savingAlias || rawAlias.trim().length === 0}
               className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
             >
-              Anadir
+              Añadir
             </button>
           </div>
           {matchType === 'regex' && (
@@ -246,7 +246,7 @@ export function MerchantDetailModal({
                       type="button"
                       onClick={() => void adjustPriority(a, -1)}
                       aria-label="Menos prioridad"
-                      title="Menos prioridad (se evalua mas tarde)"
+                      title="Menos prioridad (se evalua más tarde)"
                       className="px-1 hover:text-slate-100"
                     >
                       ▼
@@ -333,7 +333,7 @@ export function MerchantDetailModal({
               ))}
               {transactions.length > 100 && (
                 <p className="text-xs text-slate-500">
-                  Mostrando los 100 mas recientes de {transactions.length}.
+                  Mostrando los 100 más recientes de {transactions.length}.
                 </p>
               )}
             </div>
@@ -349,7 +349,7 @@ export function MerchantDetailModal({
           deletingAlias ? (
             <span>
               Vas a eliminar el alias <strong className="text-slate-100">{deletingAlias.rawAlias}</strong>.
-              Los movimientos ya asociados no se desvinculan automaticamente.
+              Los movimientos ya asociados no se desvinculan automáticamente.
             </span>
           ) : null
         }

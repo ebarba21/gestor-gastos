@@ -97,7 +97,7 @@ export function DebtsSection() {
       <div>
         <h2 className="text-xl font-semibold text-slate-100">Deudas</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Calculadora y planificador de deudas: calendario de amortizacion, amortizacion
+          Calculadora y planificador de deudas: calendario de amortización, amortización
           anticipada y comparador Snowball/Avalanche. Esto no es asesoramiento financiero
           personalizado: es un calculo determinista sobre los datos que registras.
         </p>
@@ -158,7 +158,7 @@ export function DebtsSection() {
               }}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
             >
-              Anadir deuda
+              Añadir deuda
             </button>
           </div>
 
@@ -179,10 +179,10 @@ export function DebtsSection() {
             <EmptyState
               icon="💳"
               title="Aun no has registrado ninguna deuda"
-              description="Anade un prestamo, hipoteca u otra deuda para ver su calendario de amortizacion."
+              description="Añade un prestamo, hipoteca u otra deuda para ver su calendario de amortización."
               action={
                 <button type="button" onClick={() => setShowForm(true)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-                  Anadir deuda
+                  Añadir deuda
                 </button>
               }
             />
@@ -248,7 +248,7 @@ export function DebtsSection() {
               <strong className="text-slate-100">{toDelete.name}</strong>. Archivar conserva el
               historial de pagos y la saca de los listados activos. Borrar la elimina por
               completo (los pagos registrados quedan sin la deuda a la que pertenecian). Esta
-              accion no se puede deshacer.
+              acción no se puede deshacer.
             </p>
           ) : null
         }

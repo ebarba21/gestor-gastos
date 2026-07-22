@@ -40,7 +40,7 @@ export function ImportSummaryStep({
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-        <h3 className="text-lg font-semibold text-slate-100">Resumen de la importacion</h3>
+        <h3 className="text-lg font-semibold text-slate-100">Resumen de la importación</h3>
         <p className="mt-1 text-sm text-slate-400">{summary.fileName}</p>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
@@ -99,7 +99,7 @@ export function ImportSummaryStep({
           to="/conciliacion"
           className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
         >
-          Ir a conciliacion
+          Ir a conciliación
         </Link>
         <Link
           to={`/movimientos?importBatchId=${summary.batchId}`}

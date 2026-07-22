@@ -308,7 +308,7 @@ export function TransactionFormModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="tx-category" className="block text-sm font-medium text-slate-300">
-                  Categoria
+                  Categoría
                 </label>
                 <select
                   id="tx-category"
@@ -319,7 +319,7 @@ export function TransactionFormModal({
                   }}
                   className={inputClass}
                 >
-                  <option value="">Sin categoria</option>
+                  <option value="">Sin categoría</option>
                   {rootCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -329,7 +329,7 @@ export function TransactionFormModal({
               </div>
               <div>
                 <label htmlFor="tx-subcategory" className="block text-sm font-medium text-slate-300">
-                  Subcategoria
+                  Subcategoría
                 </label>
                 <select
                   id="tx-subcategory"

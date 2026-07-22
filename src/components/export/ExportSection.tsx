@@ -84,9 +84,9 @@ export function ExportSection() {
       try {
         const bytes = await writeXlsx(sheets);
         downloadXlsx(bytes, timestampedFileName(`gestor-${label}`, 'xlsx'));
-        showToast('Exportacion generada.', 'success');
+        showToast('Exportación generada.', 'success');
       } catch (e) {
-        showToast(e instanceof Error ? e.message : 'No se pudo generar la exportacion.', 'error');
+        showToast(e instanceof Error ? e.message : 'No se pudo generar la exportación.', 'error');
       } finally {
         setBusy(false);
       }
@@ -281,7 +281,7 @@ export function ExportSection() {
         <h2 className="text-xl font-semibold text-slate-100">Exportaciones y backup</h2>
         <p className="mt-1 text-sm text-slate-400">
           El backup se genera en este dispositivo. Ningun archivo bancario original ni dato del
-          backup se sube de forma automatica: eres tu quien decide donde guardarlo.
+          backup se sube de forma automática: eres tu quien decide donde guardarlo.
         </p>
       </div>
 
@@ -320,7 +320,7 @@ export function ExportSection() {
             Cuentas
           </button>
           <button type="button" disabled={busy} onClick={exportCategories} className={exportBtn}>
-            Categorias
+            Categorías
           </button>
           <button type="button" disabled={busy} onClick={() => void exportRules()} className={exportBtn}>
             Reglas
@@ -370,7 +370,7 @@ export function ExportSection() {
           Copia de seguridad del perfil
         </h3>
         <p className="text-sm text-slate-400">
-          Un unico archivo JSON con todos los datos de este perfil. Sirve para guardarlo a buen
+          Un único archivo JSON con todos los datos de este perfil. Sirve para guardarlo a buen
           recaudo o moverlo a otro dispositivo.
         </p>
         <button
@@ -389,7 +389,7 @@ export function ExportSection() {
           Restaurar un backup
         </h3>
         <p className="text-sm text-slate-400">
-          Elige un archivo de backup. Antes de aplicar nada te pediremos confirmacion y podras
+          Elige un archivo de backup. Antes de aplicar nada te pediremos confirmación y podrás
           decidir si sobrescribes este perfil o creas uno nuevo.
         </p>
         <input
@@ -415,7 +415,7 @@ export function ExportSection() {
               <p className="text-slate-400">
                 Contiene {restore.summary.counts.transactions} movimientos,{' '}
                 {restore.summary.counts.accounts} cuentas, {restore.summary.counts.categories}{' '}
-                categorias, {restore.summary.counts.merchants} comercios (
+                categorías, {restore.summary.counts.merchants} comercios (
                 {restore.summary.counts.merchantAliases} alias), {restore.summary.counts.rules}{' '}
                 reglas, {restore.summary.counts.budgets} metas y {restore.summary.counts.debts}{' '}
                 deudas.
@@ -424,7 +424,7 @@ export function ExportSection() {
                 <strong>Sobrescribir este perfil</strong> borra por completo los datos actuales de{' '}
                 <strong className="text-slate-100">{activeProfile?.name}</strong> y los reemplaza por
                 los del backup. <strong>Crear perfil nuevo</strong> deja este perfil intacto. Haz un
-                backup previo si tienes dudas. Esta accion no se puede deshacer.
+                backup previo si tienes dudas. Esta acción no se puede deshacer.
               </p>
             </div>
           ) : null

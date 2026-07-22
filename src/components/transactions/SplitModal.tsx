@@ -144,7 +144,7 @@ export function SplitModal({
                       }
                       className={controlClass}
                     >
-                      <option value="">Sin categoria</option>
+                      <option value="">Sin categoría</option>
                       {roots.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -186,7 +186,7 @@ export function SplitModal({
               onClick={addPart}
               className="rounded-lg border border-slate-700 px-2.5 py-1 text-slate-300 hover:bg-slate-800"
             >
-              + Anadir parte
+              + Añadir parte
             </button>
             <span className={remaining === 0 ? 'text-emerald-400' : 'text-amber-400'}>
               Restante: {formatCents(remaining, locale, currency)}

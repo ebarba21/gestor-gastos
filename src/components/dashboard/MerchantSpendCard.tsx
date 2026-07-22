@@ -13,7 +13,7 @@ export function MerchantSpendCard({ merchantSpend, merchantNames }: MerchantSpen
     return (
       <p className="py-6 text-center text-sm text-slate-500">
         Sin gasto asociado a comercios en este periodo. Asocia movimientos a comercios desde la
-        seccion Comercios.
+        sección Comercios.
       </p>
     );
   }

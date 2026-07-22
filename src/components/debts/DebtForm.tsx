@@ -132,7 +132,7 @@ export function DebtForm({ initial = null, accounts, categories, onSubmit, onCan
           />
         </label>
         <label className={labelClass}>
-          Cuota / pago minimo (EUR)
+          Cuota / pago mínimo (EUR)
           <input
             required
             type="number"
@@ -176,7 +176,7 @@ export function DebtForm({ initial = null, accounts, categories, onSubmit, onCan
           </select>
         </label>
         <label className={labelClass}>
-          Categoria vinculada
+          Categoría vinculada
           <select value={linkedCategoryId} onChange={(e) => setLinkedCategoryId(e.target.value)} className={inputClass}>
             <option value="">Sin vincular</option>
             {categories.map((c) => (

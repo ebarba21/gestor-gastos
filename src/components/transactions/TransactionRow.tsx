@@ -47,7 +47,7 @@ export function TransactionRow({
 }: TransactionRowProps) {
   const amountClass =
     tx.amountCents < 0 ? 'text-red-400' : tx.amountCents > 0 ? 'text-emerald-400' : 'text-slate-300';
-  const categoryLabel = tx.categoryId ? (categoryNames.get(tx.categoryId) ?? '—') : 'Sin categoria';
+  const categoryLabel = tx.categoryId ? (categoryNames.get(tx.categoryId) ?? '—') : 'Sin categoría';
   const subLabel = tx.subcategoryId ? categoryNames.get(tx.subcategoryId) : undefined;
   const accountLabel = accountNames.get(tx.accountId) ?? '—';
   const merchantLabel = tx.merchantId ? merchantNames.get(tx.merchantId) : undefined;
@@ -69,7 +69,7 @@ export function TransactionRow({
         className="h-4 w-4 shrink-0"
       />
 
-      {/* En pantallas estrechas la fecha pasa a la linea secundaria del concepto. */}
+      {/* En pantallas estrechas la fecha pasa a la línea secundaria del concepto. */}
       <span className="hidden w-24 shrink-0 tabular-nums text-slate-400 sm:block">{tx.date}</span>
 
       <button

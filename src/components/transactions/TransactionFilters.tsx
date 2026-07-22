@@ -193,9 +193,9 @@ export function TransactionFilters({
             </fieldset>
           )}
 
-          {/* Categoria */}
+          {/* Categoría */}
           <label className="text-sm text-slate-300">
-            Categoria
+            Categoría
             <select
               value={filter.categoryIds?.[0] ?? ''}
               onChange={(e) =>
@@ -212,9 +212,9 @@ export function TransactionFilters({
             </select>
           </label>
 
-          {/* Subcategoria */}
+          {/* Subcategoría */}
           <label className="text-sm text-slate-300">
-            Subcategoria
+            Subcategoría
             <select
               value={filter.subcategoryIds?.[0] ?? ''}
               onChange={(e) =>
@@ -277,7 +277,7 @@ export function TransactionFilters({
             />
           </label>
 
-          {/* Exclusion y sin categoria */}
+          {/* Exclusion y sin categoría */}
           <label className="text-sm text-slate-300">
             Estadisticas
             <select
@@ -297,7 +297,7 @@ export function TransactionFilters({
               onChange={(e) => patch({ onlyUncategorized: e.target.checked || undefined })}
               className="mb-2 h-4 w-4"
             />
-            Solo sin categoria
+            Solo sin categoría
           </label>
         </div>
       )}

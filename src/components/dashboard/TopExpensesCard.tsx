@@ -44,7 +44,7 @@ export function TopExpensesCard({
               <div className="min-w-0">
                 <p className="truncate text-sm text-slate-200">{t.concept}</p>
                 <p className="truncate text-xs text-slate-500">
-                  {t.categoryId ? categoryNames.get(t.categoryId) ?? 'Desconocida' : 'Sin categoria'}
+                  {t.categoryId ? categoryNames.get(t.categoryId) ?? 'Desconocida' : 'Sin categoría'}
                   {' · '}
                   {accountNames.get(t.accountId) ?? 'Cuenta'}
                   {' · '}

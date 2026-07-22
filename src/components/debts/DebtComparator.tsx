@@ -20,7 +20,7 @@ interface DebtComparatorProps {
 }
 
 const STRATEGY_LABELS: Record<MultiDebtStrategy, string> = {
-  baseline: 'Base (situacion actual)',
+  baseline: 'Base (situación actual)',
   snowball: 'Snowball (menor saldo primero)',
   avalanche: 'Avalanche (mayor interes primero)',
   custom: 'Personalizada',
@@ -55,7 +55,7 @@ export function DebtComparator({ profileId, scenarios, onScenariosChanged }: Deb
       .catch((e) => {
         if (!cancelled) {
           showToast(
-            e instanceof Error ? e.message : 'No se pudo comprobar si los escenarios estan desactualizados.',
+            e instanceof Error ? e.message : 'No se pudo comprobar si los escenarios están desactualizados.',
             'error',
           );
         }
@@ -122,7 +122,7 @@ export function DebtComparator({ profileId, scenarios, onScenariosChanged }: Deb
         </h3>
         <p className="text-sm text-slate-400">
           No es asesoramiento financiero personalizado: ninguna estrategia es universalmente mejor,
-          solo se compara cual es mas rapida y cual tiene menor coste para las deudas registradas.
+          solo se compara cual es más rápida y cual tiene menor coste para las deudas registradas.
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <label className={labelClass}>
@@ -155,7 +155,7 @@ export function DebtComparator({ profileId, scenarios, onScenariosChanged }: Deb
 
         {result && Object.keys(result.debtNames).length === 0 && (
           <p className="rounded-lg border border-dashed border-slate-700 px-4 py-6 text-center text-sm text-slate-400">
-            No hay deudas activas y amortizables que comparar. Anade una deuda (o revisa que no
+            No hay deudas activas y amortizables que comparar. Añade una deuda (o revisa que no
             este archivada o sea una tarjeta) en la pestana "Deudas".
           </p>
         )}
@@ -203,7 +203,7 @@ export function DebtComparator({ profileId, scenarios, onScenariosChanged }: Deb
                         <td className="px-3 py-1.5">
                           {STRATEGY_LABELS[r.strategy]}
                           {r.strategy === result.fastestStrategy && (
-                            <span className="ml-2 rounded-full bg-emerald-950/60 px-2 py-0.5 text-xs text-emerald-300">mas rapida</span>
+                            <span className="ml-2 rounded-full bg-emerald-950/60 px-2 py-0.5 text-xs text-emerald-300">más rápida</span>
                           )}
                           {r.strategy === result.cheapestStrategy && (
                             <span className="ml-2 rounded-full bg-sky-950/60 px-2 py-0.5 text-xs text-sky-300">menor coste</span>
@@ -231,7 +231,7 @@ export function DebtComparator({ profileId, scenarios, onScenariosChanged }: Deb
               </table>
             </div>
             <label className={labelClass}>
-              Nombre del proximo escenario a guardar
+              Nombre del próximo escenario a guardar
               <input value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} className={inputClass} placeholder="p. ej. Avalanche con 100 EUR extra" />
             </label>
           </>

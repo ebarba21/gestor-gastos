@@ -127,7 +127,7 @@ export function MerchantFormModal({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-slate-300">Categoria por defecto</label>
+            <label className="block text-sm font-medium text-slate-300">Categoría por defecto</label>
             <select
               value={categoryId}
               onChange={(e) => {
@@ -136,7 +136,7 @@ export function MerchantFormModal({
               }}
               className={inputClass}
             >
-              <option value="">Sin categoria</option>
+              <option value="">Sin categoría</option>
               {rootCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -145,7 +145,7 @@ export function MerchantFormModal({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300">Subcategoria</label>
+            <label className="block text-sm font-medium text-slate-300">Subcategoría</label>
             <select
               value={subcategoryId}
               onChange={(e) => setSubcategoryId(e.target.value)}

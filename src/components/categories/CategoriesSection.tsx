@@ -142,12 +142,12 @@ export function CategoriesSection() {
 
   async function archive(cat: Category) {
     await categoryService.archiveCategory(profileId, cat.id);
-    showToast('Categoria archivada.', 'info');
+    showToast('Categoría archivada.', 'info');
     await reload();
   }
   async function unarchive(cat: Category) {
     await categoryService.unarchiveCategory(profileId, cat.id);
-    showToast('Categoria restaurada.', 'success');
+    showToast('Categoría restaurada.', 'success');
     await reload();
   }
 
@@ -161,7 +161,7 @@ export function CategoriesSection() {
                 variant: 'primary' as const,
                 onClick: async () => {
                   await categoryService.archiveCategory(profileId, deleting.id);
-                  showToast('Categoria archivada.', 'info');
+                  showToast('Categoría archivada.', 'info');
                   await reload();
                 },
               },
@@ -172,7 +172,7 @@ export function CategoriesSection() {
           variant: 'danger' as const,
           onClick: async () => {
             await categoryService.deleteCategory(profileId, deleting.id);
-            showToast('Categoria eliminada.', 'success');
+            showToast('Categoría eliminada.', 'success');
             await reload();
           },
         },
@@ -182,13 +182,13 @@ export function CategoriesSection() {
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-100">Categorias</h3>
+        <h3 className="text-lg font-semibold text-slate-100">Categorías</h3>
         <button
           type="button"
           onClick={() => setCreateRootOpen(true)}
           className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
         >
-          Nueva categoria
+          Nueva categoría
         </button>
       </div>
 
@@ -209,8 +209,8 @@ export function CategoriesSection() {
       ) : visibleTree.length === 0 ? (
         <EmptyState
           icon="🗂️"
-          title="Sin categorias"
-          description="Crea tu primera categoria para clasificar tus movimientos."
+          title="Sin categorías"
+          description="Crea tu primera categoría para clasificar tus movimientos."
         />
       ) : (
         <div className="space-y-3">
@@ -264,12 +264,12 @@ export function CategoriesSection() {
       <ConfirmDialog
         open={deleting !== null}
         onClose={() => setDeleting(null)}
-        title="Eliminar categoria"
+        title="Eliminar categoría"
         message={
           deleting ? (
             <span>
               Vas a eliminar <strong className="text-slate-100">{deleting.name}</strong>. Si tiene
-              subcategorias o esta en uso por movimientos, no se podra eliminar: archivala para
+              subcategorías o esta en uso por movimientos, no se podrá eliminar: archivala para
               conservar el historico.
             </span>
           ) : null

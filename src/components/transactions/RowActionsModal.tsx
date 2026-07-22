@@ -78,7 +78,7 @@ export function RowActionsModal({
       await onChanged();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'La operacion ha fallado.');
+      setError(err instanceof Error ? err.message : 'La operación ha fallado.');
       setBusy(false);
     }
   }
@@ -182,7 +182,7 @@ export function RowActionsModal({
         )}
 
         {/* Comercio: no aplica a transferencias ni a padres de split (sin comercio propio;
-            la asociacion vive en las lineas hijas de un split). */}
+            la asociacion vive en las líneas hijas de un split). */}
         {!isSpecial && !merchantPicker && (
           <button type="button" className={actionClass} disabled={busy} onClick={() => setMerchantPicker(true)}>
             Comercio: {tx.merchantId ? (merchantNames.get(tx.merchantId) ?? '—') : 'Sin comercio'}

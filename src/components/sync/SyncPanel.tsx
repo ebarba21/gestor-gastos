@@ -71,14 +71,14 @@ export function SyncPanel(): React.ReactElement {
     if (!client || !userId) return;
     setBusy(profileId);
     setNotice(
-      'Consejo: exporta un backup del perfil (Exportar) antes de migrar. La migracion no borra tus datos locales.',
+      'Consejo: exporta un backup del perfil (Exportar) antes de migrar. La migración no borra tus datos locales.',
     );
     try {
       const result = await migrateProfile(client, userId, profileId);
       setNotice(
         result.status === 'verified'
           ? 'Perfil migrado y verificado.'
-          : `La migracion no se pudo verificar: ${result.lastError ?? 'reintenta'}.`,
+          : `La migración no se pudo verificar: ${result.lastError ?? 'reintenta'}.`,
       );
     } finally {
       setBusy(null);
@@ -93,7 +93,7 @@ export function SyncPanel(): React.ReactElement {
     setBusy('rebuild');
     try {
       const result = await rebuildDevice(client, userId);
-      setNotice(`Reconstruccion: ${result.profiles} perfiles, ${result.rows} registros descargados.`);
+      setNotice(`Reconstrucción: ${result.profiles} perfiles, ${result.rows} registros descargados.`);
     } finally {
       setBusy(null);
       await reload();
@@ -106,9 +106,9 @@ export function SyncPanel(): React.ReactElement {
   if (!enabled) {
     return (
       <section className="space-y-3">
-        <h1 className="text-xl font-bold">Sincronizacion</h1>
+        <h1 className="text-xl font-bold">Sincronización</h1>
         <p className="text-slate-400">
-          La sincronizacion es opcional. Para copiar tus perfiles de forma privada entre
+          La sincronización es opcional. Para copiar tus perfiles de forma privada entre
           dispositivos, activa una cuenta en{' '}
           <Link to="/cuenta" className="text-sky-400 underline">
             Cuenta
@@ -122,7 +122,7 @@ export function SyncPanel(): React.ReactElement {
   return (
     <section className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">Sincronizacion</h1>
+        <h1 className="text-xl font-bold">Sincronización</h1>
         <button
           type="button"
           onClick={() => void sync.syncNow()}
@@ -135,14 +135,14 @@ export function SyncPanel(): React.ReactElement {
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Estado" value={sync.status} />
-        <Stat label="Ultima sincronizacion" value={formatDate(sync.lastSyncedAt)} />
+        <Stat label="Última sincronización" value={formatDate(sync.lastSyncedAt)} />
         <Stat label="Cambios pendientes" value={String(sync.pendingCount)} />
         <Stat label="Conflictos" value={String(sync.conflictCount)} />
       </dl>
 
       {!sync.online && (
         <p className="rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm text-slate-300">
-          Sin conexion. Tus cambios se guardan en local y se sincronizaran al recuperar la red.
+          Sin conexión. Tus cambios se guardan en local y se sincronizaran al recuperar la red.
         </p>
       )}
       {sync.lastError && (
@@ -160,8 +160,8 @@ export function SyncPanel(): React.ReactElement {
         <div className="space-y-2">
           <h2 className="font-semibold">Conflictos ({conflicts.length})</h2>
           <p className="text-sm text-slate-400">
-            Otro dispositivo cambio estos registros. Elige que version conservar. Los importes nunca
-            se combinan de forma automatica.
+            Otro dispositivo cambió estos registros. Elige qué versión conservar. Los importes nunca
+            se combinan de forma automática.
           </p>
           <ul className="space-y-2">
             {conflicts.map((c) => (
@@ -200,7 +200,7 @@ export function SyncPanel(): React.ReactElement {
         <div className="space-y-2">
           <h2 className="font-semibold">Perfiles locales sin migrar</h2>
           <p className="text-sm text-slate-400">
-            Estos perfiles aun no estan vinculados a tu cuenta. Al migrarlos se suben a tu copia
+            Estos perfiles aun no están vinculados a tu cuenta. Al migrarlos se suben a tu copia
             remota privada; tus datos locales no se borran.
           </p>
           <ul className="space-y-2">

@@ -61,7 +61,7 @@ export function ReviewInboxSection() {
       setSelected(new Set());
       await reload();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'No se pudo completar la accion masiva.', 'error');
+      showToast(e instanceof Error ? e.message : 'No se pudo completar la acción masiva.', 'error');
     } finally {
       setBulkBusy(false);
     }
@@ -71,7 +71,7 @@ export function ReviewInboxSection() {
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-xl font-semibold text-slate-100">Bandeja de revision</h2>
+          <h2 className="text-xl font-semibold text-slate-100">Bandeja de revisión</h2>
           <p className="mt-1 text-sm text-slate-400">
             {counts.total} tarea(s) abierta(s) en total.
           </p>
@@ -161,7 +161,7 @@ export function ReviewInboxSection() {
         <EmptyState
           icon="✅"
           title="No hay tareas que revisar"
-          description="Cuando importes movimientos, apliques reglas o se detecten posibles duplicados, transferencias o reembolsos, apareceran aqui."
+          description="Cuando importes movimientos, apliques reglas o se detecten posibles duplicados, transferencias o reembolsos, apareceran aquí."
         />
       )}
 

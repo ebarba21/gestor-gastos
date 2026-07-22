@@ -66,11 +66,11 @@ export function CategoryFormModal({
 
   const title = isEdit
     ? isRoot
-      ? 'Editar categoria'
-      : 'Editar subcategoria'
+      ? 'Editar categoría'
+      : 'Editar subcategoría'
     : parent
-      ? `Nueva subcategoria de ${parent.name}`
-      : 'Nueva categoria';
+      ? `Nueva subcategoría de ${parent.name}`
+      : 'Nueva categoría';
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -96,11 +96,11 @@ export function CategoryFormModal({
       } else {
         await categoryService.createCategory(profileId, { name, kind, color, icon });
       }
-      showToast(isEdit ? 'Categoria actualizada.' : 'Categoria creada.', 'success');
+      showToast(isEdit ? 'Categoría actualizada.' : 'Categoría creada.', 'success');
       await onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar la categoria.');
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la categoría.');
     } finally {
       setSaving(false);
     }

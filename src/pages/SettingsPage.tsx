@@ -41,7 +41,7 @@ export default function SettingsPage() {
       <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Seguridad</h3>
         <p className="mt-2 text-sm text-slate-400">
-          PIN local, bloqueo automatico, passkeys y contrasena de cuenta se gestionan en un solo
+          PIN local, bloqueo automático, passkeys y contraseña de cuenta se gestionan en un solo
           sitio.
         </p>
         <Link
@@ -82,7 +82,7 @@ export default function SettingsPage() {
               Exportar
             </Link>{' '}
             y pulsa <strong className="text-slate-100">Descargar backup de este perfil</strong>. Se
-            guarda un unico archivo JSON con todos tus datos.
+            guarda un único archivo JSON con todos tus datos.
           </li>
           <li>
             Pasa ese archivo al otro dispositivo por el medio que prefieras (cable, memoria USB,
@@ -100,7 +100,7 @@ export default function SettingsPage() {
           </li>
         </ol>
         <p className="mt-3 text-sm text-slate-500">
-          Consejo: haz un backup cada cierto tiempo. Es tambien tu copia de seguridad si cambias de
+          Consejo: haz un backup cada cierto tiempo. Es también tu copia de seguridad si cambias de
           navegador o borras los datos del sitio.
         </p>
       </div>
@@ -111,7 +111,7 @@ export default function SettingsPage() {
         </h3>
         <p className="mt-2 text-sm text-slate-400">
           Eliminar el perfil borra de forma permanente todos sus datos en este dispositivo. Esta
-          accion no se puede deshacer.
+          acción no se puede deshacer.
         </p>
         <button
           type="button"

@@ -109,12 +109,12 @@ export function ImportSection() {
     );
   }
 
-  function setRowDecision(rowIndex: number, decision: DuplicateAction) {
+  function setRowDecision(rowIndex: number, decisión: DuplicateAction) {
     setPreview((prev) =>
       prev
         ? {
             ...prev,
-            rows: prev.rows.map((r) => (r.rowIndex === rowIndex ? { ...r, decision } : r)),
+            rows: prev.rows.map((r) => (r.rowIndex === rowIndex ? { ...r, decisión } : r)),
           }
         : prev,
     );
@@ -135,11 +135,11 @@ export function ImportSection() {
         ...prev,
         rows: prev.rows.map((r) => {
           if (r.duplicateStatus !== source.duplicateStatus || r.rowIndex === rowIndex) return r;
-          const decision =
+          const decisión =
             source.decision !== null && r.availableDecisions.includes(source.decision)
               ? source.decision
               : r.decision;
-          return { ...r, include: source.include, decision };
+          return { ...r, include: source.include, decisión };
         }),
       };
     });
@@ -213,7 +213,7 @@ export function ImportSection() {
       setStep('summary');
       await reload();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'No se pudo completar la importacion.', 'error');
+      showToast(e instanceof Error ? e.message : 'No se pudo completar la importación.', 'error');
     } finally {
       setBusy(false);
     }
@@ -244,16 +244,16 @@ export function ImportSection() {
     ? [
         { label: 'Cancelar', variant: 'ghost' },
         {
-          label: 'Deshacer importacion',
+          label: 'Deshacer importación',
           variant: 'danger',
           onClick: async () => {
             try {
               const removed = await importService.undo(profileId, undoTarget.id);
-              showToast(`Importacion deshecha: ${removed} movimiento(s) borrados.`, 'success');
+              showToast(`Importación deshecha: ${removed} movimiento(s) borrados.`, 'success');
               await reload();
             } catch (e) {
               showToast(
-                e instanceof Error ? e.message : 'No se pudo deshacer la importacion.',
+                e instanceof Error ? e.message : 'No se pudo deshacer la importación.',
                 'error',
               );
             }
@@ -289,7 +289,7 @@ export function ImportSection() {
         <h2 className="text-xl font-semibold text-slate-100">Importar datos</h2>
         <p className="mt-1 text-sm text-slate-400">
           Sube un extracto CSV o XLSX. El fichero se procesa por completo en tu dispositivo y
-          nunca se sube: solo su hash y tamano se guardan para detectar reimportaciones. Si
+          nunca se sube: solo su hash y tamaño se guardan para detectar reimportaciones. Si
           tienes una cuenta vinculada, los movimientos procesados se sincronizan de forma
           privada con tu proyecto Supabase.
         </p>
@@ -299,11 +299,11 @@ export function ImportSection() {
         <EmptyState
           icon="🏦"
           title="Necesitas una cuenta"
-          description="Crea al menos una cuenta antes de importar movimientos: sera el destino de la importacion."
+          description="Crea al menos una cuenta antes de importar movimientos: será el destino de la importación."
         />
       ) : (
         <>
-          {/* Paso 1: seleccion de fichero */}
+          {/* Paso 1: selección de fichero */}
           {step === 'select' && (
             <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-10 text-center">
               <p className="text-4xl">📄</p>
@@ -366,7 +366,7 @@ export function ImportSection() {
             />
           )}
 
-          {/* Paso 4: resumen (flujo posterior a importar, ARCHITECTURE seccion 17) */}
+          {/* Paso 4: resumen (flujo posterior a importar, ARCHITECTURE sección 17) */}
           {step === 'summary' && summary && (
             <ImportSummaryStep
               summary={summary}
@@ -419,14 +419,14 @@ export function ImportSection() {
       <ConfirmDialog
         open={undoTarget !== null}
         onClose={() => setUndoTarget(null)}
-        title="Deshacer importacion"
+        title="Deshacer importación"
         message={
           undoTarget ? (
             <span>
               Se borraran los <strong className="text-slate-100">{undoTarget.rowsImported}</strong>{' '}
               movimientos importados desde{' '}
-              <strong className="text-slate-100">{undoTarget.fileName}</strong>. Esta accion no
-              afecta a movimientos creados o editados despues.
+              <strong className="text-slate-100">{undoTarget.fileName}</strong>. Esta acción no
+              afecta a movimientos creados o editados después.
             </span>
           ) : null
         }

@@ -19,7 +19,7 @@ interface BudgetCardProps {
 // Estilos de la barra y de la insignia de estado.
 const STATUS_STYLES: Record<BudgetStatus, { bar: string; badge: string; label: string }> = {
   ok: { bar: 'bg-emerald-500', badge: 'bg-emerald-900/40 text-emerald-300', label: 'En curso' },
-  warning: { bar: 'bg-amber-500', badge: 'bg-amber-900/40 text-amber-300', label: 'Cerca del limite' },
+  warning: { bar: 'bg-amber-500', badge: 'bg-amber-900/40 text-amber-300', label: 'Cerca del límite' },
   exceeded: { bar: 'bg-red-500', badge: 'bg-red-900/50 text-red-300', label: 'Superado' },
   met: { bar: 'bg-emerald-500', badge: 'bg-emerald-900/40 text-emerald-300', label: 'Objetivo alcanzado' },
 };

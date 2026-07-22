@@ -62,9 +62,9 @@ export function CandidateGroupsModal({ open, onClose, profileId, onCreated }: Ca
     <Modal open={open} onClose={onClose} title="Movimientos sin comercio">
       <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
         <p className="text-sm text-slate-400">
-          Tus movimientos sin comercio, agrupados por concepto (los mas frecuentes primero). Al
+          Tus movimientos sin comercio, agrupados por concepto (los más frecuentes primero). Al
           crear un comercio desde un grupo, se vinculan esos movimientos al instante; puedes
-          anadir mas variantes (alias) despues desde la ficha del comercio.
+          añadir más variantes (alias) después desde la ficha del comercio.
         </p>
 
         {loading ? (
@@ -73,7 +73,7 @@ export function CandidateGroupsModal({ open, onClose, profileId, onCreated }: Ca
           <EmptyState
             icon="🏷️"
             title="Sin candidatos"
-            description="No hay movimientos sin comercio que agrupar, o ya estan todos asociados."
+            description="No hay movimientos sin comercio que agrupar, o ya están todos asociados."
           />
         ) : (
           <div className="space-y-2">

@@ -125,8 +125,8 @@ export function MergeMerchantsModal({
         <div className="space-y-4">
           <p className="text-sm text-slate-300">
             Vas a fusionar <strong className="text-slate-100">{source.canonicalName}</strong> dentro
-            de otro comercio. Sus alias y movimientos pasaran al destino; el origen quedara
-            archivado (reversible justo despues de confirmar).
+            de otro comercio. Sus alias y movimientos pasaran al destino; el origen quedará
+            archivado (reversible justo después de confirmar).
           </p>
 
           {preview && (

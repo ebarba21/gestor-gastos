@@ -25,7 +25,7 @@ export function LockScreen() {
     <div className={WRAP}>
       <div className="mb-6 text-center">
         <h1 className="text-xl font-bold">Gestor de Gastos</h1>
-        <p className="mt-1 text-sm text-slate-400">Aplicacion bloqueada en este dispositivo.</p>
+        <p className="mt-1 text-sm text-slate-400">Aplicación bloqueada en este dispositivo.</p>
       </div>
       {view === 'pin' && (
         <PinUnlockCard onForgotten={() => setView('recover')} />
@@ -94,7 +94,7 @@ function PinUnlockCard({ onForgotten }: { onForgotten: () => void }) {
     setBusy(true);
     try {
       await auth.signOut();
-      setSignOutNotice('Sesion de cuenta cerrada. El PIN de este dispositivo sigue activo.');
+      setSignOutNotice('Sesión de cuenta cerrada. El PIN de este dispositivo sigue activo.');
     } catch (err) {
       setError(messageOf(err));
     } finally {
@@ -152,7 +152,7 @@ function PinUnlockCard({ onForgotten }: { onForgotten: () => void }) {
           He olvidado mi PIN
         </button>
         <button type="button" onClick={() => void handleSignOut()} disabled={busy} className={LINK_BTN}>
-          Cerrar sesion de cuenta
+          Cerrar sesión de cuenta
         </button>
       </div>
     </div>
@@ -192,7 +192,7 @@ function RecoverCard({ onBack, onReset }: { onBack: () => void; onReset: () => v
       <div className={CARD}>
         <p className="text-sm text-slate-300">
           Esta instalacion no tiene una cuenta configurada. Sin cuenta no hay forma de recuperar un
-          PIN olvidado: la unica opcion es restablecer los datos locales de este dispositivo.
+          PIN olvidado: la única opción es restablecer los datos locales de este dispositivo.
         </p>
         <button type="button" onClick={onReset} className={`${GHOST_BTN} mt-4 border-red-800 text-red-300`}>
           Restablecer datos locales
@@ -210,7 +210,7 @@ function RecoverCard({ onBack, onReset }: { onBack: () => void; onReset: () => v
         Recuperar acceso con tu cuenta
       </h2>
       <p className="mt-2 text-sm text-slate-400">
-        Confirma la contrasena de tu cuenta para elegir un PIN nuevo. Tus datos no se pierden.
+        Confirma la contraseña de tu cuenta para elegir un PIN nuevo. Tus datos no se pierden.
       </p>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4" noValidate>
         <div>
@@ -229,7 +229,7 @@ function RecoverCard({ onBack, onReset }: { onBack: () => void; onReset: () => v
         </div>
         <div>
           <label className={LABEL} htmlFor="recover-password">
-            Contrasena de cuenta
+            Contraseña de cuenta
           </label>
           <input
             id="recover-password"
@@ -314,7 +314,7 @@ function ResetLocalDataCard({ onBack }: { onBack: () => void }) {
         confirmar.
       </p>
       <label className={`${LABEL} mt-4`} htmlFor="reset-confirm">
-        Confirmacion
+        Confirmación
       </label>
       <input
         id="reset-confirm"
@@ -343,5 +343,5 @@ function ResetLocalDataCard({ onBack }: { onBack: () => void }) {
 
 function messageOf(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;
-  return 'No se pudo completar la operacion.';
+  return 'No se pudo completar la operación.';
 }

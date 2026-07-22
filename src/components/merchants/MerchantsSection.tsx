@@ -119,7 +119,7 @@ export function MerchantsSection() {
           title={showArchived ? 'Sin comercios archivados' : 'Sin comercios'}
           description={
             showArchived
-              ? 'Los comercios que archives apareceran aqui.'
+              ? 'Los comercios que archives apareceran aquí.'
               : 'Crea un comercio o revisa los candidatos detectados a partir de tus movimientos.'
           }
         />

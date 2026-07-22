@@ -45,29 +45,29 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ to: '/', label: 'Dashboard', icon: 'dashboard', end: true }],
   },
   {
-    heading: 'Dia a dia',
+    heading: 'Día a día',
     items: [
       { to: '/movimientos', label: 'Movimientos', icon: 'movimientos' },
       { to: '/importar', label: 'Importar', icon: 'importar' },
-      { to: '/bandeja', label: 'Bandeja de revision', icon: 'bandeja' },
+      { to: '/bandeja', label: 'Bandeja de revisión', icon: 'bandeja' },
     ],
   },
   {
-    heading: 'Organizacion',
+    heading: 'Organización',
     items: [
-      { to: '/categorias', label: 'Categorias', icon: 'categorias' },
+      { to: '/categorias', label: 'Categorías', icon: 'categorias' },
       { to: '/reglas', label: 'Reglas', icon: 'reglas' },
       { to: '/comercios', label: 'Comercios', icon: 'comercios' },
       { to: '/cuentas', label: 'Cuentas bancarias', icon: 'cuentas' },
     ],
   },
   {
-    heading: 'Planificacion',
+    heading: 'Planificación',
     items: [
       { to: '/presupuestos', label: 'Presupuestos', icon: 'presupuestos' },
       { to: '/recurrencias', label: 'Recurrencias', icon: 'recurrencias' },
       { to: '/deudas', label: 'Deudas', icon: 'deudas' },
-      { to: '/conciliacion', label: 'Conciliacion', icon: 'conciliacion' },
+      { to: '/conciliacion', label: 'Conciliación', icon: 'conciliacion' },
     ],
   },
   {
@@ -75,7 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/exportar', label: 'Exportar', icon: 'exportar' },
       { to: '/cuenta', label: 'Mi cuenta', icon: 'cuenta' },
-      { to: '/sincronizacion', label: 'Sincronizacion', icon: 'sincronizacion' },
+      { to: '/sincronizacion', label: 'Sincronización', icon: 'sincronizacion' },
       { to: '/ajustes', label: 'Ajustes', icon: 'ajustes' },
       { to: '/ajustes/seguridad', label: 'Seguridad', icon: 'seguridad' },
     ],
@@ -95,19 +95,19 @@ function AppLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100 md:flex-row">
       <aside className="border-b border-slate-800 bg-slate-900 md:w-64 md:shrink-0 md:border-b-0 md:border-r">
-        {/* En movil, titulo y selector de perfil comparten fila para ahorrar altura;
+        {/* En movil, título y selector de perfil comparten fila para ahorrar altura;
             en PC vuelven a apilarse en la barra lateral. */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold">Gestor de Gastos</span>
-            {/* Insignia de estado de sincronizacion (solo con cuenta activa). */}
+            {/* Insignia de estado de sincronización (solo con cuenta activa). */}
             <SyncBadge />
             {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). */}
             <ReviewBadge />
-            {/* Conmutador de tema, accesible desde cualquier seccion. */}
+            {/* Conmutador de tema, accesible desde cualquier sección. */}
             <ThemeToggle className="md:ml-auto" />
           </div>
-          {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
+          {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier sección. */}
           <div className="w-44 shrink-0 md:mt-4 md:w-auto">
             <ProfileSwitcher />
           </div>
@@ -132,7 +132,7 @@ function AppLayout() {
         </nav>
       </aside>
 
-      {/* min-w-0 evita que tablas y graficos anchos desborden el layout flex. */}
+      {/* min-w-0 evita que tablas y gráficos anchos desborden el layout flex. */}
       <main className="min-w-0 flex-1 p-4 md:p-6">
         <Routes>
           <Route path="/" element={<DashboardPage />} />

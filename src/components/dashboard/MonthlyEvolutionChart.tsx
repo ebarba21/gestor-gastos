@@ -94,7 +94,7 @@ export function MonthlyEvolutionChart({ monthly, activeMonth, onSelectMonth }: M
         {activeMonth && (
           <ReferenceLine x={activeMonth} stroke={colors.axis} strokeDasharray="3 3" />
         )}
-        {/* Ahorro al fondo (relleno mas tenue), luego gasto e ingresos por encima. */}
+        {/* Ahorro al fondo (relleno más tenue), luego gasto e ingresos por encima. */}
         <Area
           type="monotone"
           dataKey="Ahorro"

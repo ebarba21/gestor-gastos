@@ -35,7 +35,7 @@ const AUTO_LOCK_LABELS: Record<AutoLockOptionMs, string> = {
 
 function messageOf(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;
-  return 'No se pudo completar la operacion.';
+  return 'No se pudo completar la operación.';
 }
 
 export default function SecurityPage() {
@@ -62,11 +62,11 @@ function AccountSummaryCard() {
       {auth.status === 'signed-in' ? (
         <>
           <p className="mt-3 text-sm text-slate-300">
-            Sesion iniciada como <strong className="text-slate-100">{auth.user?.email}</strong>
+            Sesión iniciada como <strong className="text-slate-100">{auth.user?.email}</strong>
             {auth.emailPending ? ' (correo sin verificar)' : ''}.
           </p>
           <p className="mt-2 text-sm text-slate-400">
-            Cambiar contrasena, cerrar sesion o cerrar otras sesiones se gestiona en{' '}
+            Cambiar contraseña, cerrar sesión o cerrar otras sesiones se gestiona en{' '}
             <Link to="/cuenta" className="font-medium text-indigo-400 hover:text-indigo-300">
               Cuenta
             </Link>
@@ -80,7 +80,7 @@ function AccountSummaryCard() {
           <Link to="/cuenta" className="font-medium text-indigo-400 hover:text-indigo-300">
             cuenta
           </Link>{' '}
-          es opcional y añade recuperacion de PIN y passkeys.
+          es opcional y añade recuperación de PIN y passkeys.
         </p>
       )}
     </div>
@@ -110,8 +110,8 @@ function PinCard() {
         )}
       </div>
       <p className="mt-2 text-sm text-slate-400">
-        Protege el acceso a la app en ESTE dispositivo. Nunca sale de aqui ni se envia a Supabase
-        (ver explicacion mas abajo).
+        Protege el acceso a la app en ESTE dispositivo. Nunca sale de aquí ni se envia a Supabase
+        (ver explicacion más abajo).
       </p>
       {lock.security.pinEnabled ? (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -191,7 +191,7 @@ function EnablePinForm({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={handle} className={`${CARD} space-y-4`} noValidate>
       <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Activar PIN</h3>
-      <p className="text-sm text-slate-400">Minimo 6 digitos. Solo numeros.</p>
+      <p className="text-sm text-slate-400">Minimo 6 digitos. Solo números.</p>
       <PinFields
         fields={[
           { id: 'pin-new', label: 'PIN nuevo', value: pin, onChange: setPin },
@@ -331,7 +331,7 @@ function AutoLockCard() {
   return (
     <div className={CARD}>
       <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-        Bloqueo automatico
+        Bloqueo automático
       </h3>
       <p className="mt-2 text-sm text-slate-400">
         Cuanto tiempo puede estar la app en segundo plano antes de bloquearse sola. Requiere PIN
@@ -342,7 +342,7 @@ function AutoLockCard() {
         value={String(lock.security.autoLockMs ?? 300_000)}
         disabled={!lock.security.pinEnabled || busy}
         onChange={(e) => void handleChange(e.target.value)}
-        aria-label="Bloqueo automatico"
+        aria-label="Bloqueo automático"
       >
         {AUTO_LOCK_OPTIONS_MS.map((ms) => (
           <option key={ms} value={ms}>
@@ -387,8 +387,8 @@ function PasskeysCard() {
       <div className={CARD}>
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Passkeys</h3>
         <p className="mt-2 text-sm text-slate-400">
-          Los passkeys no estan activados en esta instalacion (integracion experimental,
-          desactivada por defecto). Sigue disponible la contrasena de cuenta y el PIN local.
+          Los passkeys no están activados en esta instalacion (integracion experimental,
+          desactivada por defecto). Sigue disponible la contraseña de cuenta y el PIN local.
         </p>
       </div>
     );
@@ -399,7 +399,7 @@ function PasskeysCard() {
       <div className={CARD}>
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Passkeys</h3>
         <p className="mt-2 text-sm text-slate-400">
-          Este navegador no soporta passkeys (WebAuthn). Sigue disponible la contrasena de cuenta y
+          Este navegador no soporta passkeys (WebAuthn). Sigue disponible la contraseña de cuenta y
           el PIN local.
         </p>
       </div>
@@ -489,7 +489,7 @@ function PasskeysCard() {
         </ul>
       )}
       <p className="mt-3 text-xs text-slate-500">
-        La contrasena de tu cuenta y el PIN siguen funcionando siempre: nunca te quedas sin forma
+        La contraseña de tu cuenta y el PIN siguen funcionando siempre: nunca te quedas sin forma
         de entrar por depender solo de un passkey.
       </p>
 
@@ -506,7 +506,7 @@ function PasskeysCard() {
           <>
             Vas a eliminar el passkey{' '}
             <strong className="text-slate-100">{deleting?.friendlyName ?? 'sin nombre'}</strong>.
-            Necesitaras tu contrasena de cuenta o tu PIN para volver a entrar desde este metodo.
+            Necesitaras tu contraseña de cuenta o tu PIN para volver a entrar desde este método.
           </>
         }
         buttons={[
@@ -600,26 +600,26 @@ function ExplanationCard() {
       </h3>
       <dl className="mt-3 space-y-3 text-sm text-slate-400">
         <div>
-          <dt className="font-medium text-slate-200">Contrasena de cuenta</dt>
-          <dd>Identifica a la persona ante el proveedor de sincronizacion. Viaja cifrada a Supabase; nunca se guarda en claro en la app.</dd>
+          <dt className="font-medium text-slate-200">Contraseña de cuenta</dt>
+          <dd>Identifica a la persona ante el proveedor de sincronización. Viaja cifrada a Supabase; nunca se guarda en claro en la app.</dd>
         </div>
         <div>
           <dt className="font-medium text-slate-200">PIN local</dt>
-          <dd>Protege el acceso a la app en ESTE dispositivo. Nunca sale de aqui ni se envia a Supabase; se guarda solo un verificador derivado, nunca el PIN.</dd>
+          <dd>Protege el acceso a la app en ESTE dispositivo. Nunca sale de aquí ni se envia a Supabase; se guarda solo un verificador derivado, nunca el PIN.</dd>
         </div>
         <div>
           <dt className="font-medium text-slate-200">Passkey / biometria</dt>
           <dd>
-            Verificacion del sistema operativo o del autenticador (WebAuthn). La app nunca recibe
-            huellas, rostro ni datos biometricos: solo el resultado (si o no) de esa verificacion.
+            Verificación del sistema operativo o del autenticador (WebAuthn). La app nunca recibe
+            huellas, rostro ni datos biometricos: solo el resultado (si o no) de esa verificación.
           </dd>
         </div>
       </dl>
       <p className="mt-4 text-xs text-slate-500">
-        Recuperacion: con cuenta, un PIN olvidado se recupera reautenticando con la contrasena de
-        cuenta (tus datos no se pierden). Sin cuenta, un PIN olvidado no tiene recuperacion: la
-        unica opcion desde la pantalla bloqueada es restablecer los datos locales de este
-        dispositivo (accion irreversible). Por eso conviene activar una cuenta o hacer copias de
+        Recuperación: con cuenta, un PIN olvidado se recupera reautenticando con la contraseña de
+        cuenta (tus datos no se pierden). Sin cuenta, un PIN olvidado no tiene recuperación: la
+        única opción desde la pantalla bloqueada es restablecer los datos locales de este
+        dispositivo (acción irreversible). Por eso conviene activar una cuenta o hacer copias de
         seguridad periodicas desde{' '}
         <Link to="/exportar" className="font-medium text-indigo-400 hover:text-indigo-300">
           Exportar

@@ -103,8 +103,8 @@ export function ReconciliationSection() {
       });
       showToast(
         reconciliation.status === 'balanced'
-          ? 'Conciliacion guardada: cuadra.'
-          : `Conciliacion guardada con diferencia de ${formatCents(reconciliation.differenceCents, LOCALE, CURRENCY)}.`,
+          ? 'Conciliación guardada: cuadra.'
+          : `Conciliación guardada con diferencia de ${formatCents(reconciliation.differenceCents, LOCALE, CURRENCY)}.`,
         reconciliation.status === 'balanced' ? 'success' : 'info',
       );
       setStatementBalanceText('');
@@ -112,7 +112,7 @@ export function ReconciliationSection() {
       setNotes('');
       await reload();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'No se pudo guardar la conciliacion.', 'error');
+      showToast(e instanceof Error ? e.message : 'No se pudo guardar la conciliación.', 'error');
     } finally {
       setBusy(false);
     }
@@ -131,7 +131,7 @@ export function ReconciliationSection() {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-slate-100">Conciliacion bancaria</h2>
+        <h2 className="text-xl font-semibold text-slate-100">Conciliación bancaria</h2>
         <p className="mt-1 text-sm text-slate-400">
           Compara el saldo de tu extracto con el saldo calculado por la app para esa fecha.
         </p>
@@ -284,7 +284,7 @@ export function ReconciliationSection() {
               onClick={() => void handleSave(false)}
               className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
             >
-              Guardar conciliacion
+              Guardar conciliación
             </button>
           </div>
         </div>
@@ -296,7 +296,7 @@ export function ReconciliationSection() {
           <EmptyState
             icon="🧾"
             title="Sin conciliaciones todavia"
-            description="Cuando guardes una conciliacion aparecera aqui, por cuenta y fecha."
+            description="Cuando guardes una conciliación aparecerá aquí, por cuenta y fecha."
           />
         ) : (
           <div className="divide-y divide-slate-800 rounded-xl border border-slate-800">

@@ -30,7 +30,7 @@ export function ReviewBadge() {
     <Link
       to="/bandeja"
       className="inline-flex items-center gap-1.5 rounded-full border border-amber-700 bg-amber-950/40 px-2 py-1 text-xs text-amber-200 hover:bg-amber-900/50"
-      title="Tareas pendientes de revision"
+      title="Tareas pendientes de revisión"
     >
       <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden />
       <span>Revision ({total})</span>

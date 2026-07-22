@@ -98,7 +98,7 @@ export function ReviewItemDetailModal({
       onChanged();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo completar la accion.');
+      setError(e instanceof Error ? e.message : 'No se pudo completar la acción.');
     } finally {
       setBusy(false);
     }
@@ -132,9 +132,9 @@ export function ReviewItemDetailModal({
         {/* --- Sin categorizar --- */}
         {item.type === 'uncategorized' && tx && (
           <div className="space-y-2">
-            <p className="text-slate-300">Este movimiento no tiene categoria asignada.</p>
+            <p className="text-slate-300">Este movimiento no tiene categoría asignada.</p>
             <label className="block text-xs text-slate-400" htmlFor="review-category-select">
-              Categoria
+              Categoría
             </label>
             <select
               id="review-category-select"
@@ -142,7 +142,7 @@ export function ReviewItemDetailModal({
               onChange={(e) => setCategoryId(e.target.value)}
               className={selectClass}
             >
-              <option value="">Elegir categoria...</option>
+              <option value="">Elegir categoría...</option>
               {categories.map((node) => (
                 <optgroup key={node.category.id} label={node.category.name}>
                   <option value={node.category.id}>{node.category.name}</option>
@@ -187,7 +187,7 @@ export function ReviewItemDetailModal({
                 className={buttonGhost}
                 onClick={() => run(() => reviewService.resolve(profileId, item.id, 'rule:accepted'))}
               >
-                Aceptar la categoria
+                Aceptar la categoría
               </button>
               <button
                 type="button"
@@ -202,7 +202,7 @@ export function ReviewItemDetailModal({
                   })
                 }
               >
-                Quitar categoria
+                Quitar categoría
               </button>
             </div>
           </div>
@@ -307,7 +307,7 @@ export function ReviewItemDetailModal({
         {item.type === 'stalePending' && tx && (
           <div className="space-y-2">
             <p className="text-slate-300">
-              Este movimiento lleva {String(item.metadata.ageDays ?? '?')} dia(s) marcado como pendiente
+              Este movimiento lleva {String(item.metadata.ageDays ?? '?')} día(s) marcado como pendiente
               sin confirmarse.
             </p>
             <div className="flex flex-wrap justify-end gap-2">
@@ -317,7 +317,7 @@ export function ReviewItemDetailModal({
                 className={buttonGhost}
                 onClick={() => run(() => reviewService.snooze(profileId, item.id, Date.now() + 7 * 86_400_000))}
               >
-                Aplazar 7 dias
+                Aplazar 7 días
               </button>
               <button
                 type="button"
@@ -398,7 +398,7 @@ export function ReviewItemDetailModal({
           </div>
         )}
 
-        {/* --- Error de importacion --- */}
+        {/* --- Error de importación --- */}
         {item.type === 'importError' && (
           <div className="space-y-2">
             <p className="text-slate-300">
@@ -417,18 +417,18 @@ export function ReviewItemDetailModal({
           </div>
         )}
 
-        {/* --- Conflicto de sincronizacion --- */}
+        {/* --- Conflicto de sincronización --- */}
         {item.type === 'syncConflict' && (
           <div className="space-y-2">
             <p className="text-slate-300">
-              Hay una edicion simultanea sin resolver entre dispositivos para esta entidad.
+              Hay una edición simultanea sin resolver entre dispositivos para esta entidad.
             </p>
             <Link
               to="/sincronizacion"
               className="inline-block text-indigo-400 underline"
               onClick={onClose}
             >
-              Ir a sincronizacion para resolverlo
+              Ir a sincronización para resolverlo
             </Link>
           </div>
         )}

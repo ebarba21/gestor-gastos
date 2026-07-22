@@ -27,7 +27,7 @@ export function AccountPanel() {
   if (auth.status === 'loading') {
     return (
       <div className={CARD}>
-        <p className="text-sm text-slate-400">Comprobando tu sesion...</p>
+        <p className="text-sm text-slate-400">Comprobando tu sesión...</p>
       </div>
     );
   }
@@ -39,7 +39,7 @@ export function AccountPanel() {
   if (auth.recoveryMode) {
     // Tras un enlace de recuperacion, la identidad ya se probo por correo: no se pide la
     // contrasena anterior (precisamente porque el usuario la ha olvidado).
-    return <UpdatePasswordForm heading="Elige una nueva contrasena" requireCurrentPassword={false} />;
+    return <UpdatePasswordForm heading="Elige una nueva contraseña" requireCurrentPassword={false} />;
   }
 
   if (auth.status === 'signed-in') {
@@ -58,20 +58,20 @@ function UnconfiguredNotice() {
       {configError && (
         <div className="mt-3 rounded-lg border border-amber-800/60 bg-amber-950/30 p-3">
           <p className="text-sm text-amber-300">
-            La configuracion de la cuenta esta incompleta o es incorrecta, asi que la app sigue en
+            La configuración de la cuenta esta incompleta o es incorrecta, así que la app sigue en
             modo local. Detalle: {configError}
           </p>
         </div>
       )}
       <p className="mt-3 text-sm text-slate-300">
         Esta instalacion funciona en <strong className="text-slate-100">modo local</strong>: tus
-        datos se guardan en este dispositivo. La cuenta con sincronizacion privada es opcional y
-        aun no esta configurada aqui.
+        datos se guardan en este dispositivo. La cuenta con sincronización privada es opcional y
+        aun no esta configurada aquí.
       </p>
       <p className="mt-2 text-sm text-slate-400">
-        La sincronizacion, cuando se activa, guarda una copia privada protegida por tu cuenta y por
+        La sincronización, cuando se activa, guarda una copia privada protegida por tu cuenta y por
         seguridad a nivel de fila. No es privacidad total ni coste cero perpetuo: depende de los
-        limites del proveedor. Para habilitarla, configura Supabase segun el README.
+        límites del proveedor. Para habilitarla, configura Supabase segun el README.
       </p>
     </div>
   );
@@ -108,7 +108,7 @@ function SignedInPanel() {
     setBusy(true);
     try {
       await resendConfirmation(user.email);
-      setNotice('Te hemos reenviado el correo de verificacion.');
+      setNotice('Te hemos reenviado el correo de verificación.');
     } catch (err) {
       setError(messageOf(err));
     } finally {
@@ -123,7 +123,7 @@ function SignedInPanel() {
           Cuenta activa
         </h3>
         <p className="mt-3 text-sm text-slate-300">
-          Sesion iniciada como{' '}
+          Sesión iniciada como{' '}
           <strong className="text-slate-100">{user?.email ?? 'usuario'}</strong>.
         </p>
         <p className="mt-1 text-xs text-slate-500">
@@ -142,7 +142,7 @@ function SignedInPanel() {
               disabled={busy}
               className="mt-2 text-sm font-medium text-amber-300 underline hover:text-amber-200 disabled:opacity-60"
             >
-              Reenviar correo de verificacion
+              Reenviar correo de verificación
             </button>
           </div>
         )}
@@ -155,7 +155,7 @@ function SignedInPanel() {
             onClick={() => void signOut()}
             className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
           >
-            Cerrar sesion
+            Cerrar sesión
           </button>
           <button
             type="button"
@@ -167,13 +167,13 @@ function SignedInPanel() {
           </button>
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          Cierra la sesion en tus demas dispositivos y pestañas, conservando esta.
+          Cierra la sesión en tus demás dispositivos y pestañas, conservando esta.
         </p>
         {othersNotice && <p className="mt-2 text-sm text-emerald-400">{othersNotice}</p>}
         {othersError && <p className="mt-2 text-sm text-red-400">{othersError}</p>}
       </div>
 
-      <UpdatePasswordForm heading="Cambiar contrasena" requireCurrentPassword />
+      <UpdatePasswordForm heading="Cambiar contraseña" requireCurrentPassword />
     </div>
   );
 }
@@ -185,7 +185,7 @@ function SignedOutPanel() {
     <div className={CARD}>
       <div className="flex gap-2">
         <TabButton active={mode === 'signIn'} onClick={() => setMode('signIn')}>
-          Iniciar sesion
+          Iniciar sesión
         </TabButton>
         <TabButton active={mode === 'signUp'} onClick={() => setMode('signUp')}>
           Crear cuenta
@@ -232,13 +232,13 @@ function SignInForm({ onRecover }: { onRecover: () => void }) {
   return (
     <form onSubmit={submit.handle} className="space-y-4" noValidate>
       <EmailField value={form.email} onChange={form.setEmail} />
-      <PasswordField value={form.password} onChange={form.setPassword} label="Contrasena" />
+      <PasswordField value={form.password} onChange={form.setPassword} label="Contraseña" />
       <FormFeedback error={submit.error} notice={null} />
       <button type="submit" disabled={submit.busy} className={PRIMARY_BTN}>
-        {submit.busy ? 'Entrando...' : 'Iniciar sesion'}
+        {submit.busy ? 'Entrando...' : 'Iniciar sesión'}
       </button>
       <button type="button" onClick={onRecover} className={LINK_BTN}>
-        He olvidado mi contrasena
+        He olvidado mi contraseña
       </button>
     </form>
   );
@@ -249,7 +249,7 @@ function SignUpForm() {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const { form, submit } = useAuthForm(async () => {
     if (form.password.length < MIN_PASSWORD) {
-      throw new Error(`La contrasena debe tener al menos ${MIN_PASSWORD} caracteres.`);
+      throw new Error(`La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`);
     }
     const result = await signUp(form.email, form.password);
     if (result.status === 'needs-confirmation') setPendingEmail(form.email);
@@ -259,7 +259,7 @@ function SignUpForm() {
     return (
       <div className="rounded-lg border border-emerald-800/50 bg-emerald-950/20 p-4">
         <p className="text-sm text-emerald-300">
-          Cuenta creada. Te hemos enviado un correo de verificacion a{' '}
+          Cuenta creada. Te hemos enviado un correo de verificación a{' '}
           <strong>{pendingEmail}</strong>. Confirma tu correo para completar el alta.
         </p>
       </div>
@@ -272,7 +272,7 @@ function SignUpForm() {
       <PasswordField
         value={form.password}
         onChange={form.setPassword}
-        label={`Contrasena (min. ${MIN_PASSWORD})`}
+        label={`Contraseña (min. ${MIN_PASSWORD})`}
         autoComplete="new-password"
       />
       <FormFeedback error={submit.error} notice={null} />
@@ -281,7 +281,7 @@ function SignUpForm() {
       </button>
       <p className="text-xs text-slate-500">
         Al crear una cuenta aceptas que se guarde una copia privada de tus datos sincronizados en el
-        proveedor, protegida por tu sesion y por seguridad a nivel de fila.
+        proveedor, protegida por tu sesión y por seguridad a nivel de fila.
       </p>
     </form>
   );
@@ -300,10 +300,10 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
       <div className="space-y-3">
         <p className="text-sm text-slate-300">
           Si existe una cuenta con ese correo, te hemos enviado instrucciones para recuperar la
-          contrasena.
+          contraseña.
         </p>
         <button type="button" onClick={onBack} className={LINK_BTN}>
-          Volver a iniciar sesion
+          Volver a iniciar sesión
         </button>
       </div>
     );
@@ -312,7 +312,7 @@ function RecoverForm({ onBack }: { onBack: () => void }) {
   return (
     <form onSubmit={submit.handle} className="space-y-4" noValidate>
       <p className="text-sm text-slate-400">
-        Introduce tu correo y te enviaremos un enlace para restablecer la contrasena.
+        Introduce tu correo y te enviaremos un enlace para restablecer la contraseña.
       </p>
       <EmailField value={form.email} onChange={form.setEmail} />
       <FormFeedback error={submit.error} notice={null} />
@@ -348,15 +348,15 @@ function UpdatePasswordForm({
     event.preventDefault();
     setError(null);
     if (requireCurrentPassword && currentPassword.length === 0) {
-      setError('Introduce tu contrasena actual.');
+      setError('Introduce tu contraseña actual.');
       return;
     }
     if (password.length < MIN_PASSWORD) {
-      setError(`La contrasena debe tener al menos ${MIN_PASSWORD} caracteres.`);
+      setError(`La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`);
       return;
     }
     if (password !== confirmPassword) {
-      setError('Las dos contrasenas nuevas no coinciden.');
+      setError('Las dos contraseñas nuevas no coinciden.');
       return;
     }
     setBusy(true);
@@ -383,25 +383,25 @@ function UpdatePasswordForm({
         <PasswordField
           value={currentPassword}
           onChange={setCurrentPassword}
-          label="Contrasena actual"
+          label="Contraseña actual"
           autoComplete="current-password"
         />
       )}
       <PasswordField
         value={password}
         onChange={setPassword}
-        label={`Nueva contrasena (min. ${MIN_PASSWORD})`}
+        label={`Nueva contraseña (min. ${MIN_PASSWORD})`}
         autoComplete="new-password"
       />
       <PasswordField
         value={confirmPassword}
         onChange={setConfirmPassword}
-        label="Confirma la nueva contrasena"
+        label="Confirma la nueva contraseña"
         autoComplete="new-password"
       />
-      <FormFeedback error={error} notice={done ? 'Contrasena actualizada.' : null} />
+      <FormFeedback error={error} notice={done ? 'Contraseña actualizada.' : null} />
       <button type="submit" disabled={busy} className={PRIMARY_BTN}>
-        {busy ? 'Guardando...' : 'Guardar contrasena'}
+        {busy ? 'Guardando...' : 'Guardar contraseña'}
       </button>
     </form>
   );
@@ -502,5 +502,5 @@ function useAuthForm(action: () => Promise<void>) {
 
 function messageOf(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;
-  return 'No se pudo completar la operacion. Intentalo de nuevo.';
+  return 'No se pudo completar la operación. Intentalo de nuevo.';
 }

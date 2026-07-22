@@ -23,7 +23,7 @@ export interface ChartColors {
 // Acentos de serie: iguales en ambos temas (saturados, legibles sobre claro y oscuro). Solo
 // cambian los tokens neutros (rejilla, ejes, superficie del tooltip) segun el tema.
 const SERIES = {
-  income: '#10b981', // emerald-500: ingresos (algo mas oscuro que 400 para leer bien en claro)
+  income: '#10b981', // emerald-500: ingresos (algo más oscuro que 400 para leer bien en claro)
   expense: '#f97316', // orange-500: gastos
   savings: '#6366f1', // indigo-500: ahorro neto
   // Serie del apartado de ahorro e inversion. Tonos 600 (mas oscuros que los acentos de
@@ -31,7 +31,7 @@ const SERIES = {
   // para banda de luminosidad, croma, separacion CVD y contraste >= 3:1 en ambos temas.
   saved: '#059669', // emerald-600: aportado a ahorro
   invested: '#0284c7', // sky-600: aportado a inversion
-  bar: '#6366f1', // indigo-500: barras de serie unica (gasto por categoria)
+  bar: '#6366f1', // indigo-500: barras de serie única (gasto por categoría)
 } as const;
 
 const NEUTRALS: Record<Theme, Pick<ChartColors, 'grid' | 'axis' | 'tooltipBg' | 'tooltipBorder'>> = {

@@ -43,7 +43,7 @@ export function CategorySpendChart({
   const positive = byCategory.filter((c) => c.netCents > 0);
   const data: Datum[] = positive.slice(0, limit).map((c, i) => ({
     categoryId: c.categoryId,
-    name: c.categoryId === null ? 'Sin categoria' : categoryNames.get(c.categoryId) ?? 'Desconocida',
+    name: c.categoryId === null ? 'Sin categoría' : categoryNames.get(c.categoryId) ?? 'Desconocida',
     value: c.netCents,
     color:
       c.categoryId !== null && categoryColors.has(c.categoryId)
@@ -54,7 +54,7 @@ export function CategorySpendChart({
   }));
 
   if (data.length === 0) {
-    return <p className="py-8 text-center text-sm text-slate-500">Sin gasto por categoria en este periodo.</p>;
+    return <p className="py-8 text-center text-sm text-slate-500">Sin gasto por categoría en este periodo.</p>;
   }
 
   // Altura proporcional al numero de barras para que no se aplasten en movil.

@@ -89,7 +89,7 @@ export function DebtDetailPanel({ profileId, debt, onPaymentRecorded }: DebtDeta
       });
       setSimResult({ withExtras: result.withExtras, comparison: result.comparison });
     } catch (e) {
-      setSimError(e instanceof Error ? e.message : 'No se pudo simular la amortizacion anticipada.');
+      setSimError(e instanceof Error ? e.message : 'No se pudo simular la amortización anticipada.');
     }
   }
 
@@ -135,7 +135,7 @@ export function DebtDetailPanel({ profileId, debt, onPaymentRecorded }: DebtDeta
     <div className="space-y-6">
       {debt.type === 'card' && (
         <p className="rounded-lg border border-amber-900/50 bg-amber-950/10 px-4 py-3 text-sm text-amber-300">
-          Las tarjetas (revolving) no tienen calendario de amortizacion ni entran en Snowball/Avalanche en
+          Las tarjetas (revolving) no tienen calendario de amortización ni entran en Snowball/Avalanche en
           esta fase: solo se registra la deuda y sus pagos.
         </p>
       )}
@@ -145,7 +145,7 @@ export function DebtDetailPanel({ profileId, debt, onPaymentRecorded }: DebtDeta
       {schedule && schedule.degenerate && (
         <p className="rounded-lg border border-red-900/50 bg-red-950/10 px-4 py-3 text-sm text-red-300">
           {schedule.degenerate === 'insufficientPayment' &&
-            'La cuota registrada es menor que el interes del primer periodo: el saldo crecería (amortizacion negativa). Revisa la cuota o el tipo.'}
+            'La cuota registrada es menor que el interes del primer periodo: el saldo crecería (amortización negativa). Revisa la cuota o el tipo.'}
           {schedule.degenerate === 'criticalPayment' &&
             'La cuota registrada es exactamente igual al interes del primer periodo: el principal nunca se reduciría.'}
           {(schedule.degenerate === 'incompatibleData' || schedule.degenerate === 'extremeTerm' || schedule.degenerate === 'nonConvergence') &&
@@ -156,7 +156,7 @@ export function DebtDetailPanel({ profileId, debt, onPaymentRecorded }: DebtDeta
       {schedule && !schedule.degenerate && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Calendario de amortizacion</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Calendario de amortización</h3>
             <button
               type="button"
               onClick={() => void downloadSchedule()}
@@ -169,7 +169,7 @@ export function DebtDetailPanel({ profileId, debt, onPaymentRecorded }: DebtDeta
             Cuota {formatCents(schedule.installmentCents)} · Intereses totales {formatCents(schedule.totalInterestCents)} ·
             Fin previsto {schedule.payoffDate}
           </p>
-          {/* La tabla es mas ancha que una pantalla estrecha: aviso de desplazamiento solo en
+          {/* La tabla es más ancha que una pantalla estrecha: aviso de desplazamiento solo en
               movil (en PC ya se ve entera, el aviso sobraria). */}
           <p className="text-xs text-slate-500 sm:hidden" aria-hidden>
             Desliza la tabla hacia la derecha para ver principal y saldo →
@@ -206,7 +206,7 @@ export function DebtDetailPanel({ profileId, debt, onPaymentRecorded }: DebtDeta
       {schedule && !schedule.degenerate && (
         <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-5">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
-            Simulador de amortizacion anticipada
+            Simulador de amortización anticipada
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <label className={labelClass}>
@@ -271,7 +271,7 @@ export function DebtDetailPanel({ profileId, debt, onPaymentRecorded }: DebtDeta
         {candidatesError && <p className="text-xs text-amber-300">{candidatesError}</p>}
         {candidates.length > 0 && (
           <div>
-            <p className="mb-1 text-xs text-slate-400">Movimientos candidatos (sin vincular automaticamente):</p>
+            <p className="mb-1 text-xs text-slate-400">Movimientos candidatos (sin vincular automáticamente):</p>
             <div className="flex flex-wrap gap-2">
               {candidates.map((c) => (
                 <button

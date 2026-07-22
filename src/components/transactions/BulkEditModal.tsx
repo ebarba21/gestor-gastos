@@ -110,7 +110,7 @@ export function BulkEditModal({
     if (doExcluded) edit.setExcludedFromStats = excluded;
     if (doTags) {
       if (tagMode !== 'replace' && tagIds.length === 0) {
-        setError('Selecciona al menos una etiqueta para anadir o quitar.');
+        setError('Selecciona al menos una etiqueta para añadir o quitar.');
         return;
       }
       edit.tags = { mode: tagMode, tagIds };
@@ -123,7 +123,7 @@ export function BulkEditModal({
       await onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo aplicar la edicion masiva.');
+      setError(err instanceof Error ? err.message : 'No se pudo aplicar la edición masiva.');
       setSaving(false);
     }
   }
@@ -151,8 +151,8 @@ export function BulkEditModal({
           </select>
         </Row>
 
-        {/* Categoria */}
-        <Row checked={doCategory} onCheck={setDoCategory} label="Categoria">
+        {/* Categoría */}
+        <Row checked={doCategory} onCheck={setDoCategory} label="Categoría">
           <div className="grid grid-cols-2 gap-2">
             <select
               value={categoryId}
@@ -163,7 +163,7 @@ export function BulkEditModal({
               disabled={!doCategory}
               className={`${controlClass} disabled:opacity-50`}
             >
-              <option value="">Sin categoria</option>
+              <option value="">Sin categoría</option>
               {roots.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -176,7 +176,7 @@ export function BulkEditModal({
               disabled={!doCategory || !categoryId || subs.length === 0}
               className={`${controlClass} disabled:opacity-50`}
             >
-              <option value="">Sin subcategoria</option>
+              <option value="">Sin subcategoría</option>
               {subs.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -234,7 +234,7 @@ export function BulkEditModal({
                         : 'border-slate-700 text-slate-300',
                     ].join(' ')}
                   >
-                    {m === 'add' ? 'Anadir' : m === 'remove' ? 'Quitar' : 'Reemplazar'}
+                    {m === 'add' ? 'Añadir' : m === 'remove' ? 'Quitar' : 'Reemplazar'}
                   </button>
                 ))}
               </div>

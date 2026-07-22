@@ -43,7 +43,7 @@ export function TagsSection() {
         <EmptyState
           icon="🏷️"
           title="Sin etiquetas"
-          description="Las etiquetas permiten clasificar movimientos de forma transversal a las categorias."
+          description="Las etiquetas permiten clasificar movimientos de forma transversal a las categorías."
         />
       ) : (
         <div className="flex flex-wrap gap-2">

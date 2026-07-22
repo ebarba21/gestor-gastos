@@ -63,7 +63,7 @@ export function AccountFormModal({
     try {
       const euros = balance.trim() === '' ? 0 : Number(balance.replace(',', '.'));
       if (!Number.isFinite(euros)) {
-        throw new Error('El saldo inicial debe ser un numero valido.');
+        throw new Error('El saldo inicial debe ser un número valido.');
       }
       const openingBalanceCents = eurosToCents(euros);
       if (account) {

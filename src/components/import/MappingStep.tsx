@@ -226,15 +226,15 @@ export function MappingStep({
         />
       </div>
 
-      {/* Metadatos bancarios opcionales (fase 5): mejoran la deteccion de duplicados, pero
+      {/* Metadatos bancarios opcionales (fase 5): mejoran la detección de duplicados, pero
           ninguno es obligatorio. Si el fichero no los trae, se dejan sin asignar. */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
         <p className="mb-3 text-xs font-medium text-slate-400">
-          Metadatos bancarios (opcionales, mejoran la deteccion de duplicados)
+          Metadatos bancarios (opcionales, mejoran la detección de duplicados)
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <ColumnSelect
-            label="Identificador de operacion"
+            label="Identificador de operación"
             value={numOrUnset(config.columnMap.bankTransactionId)}
             labels={labels}
             optional
@@ -290,7 +290,7 @@ export function MappingStep({
             onChange={(v) => setColumn('bankReference', v)}
           />
           <ColumnSelect
-            label="Tipo de operacion"
+            label="Tipo de operación"
             value={numOrUnset(config.columnMap.operationType)}
             labels={labels}
             optional
@@ -360,7 +360,7 @@ export function MappingStep({
         </label>
       </div>
 
-      {/* Vista rapida de las primeras filas */}
+      {/* Vista rápida de las primeras filas */}
       <div className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="min-w-full text-xs">
           <thead className="bg-slate-900/60 text-slate-400">

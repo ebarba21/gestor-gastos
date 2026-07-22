@@ -21,11 +21,11 @@ type Step = 'select' | 'map' | 'preview';
 // Columnas mapeables y su etiqueta. value/category son las importantes; el resto opcionales.
 const MAP_FIELDS: { key: keyof RuleImportColumnMap; label: string; hint?: string }[] = [
   { key: 'value', label: 'Valor de la condicion', hint: 'obligatorio' },
-  { key: 'category', label: 'Categoria (accion)', hint: 'por nombre' },
+  { key: 'category', label: 'Categoría (acción)', hint: 'por nombre' },
   { key: 'field', label: 'Campo', hint: 'por defecto concepto' },
   { key: 'operator', label: 'Operador', hint: 'por defecto contiene' },
   { key: 'value2', label: 'Segundo valor', hint: 'rangos' },
-  { key: 'subcategory', label: 'Subcategoria', hint: 'por nombre' },
+  { key: 'subcategory', label: 'Subcategoría', hint: 'por nombre' },
   { key: 'tags', label: 'Etiquetas', hint: 'separadas por ; o ,' },
   { key: 'name', label: 'Nombre de la regla' },
   { key: 'caseSensitive', label: 'Sensible a mayusculas' },
@@ -181,7 +181,7 @@ export function RuleImportModal({
               La primera fila es cabecera
             </label>
             <p className="text-xs text-slate-500">
-              Asigna las columnas del fichero. Solo el valor de la condicion y la categoria (o
+              Asigna las columnas del fichero. Solo el valor de la condicion y la categoría (o
               etiquetas) son obligatorios; el resto usa valores por defecto.
             </p>
             <div className="space-y-1.5">

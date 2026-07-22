@@ -63,16 +63,16 @@ export function DashboardSection() {
     filter === null
       ? null
       : filter.categoryId === null
-        ? 'Sin categoria'
-        : categoryNames.get(filter.categoryId) ?? 'Categoria';
+        ? 'Sin categoría'
+        : categoryNames.get(filter.categoryId) ?? 'Categoría';
 
   return (
     <section>
       <h2 className="text-xl font-semibold text-slate-100">Dashboard</h2>
       <p className="mt-1 text-sm text-slate-400">
         Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
-        cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa una categoria o un mes en
-        los graficos para filtrar el resto.
+        cuentan por sus líneas y los reembolsos reducen el gasto. Pulsa una categoría o un mes en
+        los gráficos para filtrar el resto.
       </p>
 
       <div className="mt-4">
@@ -138,7 +138,7 @@ export function DashboardSection() {
             <ForecastRangeCard forecast={forecast} loading={forecastLoading} error={forecastError} />
           </div>
 
-          <Card title="Evolucion mensual" subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para verlo">
+          <Card title="Evolución mensual" subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para verlo">
             <MonthlyEvolutionChart
               monthly={data.monthly}
               activeMonth={data.anchorMonth}
@@ -147,7 +147,7 @@ export function DashboardSection() {
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title="Gasto por categoria" subtitle="Pulsa una categoria para filtrar el resto">
+            <Card title="Gasto por categoría" subtitle="Pulsa una categoría para filtrar el resto">
               <CategorySpendChart
                 byCategory={data.byCategory}
                 categoryNames={categoryNames}
@@ -180,7 +180,7 @@ export function DashboardSection() {
             <MerchantSpendCard merchantSpend={data.merchantSpend} merchantNames={merchantNames} />
           </Card>
 
-          {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolucion completa,
+          {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolución completa,
               sin filtro cruzado (ver DashboardData.savingsInvestment). */}
           <SavingsInvestmentSection analysis={data.savingsInvestment} onSelectMonth={selectMonth} />
         </div>

@@ -108,7 +108,7 @@ export function BudgetFormModal({
     try {
       const euros = limit.trim() === '' ? NaN : Number(limit.replace(',', '.'));
       if (!Number.isFinite(euros)) {
-        throw new Error('El importe del presupuesto debe ser un numero valido.');
+        throw new Error('El importe del presupuesto debe ser un número valido.');
       }
       const limitCents = eurosToCents(euros);
       const input = {
@@ -214,7 +214,7 @@ export function BudgetFormModal({
         {scope !== 'overall' && (
           <div>
             <label htmlFor="budget-scope-id" className="block text-sm font-medium text-slate-300">
-              {scope === 'account' ? 'Cuenta' : scope === 'subcategory' ? 'Subcategoria' : 'Categoria'}
+              {scope === 'account' ? 'Cuenta' : scope === 'subcategory' ? 'Subcategoría' : 'Categoría'}
             </label>
             <select
               id="budget-scope-id"
