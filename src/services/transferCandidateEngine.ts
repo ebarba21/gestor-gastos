@@ -112,13 +112,16 @@ const EXTERNAL_PAYMENT_CONCEPT =
   /bizum|pago\s+con\s+tarjeta|c[aà]rrec\s+per\s+compra|\bcompra\b|enviado\s*:|recibido\s*:|payment\s+to|payment\s+from/i;
 
 // Un par es auto-vinculable por concepto si NINGUNA pata parece un pago externo (persona/compra)
-// y AL MENOS UNA lleva una senal clara de traspaso interno. Conservador a proposito: ante la duda,
-// no se auto-vincula (queda para la Bandeja).
+// y AMBAS patas llevan una senal clara de traspaso interno. Exigir las DOS (no una) evita
+// emparejar un traspaso real reconocible (p. ej. una recarga de Revolut) con OTRO movimiento del
+// mismo importe que no es su contrapartida (p. ej. una transferencia "INVERSION . BENEF: cuenta
+// conjunta" que solo coincide en importe y fecha). Conservador a proposito: ante la duda, no se
+// auto-vincula (queda para la Bandeja).
 function pairHasInternalTransferConcept(a: TransferCandidateTx, b: TransferCandidateTx): boolean {
   const ca = a.concept ?? '';
   const cb = b.concept ?? '';
   if (EXTERNAL_PAYMENT_CONCEPT.test(ca) || EXTERNAL_PAYMENT_CONCEPT.test(cb)) return false;
-  return INTERNAL_TRANSFER_CONCEPT.test(ca) || INTERNAL_TRANSFER_CONCEPT.test(cb);
+  return INTERNAL_TRANSFER_CONCEPT.test(ca) && INTERNAL_TRANSFER_CONCEPT.test(cb);
 }
 
 // Un par auto-vinculable ya orientado: aId es la salida (importe negativo) y bId la entrada

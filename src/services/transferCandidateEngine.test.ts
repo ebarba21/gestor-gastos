@@ -147,6 +147,14 @@ describe('findAutoLinkablePairs', () => {
     expect(findAutoLinkablePairs([out, inc])).toEqual([]);
   });
 
+  it('NO vincula si solo UNA pata tiene senal de traspaso (la otra coincide por casualidad)', () => {
+    // Caso real: una recarga de Revolut (+300) y una transferencia "INVERSION . BENEF: cuenta
+    // conjunta" (-300) del mismo dia; mismo importe por casualidad, no son la misma operacion.
+    const inversion = tx({ id: 'inv', accountId: 'ibercaja', amountCents: -30000, date: '2026-07-28', concept: 'INVERSION AGOSTO 2026 . BENEF: CUENTA CONJUNTA' });
+    const recarga = tx({ id: 'rec', accountId: 'revolut', amountCents: 30000, date: '2026-07-28', concept: 'Recarga de *5019' });
+    expect(findAutoLinkablePairs([inversion, recarga])).toEqual([]);
+  });
+
   it('NO vincula si una pata parece pago externo (Bizum a persona / compra)', () => {
     const buy = tx({ id: 'buy', accountId: 'revolut', amountCents: -2400, date: '2026-07-18', concept: 'Pago con tarjeta | Sp Maquinas' });
     const bizum = tx({ id: 'bizum', accountId: 'bbva', amountCents: 2400, date: '2026-07-18', concept: 'Bizum | Recibido: patinar' });
