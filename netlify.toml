@@ -1,0 +1,44 @@
+# Configuracion de despliegue en Netlify para la PWA local-first.
+# Netlify solo publica el cascaron estatico de la app (build de Vite). Ningun dato
+# financiero se sube al host: vive en IndexedDB de cada dispositivo (invariantes 1-4).
+# La analitica de Netlify NO se activa (invariante 5: sin telemetria).
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 8 requiere Node 20 o superior.
+  NODE_VERSION = "20"
+
+# Fallback SPA: cualquier ruta que no corresponda a un archivo real sirve index.html
+# para que React Router la resuelva en cliente. status 200 (rewrite, no redireccion).
+# Netlify sirve primero los archivos existentes (sw.js, manifest, assets con hash),
+# asi que esta regla solo actua sobre rutas de la aplicacion.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# El service worker, el HTML y el manifest deben revalidarse siempre: si el CDN los
+# cachea, las actualizaciones no llegarian nunca a la app instalada.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Los assets con hash en el nombre (JS/CSS/imagenes) son inmutables: cache larga.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
