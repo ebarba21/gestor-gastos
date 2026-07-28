@@ -109,12 +109,18 @@ export function ImportSection() {
     );
   }
 
-  function setRowDecision(rowIndex: number, decisión: DuplicateAction) {
+  function setRowDecision(rowIndex: number, decision: DuplicateAction) {
     setPreview((prev) =>
       prev
         ? {
             ...prev,
-            rows: prev.rows.map((r) => (r.rowIndex === rowIndex ? { ...r, decisión } : r)),
+            rows: prev.rows.map((r) =>
+              // El campo es `decision` (sin tilde): antes se escribia una propiedad `decisión`
+              // distinta y por eso el desplegable no aplicaba nada. Ademas, elegir una decision es
+              // intencion de importar (el desplegable no incluye "omitir": omitir = casilla sin
+              // marcar), asi que se marca la fila para incluirla en la importacion.
+              r.rowIndex === rowIndex ? { ...r, decision, include: true } : r,
+            ),
           }
         : prev,
     );
@@ -135,11 +141,13 @@ export function ImportSection() {
         ...prev,
         rows: prev.rows.map((r) => {
           if (r.duplicateStatus !== source.duplicateStatus || r.rowIndex === rowIndex) return r;
-          const decisión =
+          const decision =
             source.decision !== null && r.availableDecisions.includes(source.decision)
               ? source.decision
               : r.decision;
-          return { ...r, include: source.include, decisión };
+          // Campo `decision` (sin tilde): igual que en setRowDecision, antes se escribia una
+          // propiedad `decisión` distinta y la equivalencia no se propagaba de verdad.
+          return { ...r, include: source.include, decision };
         }),
       };
     });

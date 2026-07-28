@@ -4,7 +4,7 @@
 // la decision a tomar (omitir, importar, sustituir pendiente, vincular, marcar no duplicado).
 // La lista se virtualiza (VirtualList) para seguir fluida con decenas de miles de filas en PC
 // y movil. La importacion es atomica (importService.commit).
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { ImportPreview, PreviewRow } from '../../services/importService';
 import type { DuplicateAction } from '../../services/duplicateEngine';
 import { REASON_CODE_LABELS } from '../../services/duplicateEngine';
@@ -72,6 +72,15 @@ export function PreviewStep({
   const { rows, summary } = preview;
   const selectedCount = useMemo(() => rows.filter((r) => r.include).length, [rows]);
 
+  // Filtro opcional para ver solo los posibles duplicados (se activa desde su chip). Facilita
+  // localizar y decidir esos casos sin recorrer toda la lista.
+  const [onlyDuplicates, setOnlyDuplicates] = useState(false);
+  const visibleRows = useMemo(
+    () => (onlyDuplicates ? rows.filter((r) => r.duplicateStatus !== 'unique') : rows),
+    [rows, onlyDuplicates],
+  );
+  const hasDuplicates = summary.duplicates > 0;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -89,13 +98,44 @@ export function PreviewStep({
       <div className="flex flex-wrap gap-2 text-sm">
         <Badge tone="slate">{summary.total} filas</Badge>
         <Badge tone="emerald">{summary.ok} correctas</Badge>
-        <Badge tone="amber">{summary.duplicates} posibles duplicados</Badge>
+        {/* El chip de duplicados es un boton: filtra la lista para ver solo esos casos. */}
+        <button
+          type="button"
+          disabled={!hasDuplicates}
+          aria-pressed={onlyDuplicates}
+          onClick={() => setOnlyDuplicates((v) => !v)}
+          className="rounded-full disabled:cursor-default disabled:opacity-60"
+          title={
+            hasDuplicates
+              ? onlyDuplicates
+                ? 'Mostrar todas las filas'
+                : 'Ver solo los posibles duplicados'
+              : 'No hay posibles duplicados'
+          }
+        >
+          <Badge tone="amber" active={onlyDuplicates}>
+            {summary.duplicates} posibles duplicados
+            {hasDuplicates && <span className="ml-1 opacity-70">{onlyDuplicates ? '×' : '›'}</span>}
+          </Badge>
+        </button>
         <Badge tone="red">{summary.errors} con error</Badge>
         <Badge tone="indigo">{selectedCount} seleccionadas</Badge>
       </div>
+      {onlyDuplicates && (
+        <p className="text-xs text-amber-300">
+          Mostrando solo los posibles duplicados. Pulsa de nuevo el chip para ver todas las filas.
+        </p>
+      )}
       <p className="text-xs text-slate-500">
         La confianza mostrada es orientativa (heuristica), no una probabilidad real. Nunca se
         borra ni se sustituye nada sin tu confirmación explicita.
+      </p>
+      <p className="text-xs text-slate-500">
+        En un posible duplicado, marca la casilla para importarlo.{' '}
+        <strong className="text-slate-300">Importar de todos modos</strong> lo crea esta vez;{' '}
+        <strong className="text-slate-300">No es un duplicado</strong> además recuerda la decisión
+        para no volver a avisarte de este caso en futuras importaciones. Para omitirlo, deja la
+        casilla sin marcar.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -132,9 +172,9 @@ export function PreviewStep({
           </div>
 
           <VirtualList
-            items={rows}
+            items={visibleRows}
             rowHeight={ROW_HEIGHT}
-            height={Math.min(LIST_HEIGHT, Math.max(ROW_HEIGHT, rows.length * ROW_HEIGHT))}
+            height={Math.min(LIST_HEIGHT, Math.max(ROW_HEIGHT, visibleRows.length * ROW_HEIGHT))}
             keyFor={(r) => String(r.rowIndex)}
             renderRow={(row) => (
               <PreviewRowView
@@ -278,9 +318,32 @@ const TONE_CLASS: Record<Tone, string> = {
   indigo: 'border-indigo-600 text-indigo-300',
 };
 
-function Badge({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+// active resalta el chip cuando su filtro esta aplicado (fondo tenue del mismo tono).
+const TONE_ACTIVE_CLASS: Record<Tone, string> = {
+  slate: 'bg-slate-700/40',
+  emerald: 'bg-emerald-700/30',
+  amber: 'bg-amber-700/30',
+  red: 'bg-red-700/30',
+  indigo: 'bg-indigo-600/30',
+};
+
+function Badge({
+  tone,
+  active = false,
+  children,
+}: {
+  tone: Tone;
+  active?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <span className={`rounded-full border px-2.5 py-0.5 text-xs ${TONE_CLASS[tone]}`}>
+    <span
+      className={[
+        'inline-block rounded-full border px-2.5 py-0.5 text-xs',
+        TONE_CLASS[tone],
+        active ? TONE_ACTIVE_CLASS[tone] : '',
+      ].join(' ')}
+    >
       {children}
     </span>
   );
