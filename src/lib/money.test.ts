@@ -42,11 +42,12 @@ describe('money: centsToEuros y assertCents', () => {
 });
 
 describe('money: formatCents', () => {
-  it('formatea en es-ES / EUR (presentacion)', () => {
+  it('formatea en es-ES / EUR con separador de miles', () => {
     const out = formatCents(123456);
-    // Coma decimal y simbolo de euro. El separador de miles depende del build de ICU,
-    // por eso la asercion es tolerante a que aparezca o no.
-    expect(out).toMatch(/1[.\s]?234,56/);
+    // Coma decimal, simbolo de euro y separador de miles OBLIGATORIO (useGrouping 'always').
+    // El separador puede variar segun ICU (punto o espacio duro); en JS \s cubre los espacios
+    // duros ademas del punto, asi que basta con [.\s] entre 1 y 234.
+    expect(out).toMatch(/1[.\s]234,56/);
     expect(out).toContain('€');
   });
 

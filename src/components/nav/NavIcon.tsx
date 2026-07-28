@@ -4,6 +4,7 @@
 import type { ReactNode, SVGProps } from 'react';
 
 export type NavIconName =
+  | 'guía'
   | 'dashboard'
   | 'movimientos'
   | 'importar'
@@ -24,6 +25,13 @@ export type NavIconName =
 
 // Un path (o grupo de paths) por icono. Trazos simples y reconocibles.
 const PATHS: Record<NavIconName, ReactNode> = {
+  // Libro abierto: guia de uso.
+  guía: (
+    <>
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </>
+  ),
   dashboard: (
     <>
       <rect x="3" y="3" width="7" height="9" rx="1" />

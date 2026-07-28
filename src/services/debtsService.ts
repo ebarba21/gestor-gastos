@@ -10,6 +10,7 @@ import { transactionsRepo } from '../db/transactionsRepo';
 import { transactionService } from './transactionService';
 import { db } from '../db/index';
 import type { CreateInput, UpdateInput } from '../db/baseRepo';
+import { formatCents } from '../lib/money';
 import {
   buildAmortizationSchedule,
   compareExtraPayments,
@@ -241,8 +242,10 @@ async function reflectPaymentInLinkedTransaction(
   ]);
 }
 
+// Formatea un importe para un mensaje de error legible: usa el formateador central (con
+// separador de miles y simbolo de euro) sobre el valor absoluto, en vez de un toFixed crudo.
 function formatCentsForError(cents: number): string {
-  return (Math.abs(cents) / 100).toFixed(2);
+  return formatCents(Math.abs(cents));
 }
 
 // Revierte el ajuste de estadisticas hecho por reflectPaymentInLinkedTransaction al desvincular

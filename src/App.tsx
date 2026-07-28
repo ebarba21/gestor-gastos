@@ -16,6 +16,7 @@ import SettingsPage from './pages/SettingsPage';
 import SecurityPage from './pages/SecurityPage';
 import AccountPage from './pages/AccountPage';
 import SyncPage from './pages/SyncPage';
+import GuidePage from './pages/GuidePage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
 import { NavIcon, type NavIconName } from './components/nav/NavIcon';
 import { ThemeToggle } from './components/common';
@@ -79,6 +80,10 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/ajustes', label: 'Ajustes', icon: 'ajustes' },
       { to: '/ajustes/seguridad', label: 'Seguridad', icon: 'seguridad' },
     ],
+  },
+  {
+    heading: 'Ayuda',
+    items: [{ to: '/guia', label: 'Guía de uso', icon: 'guía' }],
   },
 ];
 
@@ -150,6 +155,7 @@ function AppLayout() {
           <Route path="/exportar" element={<ExportPage />} />
           <Route path="/cuenta" element={<AccountPage />} />
           <Route path="/sincronizacion" element={<SyncPage />} />
+          <Route path="/guia" element={<GuidePage />} />
           <Route path="/ajustes" element={<SettingsPage />} />
           <Route path="/ajustes/seguridad" element={<SecurityPage />} />
         </Routes>

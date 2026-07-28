@@ -31,9 +31,17 @@ export function centsToEuros(cents: number): number {
 }
 
 // Formatea centimos como texto monetario localizado. Capa de presentacion.
+// useGrouping: 'always' fuerza el separador de miles (1.234,56 €) de forma explicita: el
+// comportamiento por defecto de Intl depende del build de ICU y podia no agruparlo. Los importes
+// se agrupan SIEMPRE en la UI; los inputs editables y las exportaciones CSV NO usan esta funcion
+// a proposito (un separador de miles romperia la edicion o el parseo del fichero).
 export function formatCents(cents: number, locale = 'es-ES', currency = 'EUR'): string {
   assertCents(cents);
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(cents / 100);
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    useGrouping: 'always',
+  }).format(cents / 100);
 }
 
 // Nota: el parseo de importes desde texto de extractos bancarios (separadores de miles
