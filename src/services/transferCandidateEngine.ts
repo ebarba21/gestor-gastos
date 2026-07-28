@@ -37,6 +37,10 @@ export interface TransferCandidateTx {
   date: string; // YYYY-MM-DD
   type: TransactionType;
   transferGroupId: string | null;
+  // Concepto (normalizado o crudo) usado SOLO por la auto-consolidacion para exigir una senal
+  // de traspaso interno. La puntuacion de candidatos (scoreTransferPair) no lo usa. Opcional por
+  // compatibilidad: si falta, no hay senal de concepto y el par no es auto-vinculable.
+  concept?: string;
 }
 
 export interface TransferPairScore {
@@ -95,6 +99,28 @@ export function scoreTransferPair(
 // proponer. Cambiar el valor es un cambio de producto, no un detalle de implementacion.
 export const AUTO_CONSOLIDATE_WINDOW_DAYS = 3;
 
+// Filtro CONSERVADOR de concepto para la auto-consolidacion. El importe y la fecha no bastan:
+// dos movimientos de signo opuesto y mismo importe pueden ser una compra y un Bizum sin relacion.
+// Solo se auto-vinculan pares con una senal INEQUIVOCA de traspaso interno en el concepto.
+// Patrones de traspaso interno reconocidos (recargas de Revolut, cargo puente 'Revolut**',
+// traspasos programados y transferencias explicitas a cuenta/nombre propios).
+const INTERNAL_TRANSFER_CONCEPT =
+  /recarga|revolut\s*\*|trasp[aà]s|traspaso|transferencia\s+interna|entre\s+cuentas|cuenta\s+propia/i;
+// Marcadores de pago EXTERNO (a personas o compras): descartan la auto-vinculacion aunque el
+// importe cuadre. 'revolut*' (con asterisco) es interno; 'pago de revolut | comercio' es compra.
+const EXTERNAL_PAYMENT_CONCEPT =
+  /bizum|pago\s+con\s+tarjeta|c[aà]rrec\s+per\s+compra|\bcompra\b|enviado\s*:|recibido\s*:|payment\s+to|payment\s+from/i;
+
+// Un par es auto-vinculable por concepto si NINGUNA pata parece un pago externo (persona/compra)
+// y AL MENOS UNA lleva una senal clara de traspaso interno. Conservador a proposito: ante la duda,
+// no se auto-vincula (queda para la Bandeja).
+function pairHasInternalTransferConcept(a: TransferCandidateTx, b: TransferCandidateTx): boolean {
+  const ca = a.concept ?? '';
+  const cb = b.concept ?? '';
+  if (EXTERNAL_PAYMENT_CONCEPT.test(ca) || EXTERNAL_PAYMENT_CONCEPT.test(cb)) return false;
+  return INTERNAL_TRANSFER_CONCEPT.test(ca) || INTERNAL_TRANSFER_CONCEPT.test(cb);
+}
+
 // Un par auto-vinculable ya orientado: aId es la salida (importe negativo) y bId la entrada
 // (importe positivo). confidence y dayDiff son orientativos (heuristica), no probabilidad real.
 export interface AutoLinkPair {
@@ -142,6 +168,9 @@ export function findAutoLinkablePairs(
       for (let j = i + 1; j < group.length; j++) {
         const score = scoreTransferPair(group[i]!, group[j]!);
         if (!score || score.dayDiff > windowDays) continue;
+        // Filtro conservador: ademas de importe/fecha/cuenta, exige senal de traspaso interno en
+        // el concepto (descarta compras y Bizums a personas que solo coinciden en importe).
+        if (!pairHasInternalTransferConcept(group[i]!, group[j]!)) continue;
         push(group[i]!.id, group[j]!.id, score);
         push(group[j]!.id, group[i]!.id, score);
       }

@@ -784,6 +784,9 @@ export const transactionService = {
       date: t.date,
       type: t.type,
       transferGroupId: t.transferGroupId,
+      // Concepto para el filtro conservador de concepto (solo la auto-consolidacion lo usa). Se
+      // combina el normalizado y el crudo por si la senal (recarga/revolut*) esta en cualquiera.
+      concept: `${t.concept ?? ''} ${t.rawConcept ?? ''}`,
     }));
     const pairs = findAutoLinkablePairs(candidates);
     const groupIds: string[] = [];

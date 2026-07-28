@@ -454,11 +454,11 @@ describe('transferencias', () => {
     it('deshacer restaura ambas patas SIN borrar ningun movimiento', async () => {
       const out = await transactionService.create(
         A,
-        input({ accountId: 'ibercaja', amountCents: -5000, date: '2026-07-18' }),
+        input({ accountId: 'ibercaja', amountCents: -5000, date: '2026-07-18', concept: 'Revolut**5269' }),
       );
       const inc = await transactionService.create(
         A,
-        input({ accountId: 'revolut', amountCents: 5000, type: 'income', date: '2026-07-18' }),
+        input({ accountId: 'revolut', amountCents: 5000, type: 'income', date: '2026-07-18', concept: 'Recarga de *5019' }),
       );
       const { groupIds } = await transactionService.autoConsolidateTransfers(A);
       expect(groupIds).toHaveLength(1);
@@ -480,10 +480,13 @@ describe('transferencias', () => {
     });
 
     it('es idempotente: reejecutar no vuelve a vincular lo ya consolidado', async () => {
-      await transactionService.create(A, input({ accountId: 'ibercaja', amountCents: -5000, date: '2026-07-18' }));
       await transactionService.create(
         A,
-        input({ accountId: 'revolut', amountCents: 5000, type: 'income', date: '2026-07-18' }),
+        input({ accountId: 'ibercaja', amountCents: -5000, date: '2026-07-18', concept: 'Revolut**5269' }),
+      );
+      await transactionService.create(
+        A,
+        input({ accountId: 'revolut', amountCents: 5000, type: 'income', date: '2026-07-18', concept: 'Recarga de *5019' }),
       );
       expect((await transactionService.autoConsolidateTransfers(A)).linked).toBe(1);
       expect((await transactionService.autoConsolidateTransfers(A)).linked).toBe(0);
