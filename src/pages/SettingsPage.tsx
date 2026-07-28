@@ -1,16 +1,42 @@
 // Pagina Ajustes. En la fase 2 alberga la gestion del perfil activo: editar (nombre,
 // color, avatar) y eliminar (con doble confirmacion). Moneda/locale llegaran mas
 // adelante. Ver ARCHITECTURE.md seccion 4 (ruta /ajustes).
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useActiveProfile } from '../hooks/useProfiles';
+import { settingsService } from '../services/settingsService';
+import { useToast } from '../context/ToastContext';
 import { ProfileAvatar, ProfileFormModal, DeleteProfileModal } from '../components/profile';
 import { ThemeToggle } from '../components/common';
 
 export default function SettingsPage() {
   const profile = useActiveProfile();
+  const { showToast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Ajuste opt-in: consolidacion automatica de traspasos al importar. Se carga del Setting del
+  // perfil activo y se persiste al cambiarlo. null mientras carga (evita parpadeo del control).
+  const [autoConsolidate, setAutoConsolidate] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void settingsService.get(profile.id).then((s) => {
+      if (!cancelled) setAutoConsolidate(s.autoConsolidateTransfers);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.id]);
+
+  async function toggleAutoConsolidate(next: boolean) {
+    setAutoConsolidate(next); // optimista
+    try {
+      await settingsService.update(profile.id, { autoConsolidateTransfers: next });
+    } catch (e) {
+      setAutoConsolidate(!next); // revierte si falla
+      showToast(e instanceof Error ? e.message : 'No se pudo guardar el ajuste.', 'error');
+    }
+  }
 
   return (
     <section className="max-w-2xl">
@@ -59,6 +85,44 @@ export default function SettingsPage() {
             Elige entre modo oscuro y modo claro. La preferencia se guarda en este dispositivo.
           </p>
           <ThemeToggle variant="segmented" />
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Importación</h3>
+        <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-slate-100">
+              Consolidar traspasos automáticamente al importar
+            </p>
+            <p className="mt-1 text-sm text-slate-400">
+              Al importar, vincula solo las transferencias entre tus cuentas que sean{' '}
+              <strong className="text-slate-300">inequívocas</strong> (mismo importe, signos
+              opuestos, cuentas distintas, fechas próximas y sin ambigüedad). Repasa todo el
+              histórico, así empareja también la pata que llegue en una importación posterior. Los
+              casos dudosos se dejan para la Bandeja de revisión. Verás un resumen con opción de
+              deshacer. Si lo dejas desactivado, confirmas tú cada traspaso.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoConsolidate === true}
+            aria-label="Consolidar traspasos automáticamente al importar"
+            disabled={autoConsolidate === null}
+            onClick={() => void toggleAutoConsolidate(!(autoConsolidate === true))}
+            className={[
+              'relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-40',
+              autoConsolidate === true ? 'bg-indigo-600' : 'bg-slate-700',
+            ].join(' ')}
+          >
+            <span
+              className={[
+                'inline-block h-5 w-5 transform rounded-full bg-white transition-transform',
+                autoConsolidate === true ? 'translate-x-5' : 'translate-x-0.5',
+              ].join(' ')}
+            />
+          </button>
         </div>
       </div>
 

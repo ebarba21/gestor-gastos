@@ -28,6 +28,7 @@ import {
 const DEFAULT_CURRENCY = 'EUR';
 import { assert, ValidationError, requireId, requireProfileId } from '../lib/validation';
 import { assertCents } from '../lib/money';
+import { findAutoLinkablePairs, type TransferCandidateTx } from './transferCandidateEngine';
 
 export const MAX_CONCEPT_LENGTH = 140;
 export const MAX_NOTES_LENGTH = 500;
@@ -760,6 +761,62 @@ export const transactionService = {
       transferGroupId: null,
       excludedFromStats: false,
     });
+  },
+
+  // Consolidacion AUTOMATICA de traspasos (opt-in, activable en Ajustes). Vincula como
+  // transferencia los pares INEQUIVOCOS de alta confianza de TODO el perfil (mismo importe
+  // absoluto, signos opuestos, cuentas distintas, fechas proximas y match mutuo unico), usando la
+  // misma via que la confirmacion manual (linkAsTransfer): no reescribe concepto/fecha/importe,
+  // solo reclasifica ambas patas y las excluye de estadisticas. Al recorrer todo el perfil,
+  // empareja tambien patas que llegan en importaciones distintas (p. ej. la de Ibercaja semanas
+  // despues de la de Revolut). No es silenciosa: el llamante muestra un resumen y permite deshacer
+  // (unlinkTransferGroups). Devuelve cuantos pares se vincularon y sus transferGroupId (para el
+  // deshacer). Idempotente: los ya vinculados no son elegibles, asi que reejecutarla no duplica.
+  async autoConsolidateTransfers(
+    profileId: string,
+  ): Promise<{ linked: number; groupIds: string[] }> {
+    requireProfileId(profileId);
+    const all = await transactionsRepo.list(profileId);
+    const candidates: TransferCandidateTx[] = all.map((t) => ({
+      id: t.id,
+      accountId: t.accountId,
+      amountCents: t.amountCents,
+      date: t.date,
+      type: t.type,
+      transferGroupId: t.transferGroupId,
+    }));
+    const pairs = findAutoLinkablePairs(candidates);
+    const groupIds: string[] = [];
+    for (const pair of pairs) {
+      // linkAsTransfer revalida los requisitos duros y asigna un transferGroupId compartido.
+      const [a] = await transactionService.linkAsTransfer(profileId, pair.aId, pair.bId);
+      if (a.transferGroupId) groupIds.push(a.transferGroupId);
+    }
+    return { linked: groupIds.length, groupIds };
+  },
+
+  // Deshace la consolidacion de uno o varios grupos de transferencia SIN borrar ningun
+  // movimiento: restaura ambas patas a gasto/ingreso segun su signo y las devuelve a estadisticas.
+  // A diferencia de unmarkTransfer (pensado para markAsTransfer, que crea una pata espejo y por
+  // tanto la borra al deshacer), aqui las dos patas son movimientos reales importados: nunca se
+  // eliminan. Es el inverso correcto de linkAsTransfer/autoConsolidateTransfers.
+  async unlinkTransferGroups(profileId: string, groupIds: string[]): Promise<number> {
+    requireProfileId(profileId);
+    let undone = 0;
+    for (const groupId of groupIds) {
+      const legs = await transactionsRepo.listByTransferGroup(profileId, groupId);
+      if (legs.length === 0) continue;
+      for (const leg of legs) {
+        const restoredType: TransactionType = leg.amountCents < 0 ? 'expense' : 'income';
+        await transactionsRepo.update(profileId, leg.id, {
+          type: restoredType,
+          transferGroupId: null,
+          excludedFromStats: false,
+        });
+      }
+      undone += 1;
+    }
+    return undone;
   },
 
   // Divide un movimiento en partes (split). Valida que la suma de partes = importe del

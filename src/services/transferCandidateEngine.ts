@@ -90,6 +90,86 @@ export function scoreTransferPair(
   };
 }
 
+// Ventana temporal estricta (dias) para la consolidacion AUTOMATICA (opt-in). Mas corta que la
+// ventana de sugerencia (TRANSFER_DATE_WINDOW_DAYS): auto-vincular exige mas certeza que
+// proponer. Cambiar el valor es un cambio de producto, no un detalle de implementacion.
+export const AUTO_CONSOLIDATE_WINDOW_DAYS = 3;
+
+// Un par auto-vinculable ya orientado: aId es la salida (importe negativo) y bId la entrada
+// (importe positivo). confidence y dayDiff son orientativos (heuristica), no probabilidad real.
+export interface AutoLinkPair {
+  aId: string;
+  bId: string;
+  confidence: number;
+  dayDiff: number;
+}
+
+// Encuentra pares de transferencia AUTO-VINCULABLES: solo los INEQUIVOCOS. Un par lo es cuando,
+// dentro de su grupo de mismo importe absoluto y ventana estricta, cada pata tiene EXACTAMENTE
+// UNA contraparte valida y ambas se apuntan entre si (match mutuo unico). Esto evita vincular dos
+// movimientos de "-50" cualesquiera: si hay ambiguedad (varias contrapartes posibles), el par se
+// descarta y queda para revision manual (nunca se adivina una relacion, invariante 11 de CLAUDE).
+// Funcion PURA y determinista (no depende del orden de entrada). El llamante decide cuando usarla
+// (opt-in) y sobre que universo (todo el perfil: asi empareja tambien patas que llegan en
+// importaciones distintas, p. ej. la de Ibercaja semanas despues de la de Revolut).
+export function findAutoLinkablePairs(
+  txs: TransferCandidateTx[],
+  windowDays: number = AUTO_CONSOLIDATE_WINDOW_DAYS,
+): AutoLinkPair[] {
+  const eligible = txs.filter(
+    (t) => t.type !== 'transfer' && t.transferGroupId === null && t.amountCents !== 0,
+  );
+  const byAbsAmount = new Map<number, TransferCandidateTx[]>();
+  for (const t of eligible) {
+    const key = Math.abs(t.amountCents);
+    const list = byAbsAmount.get(key) ?? [];
+    list.push(t);
+    byAbsAmount.set(key, list);
+  }
+
+  const result: AutoLinkPair[] = [];
+  for (const group of byAbsAmount.values()) {
+    if (group.length < 2) continue;
+    // Aristas validas dentro del grupo: pares que cumplen los requisitos duros y la ventana
+    // estricta. partners[id] = lista de contrapartes validas de ese id.
+    const partners = new Map<string, { partnerId: string; score: TransferPairScore }[]>();
+    const push = (id: string, partnerId: string, score: TransferPairScore) => {
+      const list = partners.get(id);
+      if (list) list.push({ partnerId, score });
+      else partners.set(id, [{ partnerId, score }]);
+    };
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const score = scoreTransferPair(group[i]!, group[j]!);
+        if (!score || score.dayDiff > windowDays) continue;
+        push(group[i]!.id, group[j]!.id, score);
+        push(group[j]!.id, group[i]!.id, score);
+      }
+    }
+
+    const seen = new Set<string>();
+    for (const [id, list] of partners) {
+      if (list.length !== 1) continue; // esta pata tiene contraparte ambigua o ninguna
+      const { partnerId, score } = list[0]!;
+      const partnerList = partners.get(partnerId);
+      // La contraparte tambien debe tener exactamente una: este id (match mutuo unico).
+      if (!partnerList || partnerList.length !== 1 || partnerList[0]!.partnerId !== id) continue;
+      const pairKey = [id, partnerId].sort().join(':');
+      if (seen.has(pairKey)) continue;
+      seen.add(pairKey);
+      const t1 = group.find((t) => t.id === id)!;
+      const t2 = group.find((t) => t.id === partnerId)!;
+      const out = t1.amountCents < 0 ? t1 : t2; // salida (negativo)
+      const inc = t1.amountCents < 0 ? t2 : t1; // entrada (positivo)
+      result.push({ aId: out.id, bId: inc.id, confidence: score.confidence, dayDiff: score.dayDiff });
+    }
+  }
+
+  // Orden determinista (independiente del orden de entrada).
+  result.sort((x, y) => (x.aId + x.bId).localeCompare(y.aId + y.bId));
+  return result;
+}
+
 // Puntua un movimiento contra una lista de candidatos YA ACOTADA por el llamante (mismo
 // importe absoluto, ventana temporal amplia). Determinista: no depende del orden de entrada.
 export function scoreAllTransferCandidates(

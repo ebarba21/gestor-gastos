@@ -13,6 +13,8 @@ import {
 import type { DuplicateAction } from '../../services/duplicateEngine';
 import { reviewService, type ImportRowError } from '../../services/reviewService';
 import { ruleService } from '../../services/ruleService';
+import { settingsService } from '../../services/settingsService';
+import { transactionService } from '../../services/transactionService';
 import { transactionsRepo } from '../../db/transactionsRepo';
 import type { ImportBatch } from '../../db/schema';
 import { EmptyState, ConfirmDialog, type DialogButton } from '../common';
@@ -200,6 +202,16 @@ export function ImportSection() {
       await reviewService.generateFromImportBatch(profileId, batch.id, createdTransactions, rowErrors);
       const enabledRules = await ruleService.listEnabled(profileId);
       await reviewService.generateFromRuleMatches(profileId, createdTransactions, enabledRules);
+
+      // Consolidacion automatica de traspasos (opt-in). Se ejecuta ANTES del escaneo de
+      // candidatos: auto-vincula los pares inequivocos de todo el perfil (incluye patas que
+      // llegan en importaciones distintas), y el escaneo posterior propone como tarea manual solo
+      // los casos ambiguos que quedan. No es silenciosa: se refleja en el resumen con Deshacer.
+      let autoConsolidated = { linked: 0, groupIds: [] as string[] };
+      if (await settingsService.isAutoConsolidateTransfersEnabled(profileId)) {
+        autoConsolidated = await transactionService.autoConsolidateTransfers(profileId);
+      }
+
       await reviewService.runFullScan(profileId);
       const reviewCounts = await reviewService.countsByType(profileId);
 
@@ -217,6 +229,8 @@ export function ImportSection() {
         netEffectCents,
         reviewTotal: reviewCounts.total,
         reviewByType: reviewCounts.byType,
+        autoConsolidatedTransfers: autoConsolidated.linked,
+        autoConsolidatedGroupIds: autoConsolidated.groupIds,
       });
       setStep('summary');
       await reload();
@@ -224,6 +238,18 @@ export function ImportSection() {
       showToast(e instanceof Error ? e.message : 'No se pudo completar la importación.', 'error');
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Deshace la consolidacion automatica de traspasos de la ultima importacion: desvincula los
+  // grupos (sin borrar ningun movimiento) y refresca el historial. Lo invoca el resumen.
+  async function handleUndoConsolidation(groupIds: string[]) {
+    try {
+      const undone = await transactionService.unlinkTransferGroups(profileId, groupIds);
+      showToast(`Consolidación deshecha (${undone} traspaso(s)).`, 'info');
+      await reload();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo deshacer la consolidación.', 'error');
     }
   }
 
@@ -381,6 +407,7 @@ export function ImportSection() {
               locale={LOCALE}
               currency={CURRENCY}
               onImportAnother={resetWizard}
+              onUndoConsolidation={handleUndoConsolidation}
             />
           )}
         </>

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   scoreTransferPair,
   scoreAllTransferCandidates,
+  findAutoLinkablePairs,
+  AUTO_CONSOLIDATE_WINDOW_DAYS,
   TRANSFER_DATE_WINDOW_DAYS,
   type TransferCandidateTx,
 } from './transferCandidateEngine';
@@ -122,5 +124,56 @@ describe('scoreAllTransferCandidates', () => {
     const results = scoreAllTransferCandidates(a, [invalid, valid]);
     expect(results).toHaveLength(1);
     expect(results[0].counterpartId).toBe('tx-valid');
+  });
+});
+
+describe('findAutoLinkablePairs', () => {
+  it('vincula un par inequivoco (salida orientada primero)', () => {
+    const out = tx({ id: 'ibercaja-out', accountId: 'ibercaja', amountCents: -5000, date: '2026-07-18' });
+    const inc = tx({ id: 'revolut-in', accountId: 'revolut', amountCents: 5000, date: '2026-07-18' });
+    const pairs = findAutoLinkablePairs([inc, out]);
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0].aId).toBe('ibercaja-out'); // salida (negativo)
+    expect(pairs[0].bId).toBe('revolut-in'); // entrada (positivo)
+  });
+
+  it('NO vincula si hay ambiguedad (dos posibles contrapartes del mismo importe)', () => {
+    const out = tx({ id: 'out', accountId: 'ibercaja', amountCents: -5000, date: '2026-07-18' });
+    const in1 = tx({ id: 'in1', accountId: 'revolut', amountCents: 5000, date: '2026-07-18' });
+    const in2 = tx({ id: 'in2', accountId: 'bbva', amountCents: 5000, date: '2026-07-19' });
+    // 'out' podria emparejar con in1 o in2: ambiguo -> ninguno se auto-vincula.
+    expect(findAutoLinkablePairs([out, in1, in2])).toEqual([]);
+  });
+
+  it('respeta la ventana estricta de auto-consolidacion', () => {
+    const out = tx({ id: 'out', accountId: 'ibercaja', amountCents: -5000, date: '2026-07-01' });
+    const inc = tx({ id: 'in', accountId: 'revolut', amountCents: 5000, date: '2026-07-05' });
+    // 4 dias > AUTO_CONSOLIDATE_WINDOW_DAYS (3), aunque cabria en la ventana de sugerencia (5).
+    expect(AUTO_CONSOLIDATE_WINDOW_DAYS).toBeLessThan(TRANSFER_DATE_WINDOW_DAYS);
+    expect(findAutoLinkablePairs([out, inc])).toEqual([]);
+    // Con ventana mas amplia explicita, si lo empareja.
+    expect(findAutoLinkablePairs([out, inc], 5)).toHaveLength(1);
+  });
+
+  it('ignora los ya vinculados o de tipo transfer', () => {
+    const out = tx({ id: 'out', accountId: 'ibercaja', amountCents: -5000, transferGroupId: 'g1' });
+    const inc = tx({ id: 'in', accountId: 'revolut', amountCents: 5000, type: 'transfer' });
+    expect(findAutoLinkablePairs([out, inc])).toEqual([]);
+  });
+
+  it('empareja dos traspasos distintos del mismo importe si estan separados en el tiempo', () => {
+    // Retroactivo: cada pareja esta aislada temporalmente, asi no hay ambiguedad entre ellas.
+    const outA = tx({ id: 'outA', accountId: 'ibercaja', amountCents: -5000, date: '2026-01-10' });
+    const inA = tx({ id: 'inA', accountId: 'revolut', amountCents: 5000, date: '2026-01-10' });
+    const outB = tx({ id: 'outB', accountId: 'ibercaja', amountCents: -5000, date: '2026-06-10' });
+    const inB = tx({ id: 'inB', accountId: 'revolut', amountCents: 5000, date: '2026-06-10' });
+    const pairs = findAutoLinkablePairs([outA, inA, outB, inB]);
+    expect(pairs).toHaveLength(2);
+    expect(pairs.map((p) => [p.aId, p.bId])).toEqual(
+      expect.arrayContaining([
+        ['outA', 'inA'],
+        ['outB', 'inB'],
+      ]),
+    );
   });
 });

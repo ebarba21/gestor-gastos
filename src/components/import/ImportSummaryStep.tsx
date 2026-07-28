@@ -2,6 +2,7 @@
 // flujo posterior a importar (ARCHITECTURE seccion 17): Importar -> Revisar excepciones
 // (bandeja) -> Conciliar -> Ver resultados. Si el lote no genero tareas, se puede ir directo a
 // conciliacion; el enlace al listado de movimientos llega ya filtrado por este lote.
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ReviewItemType } from '../../db/schema';
 import { REVIEW_TYPE_LABELS } from '../../services/reviewService';
@@ -20,6 +21,10 @@ export interface ImportSummaryData {
   netEffectCents: number;
   reviewTotal: number;
   reviewByType: Partial<Record<ReviewItemType, number>>;
+  // Traspasos consolidados automaticamente en esta importacion (opt-in) y sus transferGroupId,
+  // para poder deshacerlos desde este mismo resumen. 0 si el ajuste esta desactivado.
+  autoConsolidatedTransfers: number;
+  autoConsolidatedGroupIds: string[];
 }
 
 interface ImportSummaryStepProps {
@@ -27,6 +32,8 @@ interface ImportSummaryStepProps {
   locale: string;
   currency: string;
   onImportAnother: () => void;
+  // Deshace la consolidacion automatica de esta importacion (desvincula los grupos, sin borrar).
+  onUndoConsolidation: (groupIds: string[]) => Promise<void>;
 }
 
 export function ImportSummaryStep({
@@ -34,8 +41,22 @@ export function ImportSummaryStep({
   locale,
   currency,
   onImportAnother,
+  onUndoConsolidation,
 }: ImportSummaryStepProps) {
   const reviewEntries = Object.entries(summary.reviewByType) as [ReviewItemType, number][];
+  const [undone, setUndone] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+
+  async function handleUndo() {
+    if (undoing || undone) return;
+    setUndoing(true);
+    try {
+      await onUndoConsolidation(summary.autoConsolidatedGroupIds);
+      setUndone(true);
+    } finally {
+      setUndoing(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -63,6 +84,31 @@ export function ImportSummaryStep({
           </div>
         </dl>
       </div>
+
+      {summary.autoConsolidatedTransfers > 0 && (
+        <div className="rounded-2xl border border-sky-800 bg-sky-950/30 p-6">
+          <h3 className="text-lg font-semibold text-sky-200">
+            {undone
+              ? 'Consolidación deshecha'
+              : `Se consolidaron ${summary.autoConsolidatedTransfers} traspaso(s) automáticamente`}
+          </h3>
+          <p className="mt-1 text-sm text-sky-100">
+            {undone
+              ? 'Los movimientos han vuelto a contar como gasto e ingreso.'
+              : 'Sus dos patas se han vinculado como transferencia y quedan excluidas de ingresos y gastos. Los saldos no cambian.'}
+          </p>
+          {!undone && (
+            <button
+              type="button"
+              onClick={() => void handleUndo()}
+              disabled={undoing}
+              className="mt-4 inline-block rounded-lg border border-sky-700 px-4 py-2 text-sm font-medium text-sky-200 hover:bg-sky-900/50 disabled:opacity-40"
+            >
+              {undoing ? 'Deshaciendo...' : 'Deshacer consolidación'}
+            </button>
+          )}
+        </div>
+      )}
 
       {summary.reviewTotal > 0 ? (
         <div className="rounded-2xl border border-amber-800 bg-amber-950/30 p-6">

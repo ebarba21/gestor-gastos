@@ -112,6 +112,7 @@ async function seedRichProfile(name: string) {
     weekStart: 'monday',
     defaultAccountId: acc1.id,
     encryptionEnabled: false,
+    autoConsolidateTransfers: false,
   });
 
   const catRoot = await categoriesRepo.create(pid, {

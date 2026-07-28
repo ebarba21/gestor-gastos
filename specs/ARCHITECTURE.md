@@ -339,6 +339,10 @@ La bandeja (ruta `/bandeja`, `ReviewItem`) se alimenta de eventos, no de sondeos
 
 Flujo posterior a importar: `Importar -> Revisar excepciones (bandeja) -> Conciliar -> Ver resultados`. Si no hay tareas, se puede ir directo a conciliacion o al resumen.
 
+### 17.1 Consolidacion automatica de traspasos (opt-in)
+
+Por defecto, un traspaso candidato genera una tarea de revision que la persona confirma (comportamiento base, coherente con la invariante 11 de `CLAUDE.md`). De forma OPCIONAL, el ajuste `Setting.autoConsolidateTransfers` (activable en Ajustes, por defecto desactivado) permite que, tras cada importacion, se vinculen automaticamente como transferencia los pares INEQUIVOCOS: mismo importe absoluto, signos opuestos, cuentas distintas, dentro de `AUTO_CONSOLIDATE_WINDOW_DAYS` (3, mas estricta que la ventana de sugerencia) y con **match mutuo unico** (cada pata tiene exactamente una contraparte valida). Si hay cualquier ambiguedad, NO se auto-vincula: queda como tarea manual. El escaneo recorre todo el perfil, por lo que empareja tambien patas que llegan en importaciones distintas (p. ej. la de un banco que procesa el movimiento dias despues). Esta relajacion de la invariante 11 es admisible porque es **informada** (opt-in explicito), **no silenciosa** (se muestra un resumen tras importar) y **reversible** (deshacer que desvincula ambas patas sin borrar ningun movimiento, `unlinkTransferGroups`). No se hace merge automatico de importes ni se reescribe el concepto/fecha/importe original.
+
 ## 18. Backups, auditoria y trazabilidad
 
 - **Backups**: siguen siendo por perfil (JSON con version de esquema). Con la ampliacion incluyen las nuevas entidades y los campos de sincronizacion, y EXCLUYEN siempre PIN, contrasenas, tokens, credenciales WebAuthn y sesiones. La restauracion es idempotente (upsert por UUID) y genera mutaciones sin duplicar. Los archivos bancarios originales no forman parte del backup ni se suben por defecto.

@@ -21,6 +21,7 @@ export function defaultSettingInput(): SettingInput {
     weekStart: 'monday',
     defaultAccountId: null,
     encryptionEnabled: false, // Reservado fase 2. En el MVP siempre false.
+    autoConsolidateTransfers: false, // Opt-in: la persona lo activa en Ajustes.
   };
 }
 

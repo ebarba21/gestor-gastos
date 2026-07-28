@@ -407,6 +407,88 @@ describe('transferencias', () => {
       await expect(transactionService.linkAsTransfer(A, income.id, c.id)).rejects.toThrow(ValidationError);
     });
   });
+
+  describe('autoConsolidateTransfers y unlinkTransferGroups', () => {
+    it('vincula el par inequivoco (ambas patas excluidas) y deja el ambiguo sin tocar', async () => {
+      // Par claro Ibercaja -> Revolut, unico a su importe.
+      const out = await transactionService.create(
+        A,
+        input({ accountId: 'ibercaja', amountCents: -15000, concept: 'Revolut**5269', date: '2026-07-18' }),
+      );
+      const inc = await transactionService.create(
+        A,
+        input({ accountId: 'revolut', amountCents: 15000, type: 'income', concept: 'Recarga de *5019', date: '2026-07-18' }),
+      );
+      // Dos ingresos demas del mismo importe (100) que hacen ambiguo cualquier par de 100.
+      const amb1 = await transactionService.create(
+        A,
+        input({ accountId: 'ibercaja', amountCents: -10000, type: 'expense', date: '2026-07-10' }),
+      );
+      await transactionService.create(
+        A,
+        input({ accountId: 'revolut', amountCents: 10000, type: 'income', date: '2026-07-10' }),
+      );
+      await transactionService.create(
+        A,
+        input({ accountId: 'bbva', amountCents: 10000, type: 'income', date: '2026-07-11' }),
+      );
+
+      const result = await transactionService.autoConsolidateTransfers(A);
+      expect(result.linked).toBe(1);
+      expect(result.groupIds).toHaveLength(1);
+
+      const updatedOut = await transactionsRepo.getById(A, out.id);
+      const updatedIn = await transactionsRepo.getById(A, inc.id);
+      expect(updatedOut?.type).toBe('transfer');
+      expect(updatedIn?.type).toBe('transfer');
+      expect(updatedOut?.excludedFromStats).toBe(true);
+      expect(updatedIn?.excludedFromStats).toBe(true);
+      expect(updatedOut?.transferGroupId).toBe(updatedIn?.transferGroupId);
+
+      // El par ambiguo de 100 sigue siendo gasto/ingreso normal.
+      const ambStill = await transactionsRepo.getById(A, amb1.id);
+      expect(ambStill?.type).toBe('expense');
+      expect(ambStill?.transferGroupId).toBeNull();
+    });
+
+    it('deshacer restaura ambas patas SIN borrar ningun movimiento', async () => {
+      const out = await transactionService.create(
+        A,
+        input({ accountId: 'ibercaja', amountCents: -5000, date: '2026-07-18' }),
+      );
+      const inc = await transactionService.create(
+        A,
+        input({ accountId: 'revolut', amountCents: 5000, type: 'income', date: '2026-07-18' }),
+      );
+      const { groupIds } = await transactionService.autoConsolidateTransfers(A);
+      expect(groupIds).toHaveLength(1);
+
+      const undone = await transactionService.unlinkTransferGroups(A, groupIds);
+      expect(undone).toBe(1);
+
+      const restoredOut = await transactionsRepo.getById(A, out.id);
+      const restoredIn = await transactionsRepo.getById(A, inc.id);
+      // Ninguna pata se borra (a diferencia de unmarkTransfer con la pata espejo).
+      expect(restoredOut).toBeDefined();
+      expect(restoredIn).toBeDefined();
+      expect(restoredOut?.type).toBe('expense');
+      expect(restoredIn?.type).toBe('income');
+      expect(restoredOut?.excludedFromStats).toBe(false);
+      expect(restoredIn?.excludedFromStats).toBe(false);
+      expect(restoredOut?.transferGroupId).toBeNull();
+      expect(restoredIn?.transferGroupId).toBeNull();
+    });
+
+    it('es idempotente: reejecutar no vuelve a vincular lo ya consolidado', async () => {
+      await transactionService.create(A, input({ accountId: 'ibercaja', amountCents: -5000, date: '2026-07-18' }));
+      await transactionService.create(
+        A,
+        input({ accountId: 'revolut', amountCents: 5000, type: 'income', date: '2026-07-18' }),
+      );
+      expect((await transactionService.autoConsolidateTransfers(A)).linked).toBe(1);
+      expect((await transactionService.autoConsolidateTransfers(A)).linked).toBe(0);
+    });
+  });
 });
 
 describe('reembolsos', () => {

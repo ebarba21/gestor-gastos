@@ -112,6 +112,13 @@ export interface Setting extends SyncMeta {
   defaultAccountId: string | null;
   // Reservado fase 2 (Web Crypto). En el MVP siempre false.
   encryptionEnabled: boolean;
+  // Consolidacion automatica de traspasos al importar (opt-in). Cuando esta activo, tras cada
+  // importacion se vinculan como transferencia los pares INEQUIVOCOS de alta confianza (mismo
+  // importe absoluto, signos opuestos, cuentas distintas, fechas proximas y match unico), con
+  // resumen y opcion de deshacer. Por defecto false: el comportamiento base sigue siendo que la
+  // persona confirma cada traspaso (CLAUDE.md invariante 11). Campo aditivo: en filas previas sin
+  // el valor se interpreta como false. Ver specs/ARCHITECTURE seccion 17.
+  autoConsolidateTransfers: boolean;
   createdAt: number;
   updatedAt: number;
 }
