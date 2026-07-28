@@ -93,6 +93,13 @@ export const accountService = {
     return transactionsRepo.countByAccount(profileId, id);
   },
 
+  // Fecha del ultimo movimiento por cuenta (YYYY-MM-DD). Mapa accountId -> fecha; las cuentas
+  // sin movimientos no aparecen. La pantalla de cuentas lo usa para indicar hasta que dia hay
+  // datos de cada cuenta y desde cuando descargar el proximo extracto.
+  lastMovementDates(profileId: string): Promise<Map<string, string>> {
+    return transactionsRepo.lastMovementDateByAccount(profileId);
+  },
+
   // Borrado con regla de integridad: una cuenta con movimientos no se puede borrar.
   // Se ofrece archivar (conserva la cuenta y su historico, la oculta de los selectores).
   async deleteAccount(profileId: string, id: string): Promise<void> {

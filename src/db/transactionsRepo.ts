@@ -222,6 +222,27 @@ export const transactionsRepo = {
       .toArray();
   },
 
+  // Fecha (YYYY-MM-DD) del movimiento mas reciente de CADA cuenta del perfil. Sirve para saber,
+  // por cada cuenta, hasta que dia se tienen datos (y desde cuando pedir el proximo extracto).
+  // Cuentan todos los movimientos vivos, incluidas las patas de transferencia: son entradas
+  // bancarias reales con fecha. Las fechas contables son ISO ordenables lexicograficamente, asi
+  // que el maximo se obtiene con comparacion de strings. Se recorre en streaming (.each) para no
+  // materializar todas las filas. Aislamiento: solo el perfil indicado. Una cuenta sin
+  // movimientos no aparece en el mapa.
+  async lastMovementDateByAccount(profileId: string): Promise<Map<string, string>> {
+    requireProfileId(profileId);
+    const latest = new Map<string, string>();
+    await db.transactions
+      .where('profileId')
+      .equals(profileId)
+      .filter(isAlive)
+      .each((t) => {
+        const prev = latest.get(t.accountId);
+        if (prev === undefined || t.date > prev) latest.set(t.accountId, t.date);
+      });
+    return latest;
+  },
+
   // Movimientos que SI cuentan en estadisticas (statsFlag = 0). Excluye tombstones.
   listForStats(profileId: string): Promise<Transaction[]> {
     requireProfileId(profileId);

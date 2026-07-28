@@ -11,7 +11,7 @@ import { useToast } from '../../context/ToastContext';
 import { AccountFormModal } from './AccountFormModal';
 
 export function AccountsSection() {
-  const { profileId, accounts, loading, error, reload } = useAccounts();
+  const { profileId, accounts, lastMovementDates, loading, error, reload } = useAccounts();
   const { showToast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
@@ -108,7 +108,19 @@ export function AccountsSection() {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-100">{acc.name}</p>
-                  <p className="text-xs text-slate-500">{ACCOUNT_KIND_LABELS[acc.kind]}</p>
+                  <p className="text-xs text-slate-500">
+                    {ACCOUNT_KIND_LABELS[acc.kind]}
+                    {' · '}
+                    {/* Hasta que dia hay datos de esta cuenta: util para saber desde cuando
+                        descargar el proximo extracto. Sin movimientos aun, se indica. */}
+                    {lastMovementDates.has(acc.id) ? (
+                      <span className="tabular-nums">
+                        Último movimiento: {lastMovementDates.get(acc.id)}
+                      </span>
+                    ) : (
+                      <span>Sin movimientos</span>
+                    )}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-slate-200">{formatCents(acc.openingBalanceCents)}</p>

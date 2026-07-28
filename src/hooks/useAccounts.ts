@@ -8,6 +8,8 @@ import type { Account } from '../db/schema';
 interface UseAccounts {
   profileId: string;
   accounts: Account[];
+  // Fecha (YYYY-MM-DD) del ultimo movimiento por cuenta. Las cuentas sin movimientos no aparecen.
+  lastMovementDates: Map<string, string>;
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
@@ -16,13 +18,20 @@ interface UseAccounts {
 export function useAccounts(): UseAccounts {
   const profileId = useActiveProfileId();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [lastMovementDates, setLastMovementDates] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      setAccounts(await accountService.listSorted(profileId));
+      // Cuentas y ultimas fechas del mismo perfil, en paralelo (consultas independientes).
+      const [list, dates] = await Promise.all([
+        accountService.listSorted(profileId),
+        accountService.lastMovementDates(profileId),
+      ]);
+      setAccounts(list);
+      setLastMovementDates(dates);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudieron cargar las cuentas.');
@@ -35,5 +44,5 @@ export function useAccounts(): UseAccounts {
     void reload();
   }, [reload]);
 
-  return { profileId, accounts, loading, error, reload };
+  return { profileId, accounts, lastMovementDates, loading, error, reload };
 }

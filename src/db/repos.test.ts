@@ -295,6 +295,61 @@ describe('Integridad de Transaction', () => {
   });
 });
 
+describe('transactionsRepo.lastMovementDateByAccount', () => {
+  it('devuelve la fecha maxima por cuenta y omite las cuentas sin movimientos', async () => {
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ accountId: 'acc-1', date: '2026-01-10', dedupeHash: 'a1' }),
+    );
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ accountId: 'acc-1', date: '2026-03-05', dedupeHash: 'a2' }),
+    );
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ accountId: 'acc-1', date: '2026-02-20', dedupeHash: 'a3' }),
+    );
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ accountId: 'acc-2', date: '2026-06-01', dedupeHash: 'b1' }),
+    );
+
+    const dates = await transactionsRepo.lastMovementDateByAccount(PROFILE_A);
+    expect(dates.get('acc-1')).toBe('2026-03-05');
+    expect(dates.get('acc-2')).toBe('2026-06-01');
+    // Una cuenta sin movimientos no aparece en el mapa.
+    expect(dates.has('acc-3')).toBe(false);
+  });
+
+  it('incluye las patas de transferencia (son entradas bancarias reales con fecha)', async () => {
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({
+        accountId: 'acc-1',
+        date: '2026-05-15',
+        type: 'transfer',
+        excludedFromStats: true,
+        dedupeHash: 't1',
+      }),
+    );
+    const dates = await transactionsRepo.lastMovementDateByAccount(PROFILE_A);
+    expect(dates.get('acc-1')).toBe('2026-05-15');
+  });
+
+  it('aisla por perfil: no mezcla fechas de otro perfil (invariante 4)', async () => {
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ accountId: 'acc-1', date: '2026-01-10', dedupeHash: 'a1' }),
+    );
+    await transactionsRepo.create(
+      PROFILE_B,
+      txInput({ accountId: 'acc-1', date: '2026-09-30', dedupeHash: 'b1' }),
+    );
+    const datesA = await transactionsRepo.lastMovementDateByAccount(PROFILE_A);
+    expect(datesA.get('acc-1')).toBe('2026-01-10');
+  });
+});
+
 describe('categoriesRepo: anidamiento de un solo nivel', () => {
   it('permite subcategoria bajo una categoria raiz', async () => {
     const root = await categoriesRepo.create(PROFILE_A, {
