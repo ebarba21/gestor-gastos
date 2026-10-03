@@ -234,3 +234,28 @@ describe('guessRuleColumnMap (autodeteccion por cabecera)', () => {
     expect(guessRuleColumnMap(['Columna 1', 'Columna 2'])).toEqual(emptyRuleColumnMap());
   });
 });
+
+describe('ruleImportService.commit con placeFirst', () => {
+  it('pone las reglas importadas por delante de las existentes', async () => {
+    const { ruleImportService, emptyRuleColumnMap } = await import('./ruleImportService');
+    const { ruleService } = await import('./ruleService');
+    const { categoryService } = await import('./categoryService');
+    const { db } = await import('../db');
+    await Promise.all(db.tables.map((t) => t.clear()));
+    const pid = 'perfil-prio';
+    const coche = await categoryService.createCategory(pid, { name: 'Coche', kind: 'expense' });
+    const gasolina = await categoryService.createCategory(pid, { name: 'Gasolina', kind: 'expense' });
+    await ruleService.create(pid, {
+      name: 'vieja', enabled: true, matchMode: 'all', stopOnMatch: true,
+      conditions: [{ field: 'concept', operator: 'contains', value: 'iber', value2: null, caseSensitive: false }],
+      action: { setCategoryId: coche.id, setSubcategoryId: null, addTagIds: [], setExcludedFromStats: null },
+    });
+    const parsed = { fileName: 'r.csv', sourceFormat: 'csv' as const, rows: [['Valor', 'Categoria'], ['iberdrola', 'Gasolina']], columnCount: 2, sourceFileHash: 'h', sourceFileSize: 1 };
+    const columnMap = { ...emptyRuleColumnMap(), value: 0, category: 1 };
+    const preview = ruleImportService.buildPreview(pid, parsed, { columnMap, hasHeaderRow: true }, { categories: await categoryService.listAll(pid), tags: [], accounts: [] });
+    await ruleImportService.commit(pid, preview, { placeFirst: true });
+    const ordered = (await ruleService.list(pid)).sort((a, b) => a.priority - b.priority);
+    expect(ordered.map((r) => r.name)).toEqual(['concept contains iberdrola', 'vieja']);
+    expect(ordered[0]!.action.setCategoryId).toBe(gasolina.id);
+  });
+});

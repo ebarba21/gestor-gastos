@@ -60,6 +60,9 @@ export function RuleImportModal({
   });
   const [preview, setPreview] = useState<RuleImportPreview | null>(null);
   const [busy, setBusy] = useState(false);
+  // Por defecto las reglas importadas van por delante de las existentes: lo habitual es
+  // importar reglas mas concretas o correcciones que deben ganar.
+  const [placeFirst, setPlaceFirst] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -132,7 +135,7 @@ export function RuleImportModal({
     if (!preview) return;
     setBusy(true);
     try {
-      const { created } = await ruleImportService.commit(profileId, preview);
+      const { created } = await ruleImportService.commit(profileId, preview, { placeFirst });
       showToast(`${created} regla(s) importadas.`, 'success');
       await onImported();
       handleClose();
@@ -256,6 +259,20 @@ export function RuleImportModal({
                 </div>
               ))}
             </div>
+            <label className="flex items-start gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={placeFirst}
+                onChange={(e) => setPlaceFirst(e.target.checked)}
+              />
+              <span>
+                Dar prioridad a estas reglas sobre las que ya tienes
+                <span className="block text-xs text-slate-500">
+                  Gana la primera regla que coincide. Desmarcalo para anadirlas al final.
+                </span>
+              </span>
+            </label>
             <div className="flex justify-between pt-1">
               <button
                 type="button"

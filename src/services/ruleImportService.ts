@@ -484,15 +484,31 @@ export const ruleImportService = {
   // Crea las reglas incluidas de la previsualizacion. Las reglas se crean en el orden de las
   // filas (ruleService.create asigna prioridades incrementales al final). Devuelve cuantas se
   // crearon. Aislamiento: ruleService exige profileId.
-  async commit(profileId: string, preview: RuleImportPreview): Promise<{ created: number }> {
+  // Con `placeFirst`, las reglas importadas pasan por delante de las que ya habia (manteniendo
+  // su orden entre ellas): sirve para importar correcciones que deben ganar a reglas mas
+  // generales existentes (las reglas se evaluan por prioridad y gana la primera que casa).
+  async commit(
+    profileId: string,
+    preview: RuleImportPreview,
+    options: { placeFirst?: boolean } = {},
+  ): Promise<{ created: number }> {
     requireProfileId(profileId);
     const included = preview.rows.filter((r) => r.include && r.rule !== null);
     assert(included.length > 0, 'No hay ninguna regla seleccionada para importar.');
-    let created = 0;
+    const createdIds: string[] = [];
     for (const row of included) {
-      await ruleService.create(profileId, row.rule as RuleInput);
-      created += 1;
+      const rule = await ruleService.create(profileId, row.rule as RuleInput);
+      createdIds.push(rule.id);
     }
-    return { created };
+    if (options.placeFirst) {
+      const all = await ruleService.list(profileId);
+      const fresh = new Set(createdIds);
+      const existing = all
+        .filter((r) => !fresh.has(r.id))
+        .sort((a, b) => a.priority - b.priority || a.createdAt - b.createdAt)
+        .map((r) => r.id);
+      await ruleService.reorder(profileId, [...createdIds, ...existing]);
+    }
+    return { created: createdIds.length };
   },
 };
