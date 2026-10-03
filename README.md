@@ -3,6 +3,10 @@
 Gestor de gastos personales. PWA responsive (PC y movil), **local-first**, multiusuario por
 perfiles locales, con **sincronizacion privada opcional** mediante Supabase.
 
+**App publicada:** https://ebarba21.github.io/gestor-gastos/ (se instala en iPhone desde Safari >
+Compartir > Anadir a pantalla de inicio). Despliegue, usuarios e historico:
+`docs/PUESTA_EN_MARCHA.md`.
+
 - Sin cuenta: la app funciona 100% en local (IndexedDB/Dexie), offline, y ningun dato financiero
   sale del dispositivo. Registrar, importar, categorizar, analizar, exportar y hacer backup no
   requieren red ni cuenta.
