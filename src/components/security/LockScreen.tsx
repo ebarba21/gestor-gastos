@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth';
 import { useLock } from '../../security/LockContext';
+import { biometricLabel } from '../../security/biometricUnlock';
 
 const WRAP = 'flex min-h-screen flex-col items-center justify-center bg-slate-950 p-6 text-slate-100';
 const CARD = 'w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6';
@@ -47,7 +48,8 @@ function PinUnlockCard({ onForgotten }: { onForgotten: () => void }) {
   const [remainingMs, setRemainingMs] = useState(lock.lockoutRemainingMs);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    // Con biometria activada no se abre el teclado del movil: se pide la cara o la huella.
+    if (!lock.biometricEnabled) inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -60,6 +62,30 @@ function PinUnlockCard({ onForgotten }: { onForgotten: () => void }) {
   }, [lock.lockoutRemainingMs]);
 
   const lockedOut = remainingMs > 0;
+  const bioLabel = biometricLabel();
+
+  async function handleBiometric(auto = false) {
+    setError(null);
+    setBusy(true);
+    try {
+      await lock.unlockWithBiometrics();
+    } catch (err) {
+      // En el intento automatico al abrir, una cancelacion (o un navegador que exige pulsar un
+      // boton antes de pedir la biometria) no es un error: queda el boton y el PIN.
+      const code = (err as { code?: string } | null)?.code;
+      if (!(auto && code === 'BIOMETRIC_CANCELLED')) setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Al abrir la app bloqueada se pide la biometria directamente, una vez.
+  const autoTriedRef = useRef(false);
+  useEffect(() => {
+    if (!lock.biometricEnabled || autoTriedRef.current || lockedOut) return;
+    autoTriedRef.current = true;
+    void handleBiometric(true);
+  }, [lock.biometricEnabled]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -107,6 +133,19 @@ function PinUnlockCard({ onForgotten }: { onForgotten: () => void }) {
 
   return (
     <div className={CARD}>
+      {lock.biometricEnabled && (
+        <div className="mb-5">
+          <button
+            type="button"
+            onClick={() => void handleBiometric()}
+            disabled={busy || lockedOut}
+            className={PRIMARY_BTN}
+          >
+            Entrar con {bioLabel}
+          </button>
+          <p className="mt-3 text-center text-xs text-slate-500">o con tu PIN</p>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4" noValidate aria-label="Desbloquear con PIN">
         <div>
           <label className={LABEL} htmlFor="lock-pin">

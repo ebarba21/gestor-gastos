@@ -15,6 +15,7 @@ import {
   webauthnService,
   type PasskeySummary,
 } from '../security/webauthn';
+import { biometricLabel } from '../security/biometricUnlock';
 
 const CARD = 'rounded-2xl border border-slate-800 bg-slate-900 p-5';
 const LABEL = 'block text-sm font-medium text-slate-300';
@@ -47,6 +48,7 @@ export default function SecurityPage() {
 
       <AccountSummaryCard />
       <PinCard />
+      <BiometricCard />
       <AutoLockCard />
       {auth.status === 'signed-in' && <PasskeysCard />}
       <ExplanationCard />
@@ -135,6 +137,112 @@ function PinCard() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// Desbloqueo con Face ID / Touch ID / huella / Windows Hello (src/security/biometricUnlock.ts).
+// Requiere PIN: la biometria solo evita teclearlo; el PIN sigue siendo la via de respaldo.
+function BiometricCard() {
+  const lock = useLock();
+  const label = biometricLabel();
+  const [askingPin, setAskingPin] = useState(false);
+  const [pin, setPin] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function handleEnable(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      await lock.enableBiometricUnlock(pin);
+      setPin('');
+      setAskingPin(false);
+      setNotice(`Listo: al abrir la app se te pedira ${label}.`);
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDisable() {
+    setError(null);
+    setBusy(true);
+    try {
+      await lock.disableBiometricUnlock();
+      setNotice('Desactivado. Para entrar se pedira el PIN.');
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={CARD}>
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+        Entrar con {label}
+      </h3>
+      <p className="mt-2 text-sm text-slate-400">
+        Abre la app con tu cara o tu huella en lugar de teclear el PIN. Lo gestiona el sistema del
+        dispositivo: la app nunca recibe datos biometricos. Se activa en cada dispositivo por
+        separado.
+      </p>
+      {!lock.security.pinEnabled ? (
+        <p className="mt-3 text-sm text-slate-300">Activa primero un PIN (arriba): es la via de respaldo.</p>
+      ) : !lock.platformAuthenticatorAvailable && !lock.biometricEnabled ? (
+        <p className="mt-3 text-sm text-amber-300">
+          Este navegador no ofrece {label} para la web. En iPhone usa la app instalada desde Safari;
+          en Windows, Chrome o Edge con Windows Hello configurado.
+        </p>
+      ) : lock.biometricEnabled ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="rounded-lg border border-emerald-800/60 bg-emerald-950/20 px-3 py-2 text-sm text-emerald-300">
+            Activado en este dispositivo
+          </span>
+          <button type="button" onClick={() => void handleDisable()} disabled={busy} className={GHOST_BTN}>
+            Desactivar
+          </button>
+        </div>
+      ) : askingPin ? (
+        <form onSubmit={handleEnable} className="mt-4 space-y-3" noValidate>
+          <div>
+            <label className={LABEL} htmlFor="bio-pin">
+              Tu PIN actual
+            </label>
+            <input
+              id="bio-pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              className={INPUT}
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" disabled={busy || pin.length === 0} className={PRIMARY_BTN}>
+              {busy ? 'Esperando a ' + label + '...' : 'Continuar'}
+            </button>
+            <button type="button" onClick={() => setAskingPin(false)} className={GHOST_BTN}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="mt-4">
+          <button type="button" onClick={() => setAskingPin(true)} className={PRIMARY_BTN}>
+            Activar {label}
+          </button>
+        </div>
+      )}
+      <div role="status" className="mt-3">
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        {notice && !error && <p className="text-sm text-emerald-400">{notice}</p>}
+      </div>
     </div>
   );
 }

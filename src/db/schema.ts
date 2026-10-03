@@ -1,3 +1,4 @@
+import type { BiometricUnlockConfig } from '../security/biometricUnlock';
 // Tipos de entidades del modelo de datos. Fuente unica de tipos (ver specs/DATA_MODEL.md).
 // Convenciones: dinero en centimos enteros; id UUID string; timestamps epoch ms;
 // enums como uniones de string literales; profileId obligatorio en toda entidad de datos.
@@ -770,6 +771,11 @@ export interface DeviceSecurity {
   // Bloqueo automatico en ms (0 = inmediato). null = PIN desactivado, no aplica.
   autoLockMs: number | null;
   passkeysEnabled: boolean;
+  // Desbloqueo con biometria del dispositivo (src/security/biometricUnlock.ts). Opcionales: la
+  // fila es device-local y no indexada, no requiere version nueva del esquema Dexie. Nunca
+  // guardan el PIN en claro ni datos biometricos; la clave no es extraible.
+  biometricUnlock?: BiometricUnlockConfig | null;
+  biometricDeviceKey?: CryptoKey | null;
   createdAt: number;
   updatedAt: number;
 }

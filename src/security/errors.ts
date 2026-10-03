@@ -20,7 +20,11 @@ export type SecurityErrorCode =
   | 'WEBAUTHN_CANCELLED' // El usuario cancelo el dialogo del autenticador.
   | 'WEBAUTHN_NOT_REGISTERED' // No hay ninguna passkey registrada para esta cuenta/credencial.
   | 'WEBAUTHN_ALREADY_REGISTERED' // El autenticador ya tiene una passkey registrada.
-  | 'WEBAUTHN_UNKNOWN'; // Fallo de la ceremonia WebAuthn no clasificado.
+  | 'WEBAUTHN_UNKNOWN' // Fallo de la ceremonia WebAuthn no clasificado.
+  | 'BIOMETRIC_CANCELLED' // El usuario cancelo o no completo Face ID / huella / Windows Hello.
+  | 'BIOMETRIC_UNAVAILABLE' // El dispositivo o navegador no ofrece biometria de plataforma.
+  | 'BIOMETRIC_INVALID' // Asercion no valida, credencial desconocida o PIN cifrado ilegible.
+  | 'BIOMETRIC_NOT_ENABLED'; // Se pidio desbloquear con biometria sin haberla activado.
 
 export class SecurityError extends Error {
   readonly code: SecurityErrorCode;

@@ -234,3 +234,62 @@ describe('errores no filtran informacion sensible', () => {
     }
   });
 });
+
+describe('pinService: desbloqueo con biometria', () => {
+  // Biometria simulada sin PRF: ejercita tambien el guardado de la clave local en Dexie.
+  async function setup() {
+    const { fakeAuthenticator, biometricTestDeps } = await import('../test/fakeAuthenticator');
+    const { deviceKeyStore } = await import('./pinService');
+    const auth = fakeAuthenticator({ prf: false });
+    const deps = biometricTestDeps(auth, deviceKeyStore);
+    await pinService.enablePin('123456', '123456');
+    return { auth, deps };
+  }
+
+  it('exige el PIN correcto para activarla', async () => {
+    const { deps } = await setup();
+    await expect(pinService.enableBiometricUnlock('000000', deps)).rejects.toMatchObject({
+      code: 'PIN_INCORRECT',
+    });
+    expect((await pinService.getSecurity()).biometricUnlock ?? null).toBeNull();
+  });
+
+  it('desbloquea la app sin teclear el PIN y nunca guarda el PIN en claro', async () => {
+    const { deps } = await setup();
+    await pinService.enableBiometricUnlock('123456', deps);
+    const security = await pinService.getSecurity();
+    expect(security.biometricUnlock?.mode).toBe('device-key');
+    expect(JSON.stringify(security.biometricUnlock)).not.toContain('123456');
+
+    pinService.lock();
+    expect(isUnlocked()).toBe(false);
+    await pinService.unlockWithBiometrics(deps);
+    expect(isUnlocked()).toBe(true);
+  });
+
+  it('cambiar el PIN desactiva la biometria (habria guardado el PIN antiguo)', async () => {
+    const { deps } = await setup();
+    await pinService.enableBiometricUnlock('123456', deps);
+    await pinService.changePin('123456', '654321', '654321');
+    const security = await pinService.getSecurity();
+    expect(security.biometricUnlock ?? null).toBeNull();
+    expect(security.biometricDeviceKey ?? null).toBeNull();
+    await expect(pinService.unlockWithBiometrics(deps)).rejects.toMatchObject({
+      code: 'BIOMETRIC_NOT_ENABLED',
+    });
+  });
+
+  it('desactivar el PIN quita tambien la biometria', async () => {
+    const { deps } = await setup();
+    await pinService.enableBiometricUnlock('123456', deps);
+    await pinService.disablePin('123456');
+    expect((await pinService.getSecurity()).biometricUnlock ?? null).toBeNull();
+  });
+
+  it('no se puede activar sin PIN', async () => {
+    const { fakeAuthenticator, biometricTestDeps } = await import('../test/fakeAuthenticator');
+    await expect(
+      pinService.enableBiometricUnlock('123456', biometricTestDeps(fakeAuthenticator())),
+    ).rejects.toMatchObject({ code: 'PIN_NOT_ENABLED' });
+  });
+});

@@ -73,6 +73,12 @@ interface LockContextValue {
   lock: () => void;
   unlockWithPin: (pin: string) => Promise<void>;
   unlockWithPasskey: () => Promise<void>;
+  // Desbloqueo con Face ID / huella / Windows Hello (biometricUnlock.ts). biometricEnabled =
+  // activado en este dispositivo; platformAuthenticatorAvailable dice si el dispositivo lo ofrece.
+  biometricEnabled: boolean;
+  unlockWithBiometrics: () => Promise<void>;
+  enableBiometricUnlock: (pin: string) => Promise<void>;
+  disableBiometricUnlock: () => Promise<void>;
   enablePin: (pin: string, confirmPin: string) => Promise<void>;
   disablePin: (pin: string) => Promise<void>;
   changePin: (currentPin: string, newPin: string, confirmNewPin: string) => Promise<void>;
@@ -163,6 +169,29 @@ export function SecurityProvider({ children }: { children: ReactNode }) {
     const ok = await webauthnService.signInWithPasskey();
     if (ok) setLockStatus('unlocked');
   }, [security.passkeysEnabled]);
+
+  const unlockWithBiometrics = useCallback(async () => {
+    try {
+      await pinService.unlockWithBiometrics();
+      setLockStatus('unlocked');
+      if (consumeDecryptFailure()) setDecryptFailure(true);
+    } finally {
+      await refresh();
+    }
+  }, [refresh]);
+
+  const enableBiometricUnlock = useCallback(
+    async (pin: string) => {
+      await pinService.enableBiometricUnlock(pin);
+      await refresh();
+    },
+    [refresh],
+  );
+
+  const disableBiometricUnlock = useCallback(async () => {
+    await pinService.disableBiometricUnlock();
+    await refresh();
+  }, [refresh]);
 
   const enablePin = useCallback(
     async (pin: string, confirmPin: string) => {
@@ -276,6 +305,10 @@ export function SecurityProvider({ children }: { children: ReactNode }) {
       lock,
       unlockWithPin,
       unlockWithPasskey,
+      biometricEnabled: Boolean(security.pinEnabled && security.biometricUnlock),
+      unlockWithBiometrics,
+      enableBiometricUnlock,
+      disableBiometricUnlock,
       enablePin,
       disablePin,
       changePin,
@@ -296,6 +329,9 @@ export function SecurityProvider({ children }: { children: ReactNode }) {
       lock,
       unlockWithPin,
       unlockWithPasskey,
+      unlockWithBiometrics,
+      enableBiometricUnlock,
+      disableBiometricUnlock,
       enablePin,
       disablePin,
       changePin,

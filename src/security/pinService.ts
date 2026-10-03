@@ -9,6 +9,12 @@ import { KDF_PARAMS_V1, constantTimeEqual, derivePinKeys, generateSalt } from '.
 import { deviceSecurityRepo, resetAllLocalData } from './deviceSecurityRepo';
 import { backoffForAttempt, SecurityError } from './errors';
 import {
+  enrollBiometricUnlock,
+  unlockWithBiometrics,
+  type BiometricDeps,
+  type DeviceKeyStore,
+} from './biometricUnlock';
+import {
   migrateEncryptedToPlain,
   migratePlainToEncrypted,
   reencryptAllSessions,
@@ -75,6 +81,44 @@ export async function hydrateSecurityAtBoot(): Promise<DeviceSecurity> {
   return security;
 }
 
+// Almacen de la clave local del modo 'device-key' (CryptoKey no extraible) en la fila de
+// seguridad del dispositivo.
+export const deviceKeyStore: DeviceKeyStore = {
+  async get() {
+    return (await deviceSecurityRepo.get()).biometricDeviceKey ?? null;
+  },
+  async put(key) {
+    await deviceSecurityRepo.put({ biometricDeviceKey: key });
+  },
+  async clear() {
+    await deviceSecurityRepo.put({ biometricDeviceKey: null });
+  },
+};
+
+// Dependencias reales del navegador para el desbloqueo biometrico.
+export function browserBiometricDeps(): BiometricDeps {
+  if (typeof window === 'undefined' || !window.PublicKeyCredential || !navigator.credentials) {
+    throw new SecurityError(
+      'BIOMETRIC_UNAVAILABLE',
+      'Este navegador no ofrece Face ID, huella ni Windows Hello para la web.',
+    );
+  }
+  return {
+    credentials: navigator.credentials,
+    subtle: crypto.subtle,
+    randomBytes: (n) => crypto.getRandomValues(new Uint8Array(n)),
+    rpId: window.location.hostname,
+    origin: window.location.origin,
+    deviceKeyStore,
+  };
+}
+
+// Quita el desbloqueo biometrico (al cambiar, desactivar o recuperar el PIN el PIN cifrado deja
+// de valer, y se borra tambien la clave local).
+async function clearBiometric(): Promise<void> {
+  await deviceSecurityRepo.put({ biometricUnlock: null, biometricDeviceKey: null });
+}
+
 export const pinService = {
   getSecurity(): Promise<DeviceSecurity> {
     return deviceSecurityRepo.get();
@@ -130,6 +174,8 @@ export const pinService = {
       pinAttempts: 0,
       pinLockedUntil: null,
       autoLockMs: null,
+      biometricUnlock: null,
+      biometricDeviceKey: null,
     });
   },
 
@@ -159,6 +205,9 @@ export const pinService = {
       pinKdfParams: KDF_PARAMS_V1,
       pinAttempts: 0,
       pinLockedUntil: null,
+      // El PIN cifrado para la biometria era el antiguo: hay que volver a activarla.
+      biometricUnlock: null,
+      biometricDeviceKey: null,
     });
   },
 
@@ -193,6 +242,46 @@ export const pinService = {
       throw new SecurityError('PIN_NOT_ENABLED', 'Activa el PIN para configurar el bloqueo automatico.');
     }
     await deviceSecurityRepo.put({ autoLockMs });
+  },
+
+  // Activa el desbloqueo con biometria. Exige el PIN actual (con el mismo contador de intentos
+  // que el resto de operaciones de PIN) y lo guarda cifrado (ver biometricUnlock.ts).
+  async enableBiometricUnlock(pin: string, deps: BiometricDeps = browserBiometricDeps()): Promise<void> {
+    const current = await deviceSecurityRepo.get();
+    if (!current.pinEnabled) {
+      throw new SecurityError('PIN_NOT_ENABLED', 'Activa primero un PIN: es la via de respaldo.');
+    }
+    await verifyPinWithBackoff(current, pin);
+    await clearBiometric();
+    const config = await enrollBiometricUnlock(pin, deps);
+    await deviceSecurityRepo.put({ biometricUnlock: config });
+  },
+
+  async disableBiometricUnlock(): Promise<void> {
+    await clearBiometric();
+  },
+
+  // Desbloquea con biometria: recupera el PIN cifrado y lo verifica por la via normal.
+  async unlockWithBiometrics(deps: BiometricDeps = browserBiometricDeps()): Promise<void> {
+    const current = await deviceSecurityRepo.get();
+    if (!current.pinEnabled || !current.biometricUnlock) {
+      throw new SecurityError('BIOMETRIC_NOT_ENABLED', 'El desbloqueo con biometria no esta activado.');
+    }
+    const pin = await unlockWithBiometrics(current.biometricUnlock, deps);
+    try {
+      await pinService.verifyPin(pin);
+    } catch (error) {
+      if (error instanceof SecurityError && error.code === 'PIN_INCORRECT') {
+        // No deberia ocurrir (cambiar el PIN borra la biometria), pero si el PIN guardado ya no
+        // vale se desactiva para no sumar intentos fallidos en cada apertura.
+        await clearBiometric();
+        throw new SecurityError(
+          'BIOMETRIC_INVALID',
+          'El acceso con biometria ya no es valido. Entra con tu PIN y vuelve a activarlo.',
+        );
+      }
+      throw error;
+    }
   },
 
   async setPasskeysEnabled(enabled: boolean): Promise<void> {
@@ -247,6 +336,8 @@ export const pinService = {
       pinKdfParams: KDF_PARAMS_V1,
       pinAttempts: 0,
       pinLockedUntil: null,
+      biometricUnlock: null,
+      biometricDeviceKey: null,
     });
   },
 

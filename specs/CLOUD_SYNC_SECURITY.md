@@ -104,6 +104,23 @@ Regla: la seguridad NUNCA depende solo de una capa. El cliente valida, pero la a
 - **Terminologia honesta**: se dice "passkey" cuando el sistema pueda solicitar biometria, PIN del dispositivo o llave fisica. Solo se dice "biometria" cuando se detecta un autenticador de plataforma compatible, y aun asi se explica que la app no recibe datos biometricos.
 - **Limitaciones**: soporte desigual entre navegadores/plataformas, credenciales ligadas al dispositivo/proveedor, comportamiento distinto en incognito y en PWA instalada. Por eso siempre hay fallback por contrasena/PIN; nadie se queda sin metodo de acceso valido.
 
+### 11.1 Desbloqueo local con biometria (decision del propietario, octubre 2026)
+
+Ampliacion pedida expresamente por el propietario: entrar con Face ID / Touch ID / huella /
+Windows Hello en lugar de teclear el PIN. Es distinta de las passkeys de cuenta (11): no inicia
+sesion en Supabase, solo desbloquea la pantalla de PIN de ESTE dispositivo, y funciona sin red.
+Por eso usa `navigator.credentials` directamente (`src/security/biometricUnlock.ts`), sin servidor:
+
+- Requiere PIN activo; el PIN sigue siendo siempre la via de respaldo y de recuperacion.
+- Credencial WebAuthn de plataforma con `userVerification: 'required'`; cada asercion se valida en
+  local: reto, origen, rpId, flags UP+UV y firma con la clave publica registrada (ES256/RS256).
+- Se guarda el PIN cifrado con AES-GCM, nunca en claro. Clave: extension PRF del autenticador
+  (HKDF) cuando existe; si no, una clave AES no extraible guardada en el navegador (modo
+  `device-key`, barrera de interfaz equivalente al PIN; ver seccion 13).
+- El PIN recuperado se verifica por la via normal (contador de intentos, descifrado de sesion).
+  Cambiar, desactivar o recuperar el PIN borra la biometria.
+- La app nunca recibe datos biometricos (invariante 13).
+
 ## 12. Amenazas principales y mitigaciones
 
 | Amenaza | Mitigacion |
