@@ -104,14 +104,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const createProfile = useCallback(
     async (input: CreateProfileInput) => {
-      const profile = await profileService.createProfile(input);
+      // Con sesion iniciada, el perfil nace vinculado a la cuenta y se sincroniza solo.
+      const profile = await profileService.createProfile({ ...input, ownerUserId });
       await reload();
       // Un perfil recien creado pasa a ser el activo.
       profileService.setActiveProfileId(profile.id);
       setActiveProfileId(profile.id);
       return profile;
     },
-    [reload],
+    [reload, ownerUserId],
   );
 
   const updateProfile = useCallback(

@@ -65,6 +65,9 @@ export interface CreateProfileInput {
   name: string;
   color?: string;
   avatarEmoji?: string | null;
+  // Cuenta con la sesion iniciada al crear el perfil. Con valor, el perfil nace vinculado a esa
+  // cuenta y se sincroniza solo (sin pasar por el asistente de migracion). null = perfil local.
+  ownerUserId?: string | null;
 }
 
 export interface UpdateProfileInput {
@@ -94,7 +97,12 @@ export const profileService = {
     const color = input.color ?? pickDefaultColor(existing.length);
     const avatarEmoji = input.avatarEmoji ?? null;
 
-    const profile = await profilesRepo.create({ name, color, avatarEmoji });
+    const profile = await profilesRepo.create({
+      name,
+      color,
+      avatarEmoji,
+      ownerUserId: input.ownerUserId ?? null,
+    });
     try {
       await settingsRepo.create(profile.id, defaultSettingInput());
       // Un perfil nuevo arranca con un set de categorias por defecto (editable y borrable).

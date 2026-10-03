@@ -145,6 +145,23 @@ describe('perfil activo (localStorage)', () => {
   });
 });
 
+describe('createProfile con sesion iniciada', () => {
+  it('crea el perfil ya vinculado a la cuenta y lo encola para sincronizar', async () => {
+    const profile = await profileService.createProfile({ name: 'Novia', ownerUserId: 'user-n' });
+    expect(profile.ownerUserId).toBe('user-n');
+    const queued = await db.outbox.where('profileId').equals(profile.id).toArray();
+    expect(queued.some((m) => m.entityType === 'profile' && m.operation === 'insert')).toBe(true);
+    // Lo que se crea despues en el perfil (ajustes, categorias por defecto) tambien se encola.
+    expect(queued.some((m) => m.entityType === 'category')).toBe(true);
+  });
+
+  it('sin sesion el perfil es local y no encola nada', async () => {
+    const profile = await profileService.createProfile({ name: 'Local' });
+    expect(profile.ownerUserId).toBeNull();
+    expect(await db.outbox.where('profileId').equals(profile.id).count()).toBe(0);
+  });
+});
+
 describe('aislamiento por propietario (ownerUserId) al listar', () => {
   // Simula un navegador compartido: perfiles de dos cuentas distintas y uno local sin vincular.
   async function seedMixedOwners() {

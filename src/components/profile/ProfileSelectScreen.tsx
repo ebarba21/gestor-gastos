@@ -9,6 +9,7 @@ import { useProfiles } from '../../hooks/useProfiles';
 import { ProfileAvatar } from './ProfileAvatar';
 import { ProfileFormModal } from './ProfileFormModal';
 import { DeleteProfileModal } from './DeleteProfileModal';
+import { CloudAccessCard } from './CloudAccessCard';
 
 export function ProfileSelectScreen() {
   const { profiles, switchProfile } = useProfiles();
@@ -82,6 +83,8 @@ export function ProfileSelectScreen() {
             {hasProfiles ? 'Crear otro perfil' : 'Crear primer perfil'}
           </button>
         </div>
+
+        <CloudAccessCard />
       </div>
 
       <ProfileFormModal open={formOpen} onClose={() => setFormOpen(false)} />
