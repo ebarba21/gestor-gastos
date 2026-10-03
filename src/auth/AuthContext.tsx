@@ -56,7 +56,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // registrada en el Dashboard (Authentication > URL configuration) y en supabase/config.toml.
 function redirectUrl(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  return `${window.location.origin}/cuenta`;
+  // Respeta la ruta base de publicacion (p. ej. /gestor-gastos/ en GitHub Pages).
+  return `${window.location.origin}${import.meta.env.BASE_URL}cuenta`;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

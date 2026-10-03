@@ -11,6 +11,7 @@ import { SecurityProvider } from './security/LockContext';
 import { hydrateSecurityAtBoot } from './security/pinService';
 import { setLockStatus } from './security/lockState';
 import { PwaReloadPrompt } from './pwa/PwaReloadPrompt';
+import { requestPersistentStorage } from './pwa/persistentStorage';
 import './index.css';
 
 const rootElementOrNull = document.getElementById('root');
@@ -19,10 +20,14 @@ if (!rootElementOrNull) {
 }
 const rootElement = rootElementOrNull;
 
+// Ruta base del router: coincide con la `base` de Vite (p. ej. '/gestor-gastos/' en GitHub
+// Pages). React Router la espera sin barra final; en la raiz del dominio queda en '/'.
+const routerBasename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
+
 function renderApp(): void {
   createRoot(rootElement).render(
     <StrictMode>
-      <BrowserRouter>
+      <BrowserRouter basename={routerBasename}>
         <ThemeProvider>
           <ToastProvider>
             {/* AuthProvider envuelve la app: la cuenta es OPCIONAL y nunca bloquea el modo
@@ -81,6 +86,9 @@ hydrateSecurityAtBoot()
   .then((security) => {
     setLockStatus(security.pinEnabled ? 'locked' : 'no-pin');
     renderApp();
+    // En segundo plano: pide almacenamiento persistente para que el navegador no borre los
+    // datos locales (ver src/pwa/persistentStorage.ts). No bloquea el arranque.
+    void requestPersistentStorage();
   })
   .catch((error: unknown) => {
     // Solo el mensaje corto, nunca el objeto de error completo (podria arrastrar detalles

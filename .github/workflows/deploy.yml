@@ -1,0 +1,72 @@
+# Despliegue automatico de la PWA en GitHub Pages.
+#
+# Cada push a `main` ejecuta tests, typecheck y build, y publica `dist/` en
+# https://<usuario>.github.io/<repo>/. Si algo falla, NO se publica (invariante 15 de CLAUDE.md).
+#
+# Configuracion unica en GitHub (ver docs/PUESTA_EN_MARCHA.md):
+#   1. Settings > Pages > Build and deployment > Source: "GitHub Actions".
+#   2. (Opcional) Settings > Secrets and variables > Actions > "Variables" para apuntar a OTRO
+#      proyecto Supabase: VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY. Si no existen se usan
+#      los valores del proyecto de este repo (abajo). Ambos son PUBLICOS por diseno: acaban en el
+#      JavaScript que descarga el navegador y sin sesion valida no dan acceso a datos (RLS).
+#   NUNCA pongas aqui la clave service_role ni ningun secreto (invariante 7).
+name: Desplegar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Build (incluye typecheck)
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://skwhlbwpnsdgmdsfozcr.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rtfmOQ2eD30HRqle9e2rPA_wdyX59ck' }}
+          VITE_ENABLE_PASSKEYS: ${{ vars.VITE_ENABLE_PASSKEYS || 'false' }}
+
+      # GitHub Pages no sabe que es una SPA: una URL profunda (p. ej. /gestor-gastos/movimientos)
+      # devolveria su 404. Servir index.html como 404.html deja que React Router resuelva la ruta.
+      # Una vez instalada, el service worker ya resuelve la navegacion sin pasar por aqui.
+      - name: Fallback SPA para rutas profundas
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
