@@ -52,10 +52,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   // perfil activo era de otra cuenta, se cae al selector.
   const auth = useAuthOptional();
   const ownerUserId = auth?.user?.id ?? null;
+  // Mientras la sesion se esta restaurando no se sabe aun de quien es el dispositivo: resolver
+  // los perfiles con ownerUserId=null ocultaria los vinculados y borraria la preferencia de
+  // perfil activo. Se espera a que el estado de la cuenta sea definitivo.
+  const authLoading = auth?.status === 'loading';
 
   // Carga inicial y recarga al cambiar de propietario: perfiles + resolucion del perfil activo
   // guardado en localStorage (solo valido si pertenece a la sesion activa).
   useEffect(() => {
+    if (authLoading) return;
     let cancelled = false;
     (async () => {
       const [list, active] = await Promise.all([
@@ -70,7 +75,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [ownerUserId]);
+  }, [ownerUserId, authLoading]);
 
   const reload = useCallback(async () => {
     const list = await profileService.listProfiles(ownerUserId);

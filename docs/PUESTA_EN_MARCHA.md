@@ -41,8 +41,11 @@ Funciona sin conexion una vez abierta por primera vez.
    sesion con el mismo email. La app reconstruye tus perfiles y movimientos desde la nube.
 4. Opcional: **Ajustes > Seguridad** para poner un PIN de bloqueo.
 
-Cada cuenta solo ve sus propios datos (RLS en todas las tablas). Varias personas pueden usar
-el mismo PC: cada una con su cuenta, y la app no muestra los perfiles de otra cuenta.
+Cada cuenta solo ve sus propios datos (RLS en todas las tablas). En un dispositivo compartido
+la app solo muestra los perfiles de la cuenta con la sesion iniciada; sin sesion, solo los
+perfiles locales aun no vinculados. Por eso conviene registrarse justo despues de crear el
+perfil (o de restaurar el historico): mientras un perfil es solo local, cualquiera que abra la
+app en ese mismo navegador lo ve. Un PIN (Ajustes > Seguridad) anade otra capa.
 
 ## 4. Registro libre de usuarios
 

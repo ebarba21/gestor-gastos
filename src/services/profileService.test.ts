@@ -153,10 +153,20 @@ describe('aislamiento por propietario (ownerUserId) al listar', () => {
     await profilesRepo.create({ name: 'Local', color: '#333', avatarEmoji: null }); // ownerUserId null
   }
 
-  it('sin ownerUserId (modo local) devuelve todos los perfiles', async () => {
+  it('sin sesion solo devuelve los perfiles locales (oculta los vinculados a cualquier cuenta)', async () => {
     await seedMixedOwners();
     const names = (await profileService.listProfiles()).map((p) => p.name).sort();
-    expect(names).toEqual(['De A', 'De B', 'Local']);
+    expect(names).toEqual(['Local']);
+    expect((await profileService.listProfiles(null)).map((p) => p.name)).toEqual(['Local']);
+  });
+
+  it('sin sesion no reabre como activo un perfil vinculado a una cuenta', async () => {
+    await seedMixedOwners();
+    const aProfile = (await profilesRepo.listActive()).find((p) => p.name === 'De A')!;
+    profileService.setActiveProfileId(aProfile.id);
+    expect(await profileService.resolveActiveProfile(null)).toBeNull();
+    // Al volver a iniciar sesion con su cuenta, el perfil sigue ahi (no se ha borrado nada).
+    expect((await profileService.listProfiles('user-a')).map((p) => p.name)).toContain('De A');
   });
 
   it('con una cuenta activa solo devuelve sus perfiles mas los locales sin vincular', async () => {

@@ -86,6 +86,22 @@ export const profilesRepo = {
     );
   },
 
+  // Perfiles VISIBLES para quien usa ahora la app (lo que muestra el selector de perfiles).
+  // Invariante 4 en un dispositivo compartido: un perfil vinculado a una cuenta solo se muestra
+  // con la sesion de ESA cuenta iniciada. Sin sesion solo se ven los perfiles locales (sin
+  // vincular); asi, al cerrar sesion, los datos sincronizados de una persona no quedan a la
+  // vista de quien coja el dispositivo despues. Los datos no se borran: reaparecen al volver a
+  // iniciar sesion con esa cuenta.
+  async listVisibleTo(ownerUserId: string | null): Promise<Profile[]> {
+    const all = await db.profiles.toArray();
+    return all.filter(
+      (p) =>
+        isAlive(p) &&
+        p.archivedAt === null &&
+        (p.ownerUserId === null || (ownerUserId !== null && p.ownerUserId === ownerUserId)),
+    );
+  },
+
   async update(id: string, patch: ProfilePatch): Promise<Profile> {
     requireId(id);
     let updated!: Profile;
