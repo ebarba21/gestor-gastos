@@ -8,6 +8,8 @@ import type { Budget } from '../../db/schema';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useProfiles } from '../../hooks/useProfiles';
 import { useToast } from '../../context/ToastContext';
+import { useSyncOptional } from '../../sync/SyncContext';
+import { migrateProfile } from '../../sync';
 import {
   TransactionFilters,
 } from '../transactions/TransactionFilters';
@@ -58,6 +60,10 @@ export function ExportSection() {
     merchantNames,
   } = useTransactions();
   const { activeProfile, reload: reloadProfiles, switchProfile } = useProfiles();
+  const sync = useSyncOptional();
+  // Un perfil ya sincronizado con la cuenta no se sobrescribe (ver backupService): se ofrece solo
+  // restaurar como perfil nuevo, que con sesion iniciada se sube a la cuenta automaticamente.
+  const activeIsSynced = Boolean(activeProfile?.ownerUserId);
   const { showToast } = useToast();
 
   const [filter, setFilter] = useState<TxFilter>({ hideSplitChildren: true });
@@ -246,11 +252,15 @@ export function ExportSection() {
           variant: 'primary',
           onClick: () => doRestoreWithMode('new'),
         },
-        {
-          label: 'Sobrescribir este perfil',
-          variant: 'danger',
-          onClick: () => doRestoreWithMode('overwrite'),
-        },
+        ...(activeIsSynced
+          ? []
+          : [
+              {
+                label: 'Sobrescribir este perfil',
+                variant: 'danger' as const,
+                onClick: () => doRestoreWithMode('overwrite'),
+              },
+            ]),
       ]
     : [];
 
@@ -265,9 +275,29 @@ export function ExportSection() {
       showToast('Backup restaurado en este perfil.', 'success');
     } else {
       const created = await backupService.restoreAsNewProfile(restore.backup);
+      // Con sesion iniciada, el perfil restaurado se sube a la cuenta en el mismo paso (misma
+      // migracion verificada que Sincronizacion > Migrar); sin sesion queda local.
+      let uploaded = false;
+      if (sync?.client && sync.userId) {
+        const result = await migrateProfile(sync.client, sync.userId, created.id);
+        uploaded = result.status === 'verified';
+        if (!uploaded) {
+          showToast(
+            `Perfil restaurado, pero no se pudo subir a tu cuenta (${result.lastError ?? 'sin detalle'}). Reintentalo en Sincronizacion.`,
+            'error',
+          );
+        }
+      }
       await reloadProfiles();
       switchProfile(created.id);
-      showToast(`Perfil "${created.name}" creado desde el backup.`, 'success');
+      if (uploaded || !sync?.userId) {
+        showToast(
+          uploaded
+            ? `Perfil "${created.name}" restaurado y guardado en tu cuenta.`
+            : `Perfil "${created.name}" creado desde el backup.`,
+          'success',
+        );
+      }
     }
     setRestore(null);
   }
@@ -420,12 +450,21 @@ export function ExportSection() {
                 reglas, {restore.summary.counts.budgets} metas y {restore.summary.counts.debts}{' '}
                 deudas.
               </p>
-              <p className="text-amber-300">
-                <strong>Sobrescribir este perfil</strong> borra por completo los datos actuales de{' '}
-                <strong className="text-slate-100">{activeProfile?.name}</strong> y los reemplaza por
-                los del backup. <strong>Crear perfil nuevo</strong> deja este perfil intacto. Haz un
-                backup previo si tienes dudas. Esta accion no se puede deshacer.
-              </p>
+              {activeIsSynced ? (
+                <p className="text-slate-300">
+                  <strong>Crear perfil nuevo</strong> crea un perfil con los datos del backup y lo
+                  guarda en tu cuenta. El perfil actual,{' '}
+                  <strong className="text-slate-100">{activeProfile?.name}</strong>, queda intacto (si
+                  esta vacio puedes borrarlo despues desde el selector de perfiles).
+                </p>
+              ) : (
+                <p className="text-amber-300">
+                  <strong>Sobrescribir este perfil</strong> borra por completo los datos actuales de{' '}
+                  <strong className="text-slate-100">{activeProfile?.name}</strong> y los reemplaza por
+                  los del backup. <strong>Crear perfil nuevo</strong> deja este perfil intacto. Haz un
+                  backup previo si tienes dudas. Esta accion no se puede deshacer.
+                </p>
+              )}
             </div>
           ) : null
         }

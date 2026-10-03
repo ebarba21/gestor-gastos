@@ -3,6 +3,7 @@
 // La app es local-first: sin cuenta funciona por completo. Este contexto nunca bloquea el uso
 // local; solo habilita las funciones de sincronizacion cuando hay sesion. Ver ARCHITECTURE
 // seccion 4 (la cuenta es OPCIONAL) y CLOUD_SYNC_SECURITY seccion 3.
+import { getLockStatus, subscribeLockStatus } from '../security/lockState';
 import {
   createContext,
   useCallback,
@@ -82,18 +83,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     let cancelled = false;
 
-    // Restauracion de sesion al arrancar.
-    authService
-      .getSession()
-      .then((current) => {
-        if (cancelled) return;
-        setSession(current);
-        setStatus(current ? 'signed-in' : 'signed-out');
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStatus('signed-out');
-      });
+    // Restauracion de sesion. Con PIN activo y la app BLOQUEADA la sesion guardada esta cifrada
+    // y el storage devuelve null: leerla ahora daria un falso "sin sesion" (y con el, perfiles
+    // de la cuenta ocultos y sincronizacion parada tras desbloquear). Por eso, mientras esta
+    // bloqueada el estado sigue en 'loading' y la sesion se lee al desbloquear (PIN o biometria).
+    const restoreSession = (): void => {
+      authService
+        .getSession()
+        .then((current) => {
+          if (cancelled) return;
+          setSession(current);
+          setStatus(current ? 'signed-in' : 'signed-out');
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setStatus('signed-out');
+        });
+    };
+    if (getLockStatus() !== 'locked') restoreSession();
+    const unsubscribeLock = subscribeLockStatus((lockStatus) => {
+      if (lockStatus === 'unlocked') restoreSession();
+    });
 
     // Suscripcion a cambios (login, logout, refresh, recuperacion de contrasena).
     unsubscribeRef.current = authService.onAuthStateChange((next, event) => {
@@ -105,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      unsubscribeLock();
       unsubscribeRef.current?.();
       unsubscribeRef.current = null;
     };

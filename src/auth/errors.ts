@@ -7,6 +7,7 @@ export type AuthErrorCode =
   | 'AUTH_INVALID_CREDENTIALS' // Email/contrasena incorrectos (mensaje generico).
   | 'AUTH_EMAIL_NOT_CONFIRMED' // Falta verificar el email.
   | 'AUTH_WEAK_PASSWORD' // Contrasena que no cumple los requisitos.
+  | 'AUTH_ALREADY_REGISTERED' // Registro con un correo que ya tiene cuenta.
   | 'AUTH_RATE_LIMITED' // Demasiados intentos.
   | 'AUTH_NETWORK' // Sin conexion con el servidor.
   | 'AUTH_UNKNOWN';
@@ -59,6 +60,15 @@ export function toAuthError(error: unknown): AuthError {
       return new AuthError(
         'AUTH_RATE_LIMITED',
         'Demasiados intentos. Espera un momento e intentalo de nuevo.',
+      );
+    }
+    // Registro con un correo ya usado. Con la confirmacion por email desactivada Supabase ya lo
+    // indica abiertamente (422 user_already_exists); un mensaje generico solo confundia a la
+    // persona, que no sabia que tenia que iniciar sesion en vez de registrarse.
+    if (code === 'user_already_exists' || message.includes('user already registered')) {
+      return new AuthError(
+        'AUTH_ALREADY_REGISTERED',
+        'Ese correo ya tiene una cuenta. Usa "Iniciar sesion" (o "He olvidado mi contrasena").',
       );
     }
     if (message.includes('invalid login credentials') || code === 'invalid_credentials') {
