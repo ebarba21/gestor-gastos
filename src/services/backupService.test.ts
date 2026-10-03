@@ -5,7 +5,7 @@ import { settingsRepo } from '../db/settingsRepo';
 import { accountsRepo } from '../db/accountsRepo';
 import { categoriesRepo } from '../db/categoriesRepo';
 import { tagsRepo } from '../db/tagsRepo';
-import { transactionsRepo } from '../db/transactionsRepo';
+import { transactionsRepo, buildTransactionEntity } from '../db/transactionsRepo';
 import type { NewTransaction } from '../db/transactionsRepo';
 import { rulesRepo } from '../db/rulesRepo';
 import { budgetsRepo } from '../db/budgetsRepo';
@@ -477,6 +477,30 @@ describe('ida y vuelta: backup + restauracion dejan los datos identicos', () => 
     for (const row of snap.data.transactions) {
       expect(row.profileId).toBe(dest.id);
     }
+  });
+
+  it('no sobrescribe un perfil vinculado a una cuenta (evita desalinear la copia remota)', async () => {
+    const a = await seedRichProfile('Origen');
+    const backup = await backupService.createBackup(a.pid);
+    const dest = await profilesRepo.create({ name: 'Sincronizado', color: '#999999', avatarEmoji: null });
+    await db.profiles.update(dest.id, { ownerUserId: 'user-1' });
+    const destAcc = await accountsRepo.create(dest.id, {
+      name: 'Cuenta propia',
+      kind: 'bank',
+      currency: 'EUR',
+      color: null,
+      openingBalanceCents: 0,
+      archivedAt: null,
+    });
+    await db.transactions.add(
+      buildTransactionEntity(dest.id, txInput({ accountId: destAcc.id, concept: 'Dato remoto' })),
+    );
+
+    await expect(backupService.restoreIntoActiveProfile(dest.id, backup)).rejects.toThrow(
+      BackupError,
+    );
+    const snap = await backupRepo.readProfileData(dest.id);
+    expect(snap.data.transactions.map((t) => t.concept)).toEqual(['Dato remoto']);
   });
 });
 

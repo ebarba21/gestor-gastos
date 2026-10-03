@@ -644,6 +644,15 @@ export async function restoreIntoActiveProfile(
   if (!target) {
     throw new BackupError('El perfil activo ya no existe. Vuelve a seleccionar un perfil.');
   }
+  // Un perfil vinculado a una cuenta no se sobrescribe: el reemplazo masivo local no pasa por la
+  // cola de sincronizacion, asi que la copia remota quedaria desalineada (y la siguiente descarga
+  // podria reintroducir filas borradas). La via segura es restaurar como perfil NUEVO (local) y
+  // vincularlo despues con el asistente de migracion, que sube todo de forma verificada.
+  if (target.ownerUserId) {
+    throw new BackupError(
+      'Este perfil esta sincronizado con tu cuenta y no se puede sobrescribir. Usa "Crear perfil nuevo" y despues vinculalo a tu cuenta desde Sincronizacion.',
+    );
+  }
   const data = remapProfileData(backup.data, activeProfileId);
   await backupRepo.restoreIntoExistingProfile(activeProfileId, data);
 }
