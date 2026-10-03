@@ -9,6 +9,7 @@ import { importService, type ParsedFile } from '../../services/importService';
 import {
   ruleImportService,
   emptyRuleColumnMap,
+  guessRuleColumnMap,
   ruleColumnLabels,
   type RuleImportColumnMap,
   type RuleImportConfig,
@@ -79,7 +80,11 @@ export function RuleImportModal({
     try {
       const parsedFile = await importService.parseFile(file);
       setParsed(parsedFile);
-      setConfig({ columnMap: emptyRuleColumnMap(), hasHeaderRow: true });
+      // Se intenta reconocer cada columna por su cabecera; lo no reconocido queda sin asignar.
+      setConfig({
+        columnMap: guessRuleColumnMap(ruleColumnLabels(parsedFile, true)),
+        hasHeaderRow: true,
+      });
       setPreview(null);
       setStep('map');
     } catch (e) {

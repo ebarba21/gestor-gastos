@@ -94,6 +94,50 @@ export function emptyRuleColumnMap(): RuleImportColumnMap {
   };
 }
 
+// Autodeteccion del mapeo por los nombres de cabecera (sin tildes ni mayusculas). Permite
+// importar sin tocar nada un fichero con cabeceras reconocibles, como el que genera la propia
+// app o la plantilla de reglas; cualquier columna no reconocida queda sin asignar y la persona
+// puede ajustarla a mano. Nunca asigna la misma columna a dos campos.
+const HEADER_ALIASES: Record<keyof RuleImportColumnMap, string[]> = {
+  name: ['nombre', 'nombre de la regla', 'regla', 'name'],
+  field: ['campo', 'field'],
+  operator: ['operador', 'operator'],
+  value: ['valor', 'valor de la condicion', 'texto', 'palabra clave', 'value', 'keyword'],
+  value2: ['segundo valor', 'valor 2', 'value2'],
+  caseSensitive: ['sensible a mayusculas', 'case sensitive'],
+  matchMode: ['modo', 'match mode'],
+  category: ['categoria', 'category'],
+  subcategory: ['subcategoria', 'subcategory'],
+  tags: ['etiquetas', 'tags'],
+  excludeFromStats: ['excluir de estadisticas', 'excluido de estadisticas', 'excluir'],
+  priority: ['prioridad', 'priority'],
+  enabled: ['activa', 'activo', 'enabled'],
+  stopOnMatch: ['detener al casar', 'detener', 'stop on match'],
+};
+
+function headerKey(label: string): string {
+  return label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function guessRuleColumnMap(labels: string[]): RuleImportColumnMap {
+  const map = emptyRuleColumnMap();
+  const used = new Set<number>();
+  const keys = labels.map(headerKey);
+  for (const field of Object.keys(HEADER_ALIASES) as (keyof RuleImportColumnMap)[]) {
+    const idx = keys.findIndex((k, i) => !used.has(i) && HEADER_ALIASES[field].includes(k));
+    if (idx >= 0) {
+      map[field] = idx;
+      used.add(idx);
+    }
+  }
+  return map;
+}
+
 // --- Utilidades de celda ---
 
 function cellToString(cell: CellValue): string {

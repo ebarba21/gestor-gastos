@@ -215,3 +215,22 @@ describe('ruleImportService.commit', () => {
     expect(problems.length).toBeGreaterThan(0);
   });
 });
+
+describe('guessRuleColumnMap (autodeteccion por cabecera)', () => {
+  it('reconoce las cabeceras habituales con o sin tildes y deja el resto sin asignar', async () => {
+    const { guessRuleColumnMap } = await import('./ruleImportService');
+    const map = guessRuleColumnMap([
+      'Nombre', 'Campo', 'Operador', 'Valor', 'Categoría', 'Subcategoría',
+      'Excluir de estadísticas', 'Activa', 'Detener al casar', 'Movimientos que cubria',
+    ]);
+    expect(map).toMatchObject({
+      name: 0, field: 1, operator: 2, value: 3, category: 4, subcategory: 5,
+      excludeFromStats: 6, enabled: 7, stopOnMatch: 8, tags: null, value2: null,
+    });
+  });
+
+  it('no asigna nada si las cabeceras no se reconocen', async () => {
+    const { guessRuleColumnMap, emptyRuleColumnMap } = await import('./ruleImportService');
+    expect(guessRuleColumnMap(['Columna 1', 'Columna 2'])).toEqual(emptyRuleColumnMap());
+  });
+});
