@@ -21,32 +21,8 @@ import { ThemeToggle } from './components/common';
 import { SyncBadge } from './components/sync';
 import { ReviewBadge } from './components/review';
 import { LockGate } from './components/security';
-
-interface NavItem {
-  to: string;
-  label: string;
-  end?: boolean;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/movimientos', label: 'Movimientos' },
-  { to: '/importar', label: 'Importar' },
-  { to: '/reglas', label: 'Reglas' },
-  { to: '/comercios', label: 'Comercios' },
-  { to: '/bandeja', label: 'Bandeja de revision' },
-  { to: '/conciliacion', label: 'Conciliacion' },
-  { to: '/recurrencias', label: 'Recurrencias' },
-  { to: '/deudas', label: 'Deudas' },
-  { to: '/categorias', label: 'Categorias' },
-  { to: '/cuentas', label: 'Cuentas' },
-  { to: '/presupuestos', label: 'Presupuestos' },
-  { to: '/exportar', label: 'Exportar' },
-  { to: '/cuenta', label: 'Cuenta' },
-  { to: '/sincronizacion', label: 'Sincronizacion' },
-  { to: '/ajustes', label: 'Ajustes' },
-  { to: '/ajustes/seguridad', label: 'Seguridad' },
-];
+import { MobileNav, NAV_ITEMS } from './components/layout';
+import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return [
@@ -58,14 +34,17 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
 }
 
 function AppLayout() {
+  // En movil la navegacion pasa a una barra inferior (MobileNav) y la cabecera queda compacta.
+  // En PC se mantiene la barra lateral con todas las secciones.
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100 md:flex-row">
       <aside className="border-b border-slate-800 bg-slate-900 md:w-64 md:shrink-0 md:border-b-0 md:border-r">
         {/* En movil, titulo y selector de perfil comparten fila para ahorrar altura;
             en PC vuelven a apilarse en la barra lateral. */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold">Gestor de Gastos</span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate whitespace-nowrap text-base font-bold md:text-lg">Gestor de Gastos</span>
             {/* Insignia de estado de sincronizacion (solo con cuenta activa). */}
             <SyncBadge />
             {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). */}
@@ -74,21 +53,28 @@ function AppLayout() {
             <ThemeToggle className="md:ml-auto" />
           </div>
           {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
-          <div className="w-44 shrink-0 md:mt-4 md:w-auto">
+          <div className="w-36 shrink-0 sm:w-44 md:mt-4 md:w-auto">
             <ProfileSwitcher />
           </div>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
-          {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        {!isMobile && (
+          <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
+            {NAV_ITEMS.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
       </aside>
 
       {/* min-w-0 evita que tablas y graficos anchos desborden el layout flex. */}
-      <main className="min-w-0 flex-1 p-4 md:p-6">
+      {/* En movil se reserva espacio inferior para la barra de navegacion fija y el indicador
+          de inicio del iPhone. */}
+      <main
+        className="min-w-0 flex-1 p-4 md:p-6"
+        style={isMobile ? { paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom))' } : undefined}
+      >
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/movimientos" element={<TransactionsPage />} />
@@ -109,6 +95,7 @@ function AppLayout() {
           <Route path="/ajustes/seguridad" element={<SecurityPage />} />
         </Routes>
       </main>
+      {isMobile && <MobileNav />}
     </div>
   );
 }

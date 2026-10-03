@@ -22,10 +22,27 @@ body,
 body {
   background-color: var(--color-slate-950);
   color: var(--color-slate-100);
+  /* Sin rebote elastico que deje ver el fondo al hacer scroll en iOS. */
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Zonas seguras del iPhone (notch, isla dinamica, esquinas redondeadas). Con la app instalada y
+   la barra de estado translucida, el contenido empezaria debajo de la hora y la bateria: el
+   padding superior lo evita. En navegadores sin notch env() vale 0 y no cambia nada. La zona
+   inferior la gestiona la barra de navegacion movil. */
+#root {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
+
+  /* Sky: solo tonos de texto claro (100/200), usados en botones activos. */
+  --color-sky-100: #0c4a6e;
+  --color-sky-200: #075985;
 
   /* Escala neutra invertida: slate-950 (fondo mas oscuro) -> mas claro, y viceversa. */
   --color-slate-50: #020617;
@@ -40,7 +57,11 @@ body {
   --color-slate-900: #f1f5f9;
   --color-slate-950: #f8fafc;
 
-  /* Indigo (acento principal / botones). 500/600 se conservan para el texto blanco. */
+  /* Indigo (acento principal / botones). 500/600 se conservan para el texto blanco. Los tonos
+     100/200 solo se usan como TEXTO sobre fondos tenues (p. ej. el boton de orden activo): en
+     claro se oscurecen para que sigan siendo legibles. Igual en el resto de acentos. */
+  --color-indigo-100: #312e81;
+  --color-indigo-200: #3730a3;
   --color-indigo-300: #4338ca;
   --color-indigo-400: #4f46e5;
   --color-indigo-700: #a5b4fc;
@@ -49,6 +70,8 @@ body {
   --color-indigo-950: #eef2ff;
 
   /* Emerald (ingresos / positivo). */
+  --color-emerald-100: #064e3b;
+  --color-emerald-200: #065f46;
   --color-emerald-300: #047857;
   --color-emerald-400: #059669;
   --color-emerald-700: #6ee7b7;
@@ -57,6 +80,8 @@ body {
   --color-emerald-950: #ecfdf5;
 
   /* Orange (gastos). */
+  --color-orange-100: #7c2d12;
+  --color-orange-200: #9a3412;
   --color-orange-300: #c2410c;
   --color-orange-400: #ea580c;
   --color-orange-700: #fdba74;
@@ -65,6 +90,8 @@ body {
   --color-orange-950: #fff7ed;
 
   /* Red (peligro / negativo). */
+  --color-red-100: #7f1d1d;
+  --color-red-200: #991b1b;
   --color-red-300: #b91c1c;
   --color-red-400: #dc2626;
   --color-red-700: #fca5a5;
@@ -73,6 +100,8 @@ body {
   --color-red-950: #fef2f2;
 
   /* Amber (avisos / estimaciones). */
+  --color-amber-100: #78350f;
+  --color-amber-200: #92400e;
   --color-amber-300: #b45309;
   --color-amber-400: #d97706;
   --color-amber-700: #fcd34d;
@@ -81,6 +110,8 @@ body {
   --color-amber-950: #fffbeb;
 
   /* Violet (etiquetas). */
+  --color-violet-100: #4c1d95;
+  --color-violet-200: #5b21b6;
   --color-violet-300: #6d28d9;
   --color-violet-400: #7c3aed;
   --color-violet-700: #c4b5fd;

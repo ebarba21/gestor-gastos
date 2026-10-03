@@ -397,7 +397,7 @@ export function ExportSection() {
           type="file"
           accept="application/json,.json"
           onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
-          className="block text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-medium file:text-slate-100 hover:file:bg-slate-600"
+          className="block w-full min-w-0 max-w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-4 file:py-2 file:text-sm file:font-medium file:text-slate-100 hover:file:bg-slate-600"
         />
       </div>
 

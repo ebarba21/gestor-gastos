@@ -21,7 +21,7 @@ import { SavingsInvestmentSection } from './SavingsInvestmentSection';
 // Tarjeta con titulo para envolver un grafico o lista.
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+    <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-slate-200">{title}</h3>
         {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}

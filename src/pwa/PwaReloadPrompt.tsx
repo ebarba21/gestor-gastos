@@ -33,7 +33,7 @@ export function PwaReloadPrompt() {
     <div
       role="alertdialog"
       aria-label="Nueva version disponible"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md rounded-xl border border-slate-700 bg-slate-900 p-4 shadow-2xl sm:inset-x-auto sm:right-4"
+      className="fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 mx-auto md:bottom-4 max-w-md rounded-xl border border-slate-700 bg-slate-900 p-4 shadow-2xl sm:inset-x-auto sm:right-4"
     >
       <p className="text-sm text-slate-200">
         Hay una nueva version de la app. Actualiza para aplicarla.

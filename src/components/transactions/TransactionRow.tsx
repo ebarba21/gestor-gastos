@@ -77,11 +77,13 @@ export function TransactionRow({
         onClick={() => onEdit(tx)}
         className="flex min-w-0 flex-1 flex-col items-start text-left"
       >
-        <span className="flex items-center gap-1.5 truncate text-slate-100">
-          <span className="truncate">{tx.concept}</span>
+        {/* w-full + min-w-0: sin ellos el concepto largo no se recorta y se monta sobre el
+            importe en pantallas estrechas (iPhone). */}
+        <span className="flex w-full min-w-0 items-center gap-1.5 text-slate-100">
+          <span className="min-w-0 truncate">{tx.concept}</span>
         </span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-1">
-          <span className="truncate text-xs text-slate-500">
+        <span className="mt-0.5 flex w-full min-w-0 flex-wrap items-center gap-1">
+          <span className="min-w-0 max-w-full truncate text-xs text-slate-500">
             <span className="tabular-nums sm:hidden">{tx.date} · </span>
             {categoryLabel}
             {subLabel ? ` › ${subLabel}` : ''} · {accountLabel}

@@ -43,7 +43,7 @@ function Tile({
 // Tarjeta con titulo para envolver un grafico (mismo patron que DashboardSection).
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+    <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-slate-200">{title}</h3>
         {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
@@ -127,7 +127,7 @@ export function SavingsInvestmentSection({ analysis, onSelectMonth }: SavingsInv
         analysis.bestInvestmentMonth !== null ||
         analysis.bestSavingsRateMonth !== null ||
         analysis.activeMonths > 0) && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <h4 className="mb-2 text-sm font-semibold text-slate-200">Insights del periodo</h4>
           <ul className="space-y-1.5">
             {analysis.bestNetSavingsMonth !== null && (

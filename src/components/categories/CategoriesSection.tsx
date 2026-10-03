@@ -39,7 +39,9 @@ function CategoryRow({
   return (
     <div
       className={[
-        'flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2',
+        // flex-wrap: en pantallas estrechas las acciones bajan a una segunda linea en vez de
+        // desbordar la pantalla.
+        'flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2',
         isSub ? 'ml-6' : '',
         archived ? 'opacity-60' : '',
       ].join(' ')}
@@ -50,14 +52,14 @@ function CategoryRow({
       >
         {category.icon ?? ''}
       </span>
-      <span className="flex-1 truncate text-sm text-slate-100">{category.name}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{category.name}</span>
       {!isSub && <KindBadge kind={category.kind} />}
       {archived && (
         <span className="rounded bg-amber-900/40 px-1.5 py-0.5 text-[11px] text-amber-300">
           Archivada
         </span>
       )}
-      <div className="flex shrink-0 gap-1 text-xs">
+      <div className="ml-auto flex shrink-0 gap-1 text-xs">
         {!archived && (
           <>
             <button
