@@ -13,6 +13,7 @@
 import type {
   Account,
   AmountStrategy,
+  Category,
   ColumnMap,
   DecimalSeparator,
   ImportBatch,
@@ -64,6 +65,8 @@ import {
 import { shiftDays } from '../lib/dates';
 import { ValidationError, requireProfileId, requireId, assert } from '../lib/validation';
 import { rulesRepo } from '../db/rulesRepo';
+import { categoriesRepo } from '../db/categoriesRepo';
+import { categoryService } from './categoryService';
 import { applyRulesToDraft } from './ruleService';
 import { merchantsRepo } from '../db/merchantsRepo';
 import { merchantAliasesRepo } from '../db/merchantAliasesRepo';
@@ -124,6 +127,13 @@ export interface PreviewRow {
   // identificador de comercio del banco). No se persiste tal cual: en commit() se intenta un
   // cruce exacto contra comercios existentes antes de aplicar el motor general.
   bankMerchantHint: string | null;
+  // Categoria indicada por el propio fichero (columnas opcionales Categoria/Subcategoria), por
+  // nombre. Se resuelve (y si falta se crea) en commit(); manda sobre las reglas.
+  fileCategory: { category: string; subcategory: string | null } | null;
+  // Resolucion de la columna de cuenta por nombre (ver buildPreview: si el fichero trae nombres
+  // de cuenta, uno que no existe es un error en vez de caer en la cuenta por defecto).
+  accountMatchedByName?: boolean;
+  unmatchedAccountName?: string | null;
   // --- Resultado del motor de duplicados (fase 5) ---
   duplicateStatus: Transaction['duplicateStatus'];
   duplicateConfidence: number;
@@ -147,6 +157,9 @@ export interface PreviewRow {
 
 export interface ImportPreview {
   rows: PreviewRow[];
+  // Categorias o subcategorias del fichero que aun no existen en el perfil ("Vacaciones",
+  // "Vacaciones > Comida"). Se crearan al confirmar la importacion.
+  categoriesToCreate?: string[];
   summary: {
     total: number;
     ok: number;
@@ -413,6 +426,23 @@ export const importService = {
       ),
     );
 
+    // Si la columna de cuenta trae NOMBRES de cuenta (al menos una fila casa con una cuenta del
+    // perfil), una fila con un nombre que no existe no se manda en silencio a la cuenta por
+    // defecto: mezclaria saldos de cuentas distintas. Se marca con error para crear la cuenta o
+    // corregir el fichero. Si ninguna fila casa (la columna trae IBAN o numero de tarjeta), se
+    // mantiene el comportamiento de siempre: todo a la cuenta por defecto.
+    if (rows.some((r) => r.accountMatchedByName)) {
+      for (const row of rows) {
+        if (!row.unmatchedAccountName) continue;
+        row.errors.push(
+          `La cuenta "${row.unmatchedAccountName}" no existe en este perfil. Creala en Cuentas o corrige el fichero.`,
+        );
+        row.status = 'error';
+        row.include = false;
+        row.transaction = null;
+      }
+    }
+
     // Pasada de comercio (fase 4/5): se aplica AQUI, antes del motor de duplicados, para que
     // el nivel "mismo comercio" (strongNormalized) y la huella tolerante
     // (normalizedFingerprint, que usa merchantId cuando existe) puedan activarse tambien
@@ -560,7 +590,8 @@ export const importService = {
       duplicates: rows.filter((r) => r.status === 'duplicate').length,
       errors: rows.filter((r) => r.status === 'error').length,
     };
-    return { rows, summary };
+    const categoriesToCreate = missingFileCategories(rows, await categoriesRepo.list(profileId));
+    return { rows, summary, categoriesToCreate };
   },
 
   // Commit atomico de la previsualizacion: crea el ImportBatch, los movimientos incluidos, y
@@ -636,9 +667,16 @@ export const importService = {
     // cargan una vez las reglas activas del perfil y se aplican a cada borrador antes del
     // commit atomico, de modo que quedan categorizados (categorizedBy='rule', ruleId) desde
     // el primer momento y en la misma transaccion. Si no hay reglas, no cambia nada.
+    // Categoria indicada en el propio fichero: se resuelve por nombre (creando la categoria o
+    // subcategoria si aun no existe) y manda sobre las reglas, que solo se aplican a las filas
+    // sin categoria del fichero.
+    await applyFileCategories(profileId, createRows, transactions);
     const enabledRules = await rulesRepo.listEnabledByPriority(profileId);
     if (enabledRules.length > 0) {
-      for (const draft of transactions) applyRulesToDraft(enabledRules, draft);
+      for (const draft of transactions) {
+        if (draft.categoryId !== null) continue;
+        applyRulesToDraft(enabledRules, draft);
+      }
     }
     // Asociacion de comercios (fase 4, ampliada en fase 5): red de seguridad idempotente.
     // buildPreview ya la aplica (para que el motor de duplicados pueda usar merchantId, ver
@@ -893,11 +931,37 @@ function buildPreviewRow(
   // Cuenta: si hay columna de cuenta mapeada y su texto coincide con una cuenta del perfil,
   // se usa esa; si no, la cuenta destino por defecto. Nunca se crean cuentas nuevas.
   let accountId = defaultAccountId;
+  let accountMatchedByName = false;
+  let unmatchedAccountName: string | null = null;
   if (cm.account !== null && typeof cm.account === 'number') {
-    const key = normalizeConcept(cellToString(cellAt(raw, cm.account)));
+    const accountText = cellToString(cellAt(raw, cm.account)).trim();
+    const key = normalizeConcept(accountText);
     const match = accountByName.get(key);
-    if (match) accountId = match;
+    if (match) {
+      accountId = match;
+      accountMatchedByName = true;
+    } else if (accountText.length > 0) {
+      unmatchedAccountName = accountText;
+    }
   }
+
+  const categoryText =
+    cm.category !== undefined && cm.category !== null
+      ? cellToString(cellAt(raw, cm.category)).trim()
+      : '';
+  const subcategoryText =
+    cm.subcategory !== undefined && cm.subcategory !== null
+      ? cellToString(cellAt(raw, cm.subcategory)).trim()
+      : '';
+  const fileCategory =
+    categoryText.length > 0
+      ? { category: categoryText, subcategory: subcategoryText.length > 0 ? subcategoryText : null }
+      : null;
+  const excludeText =
+    cm.excludeFromStats !== undefined && cm.excludeFromStats !== null
+      ? normalizeConcept(cellToString(cellAt(raw, cm.excludeFromStats)))
+      : '';
+  const excludedFromStats = ['si', 'true', '1', 'x', 'yes', 'verdadero'].includes(excludeText);
 
   const notes =
     cm.notes !== null && typeof cm.notes === 'number'
@@ -966,7 +1030,7 @@ function buildPreviewRow(
       parentId: null,
       isSplitParent: false,
       refundOfId: null,
-      excludedFromStats: false,
+      excludedFromStats,
       importBatchId: null,
       dedupeHash: computeDedupeHash({ profileId, accountId, date, amountCents, concept }),
       // El concepto bancario original es inmutable; el motor de asociacion de comercios
@@ -1011,6 +1075,9 @@ function buildPreviewRow(
     displayAccountId: transaction ? accountId : null,
     errors,
     bankMerchantHint,
+    fileCategory,
+    accountMatchedByName,
+    unmatchedAccountName,
     duplicateStatus: 'unique',
     duplicateConfidence: 0,
     duplicateReasonCodes: [],
@@ -1036,4 +1103,81 @@ function nullIfEmpty(s: string): string | null {
 
 function messageOf(e: unknown, fallback: string): string {
   return e instanceof ValidationError ? e.message : e instanceof Error ? e.message : fallback;
+}
+
+function categoryPathKey(category: string, subcategory: string | null): string {
+  return subcategory === null
+    ? normalizeConcept(category)
+    : `${normalizeConcept(category)} > ${normalizeConcept(subcategory)}`;
+}
+
+// Categorias y subcategorias del fichero que no existen en el perfil (para avisar en la
+// previsualizacion). Solo cuenta filas que se van a importar.
+function missingFileCategories(rows: PreviewRow[], categories: Category[]): string[] {
+  const roots = new Map<string, Category>();
+  for (const c of categories) if (c.parentId === null && c.archivedAt === null) roots.set(normalizeConcept(c.name), c);
+  const missing = new Map<string, string>();
+  for (const row of rows) {
+    const fc = row.fileCategory;
+    if (!fc || row.transaction === null) continue;
+    const root = roots.get(normalizeConcept(fc.category));
+    if (!root) {
+      missing.set(categoryPathKey(fc.category, null), fc.category);
+    }
+    if (fc.subcategory !== null) {
+      const exists =
+        root !== undefined &&
+        categories.some(
+          (c) => c.parentId === root.id && c.archivedAt === null && normalizeConcept(c.name) === normalizeConcept(fc.subcategory as string),
+        );
+      if (!exists) missing.set(categoryPathKey(fc.category, fc.subcategory), `${fc.category} > ${fc.subcategory}`);
+    }
+  }
+  return [...missing.values()];
+}
+
+// Resuelve la categoria del fichero de cada fila a importar, creando lo que falte (una sola
+// vez por nombre). Marca categorizedBy='import'. Aislamiento: todo con el profileId recibido.
+async function applyFileCategories(
+  profileId: string,
+  rows: PreviewRow[],
+  drafts: NewTransaction[],
+): Promise<void> {
+  if (!rows.some((r) => r.fileCategory !== null)) return;
+  const categories = await categoriesRepo.list(profileId);
+  const live = categories.filter((c) => c.archivedAt === null);
+  const findRoot = (name: string): Category | undefined =>
+    live.find((c) => c.parentId === null && normalizeConcept(c.name) === normalizeConcept(name));
+  const findChild = (rootId: string, name: string): Category | undefined =>
+    live.find((c) => c.parentId === rootId && normalizeConcept(c.name) === normalizeConcept(name));
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const fc = rows[i]!.fileCategory;
+    const draft = drafts[i]!;
+    if (!fc) continue;
+    let root = findRoot(fc.category);
+    if (!root) {
+      root = await categoryService.createCategory(profileId, {
+        name: fc.category,
+        kind: draft.amountCents < 0 ? 'expense' : 'both',
+      });
+      live.push(root);
+    }
+    let sub: Category | undefined;
+    if (fc.subcategory !== null) {
+      sub = findChild(root.id, fc.subcategory);
+      if (!sub) {
+        sub = await categoryService.createCategory(profileId, {
+          name: fc.subcategory,
+          kind: root.kind,
+          parentId: root.id,
+        });
+        live.push(sub);
+      }
+    }
+    draft.categoryId = root.id;
+    draft.subcategoryId = sub?.id ?? null;
+    draft.categorizedBy = 'import';
+    draft.ruleId = null;
+  }
 }

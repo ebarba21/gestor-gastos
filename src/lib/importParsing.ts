@@ -311,6 +311,9 @@ const FIELD_KEYWORDS: Record<keyof ColumnMap, string[]> = {
   balanceAfter: ['saldo', 'balance', 'saldo posterior', 'saldo disponible', 'saldo despues'],
   bankReference: ['referencia bancaria', 'ref bancaria', 'numero referencia'],
   operationType: ['tipo operacion', 'tipo de operacion', 'operation type', 'tipo movimiento'],
+  category: ['categoria', 'category'],
+  subcategory: ['subcategoria', 'subcategory'],
+  excludeFromStats: ['excluir de estadisticas', 'excluido de estadisticas', 'excluir'],
 };
 
 // Orden de campos a resolver. amount y debit/credit son excluyentes (segun la estrategia). Los
@@ -333,6 +336,9 @@ const DETECT_ORDER: (keyof ColumnMap)[] = [
   'balanceAfter',
   'bankReference',
   'operationType',
+  'category',
+  'subcategory',
+  'excludeFromStats',
 ];
 
 export interface DetectedMapping {
@@ -370,6 +376,11 @@ export function detectColumnMapping(headers: string[]): DetectedMapping {
     }
   }
 
+  // "Subcategoria" contiene "categoria": nunca se toma como columna de categoria.
+  if (found.category !== undefined && normalized[found.category]?.includes('subcategoria')) {
+    delete found.category;
+  }
+
   const hasDebitCredit = found.debit !== undefined || found.credit !== undefined;
   const amountStrategy: AmountStrategy = hasDebitCredit ? 'debitCredit' : 'signed';
 
@@ -390,6 +401,9 @@ export function detectColumnMapping(headers: string[]): DetectedMapping {
     balanceAfter: found.balanceAfter ?? null,
     bankReference: found.bankReference ?? null,
     operationType: found.operationType ?? null,
+    category: found.category ?? null,
+    subcategory: found.subcategory ?? null,
+    excludeFromStats: found.excludeFromStats ?? null,
   };
 
   return { columnMap, amountStrategy };

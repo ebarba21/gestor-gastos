@@ -226,6 +226,38 @@ export function MappingStep({
         />
       </div>
 
+      {/* Categorizacion desde el fichero (opcional): si el fichero ya trae la categoria, se
+          respeta y las reglas solo actuan sobre las filas sin categoria. Las categorias que no
+          existan se crean al confirmar. */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
+        <p className="mb-3 text-xs font-medium text-slate-400">
+          Categorizacion del fichero (opcional; si falta, se aplican tus reglas)
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ColumnSelect
+            label="Categoria"
+            value={numOrUnset(config.columnMap.category ?? null)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('category', v)}
+          />
+          <ColumnSelect
+            label="Subcategoria"
+            value={numOrUnset(config.columnMap.subcategory ?? null)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('subcategory', v)}
+          />
+          <ColumnSelect
+            label="Excluir de estadisticas (Si/No)"
+            value={numOrUnset(config.columnMap.excludeFromStats ?? null)}
+            labels={labels}
+            optional
+            onChange={(v) => setColumn('excludeFromStats', v)}
+          />
+        </div>
+      </div>
+
       {/* Metadatos bancarios opcionales (fase 5): mejoran la deteccion de duplicados, pero
           ninguno es obligatorio. Si el fichero no los trae, se dejan sin asignar. */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">

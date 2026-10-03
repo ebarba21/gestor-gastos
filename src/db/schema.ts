@@ -309,6 +309,12 @@ export interface ColumnMap {
   balanceAfter: string | number | null;
   bankReference: string | number | null;
   operationType: string | number | null;
+  // --- Categorizacion desde el fichero (opcional, octubre 2026) ---
+  // Permiten importar un fichero ya categorizado (p. ej. preparado a mano o con ayuda): la
+  // categoria del fichero manda sobre las reglas. Opcionales para no romper plantillas antiguas.
+  category?: string | number | null;
+  subcategory?: string | number | null;
+  excludeFromStats?: string | number | null;
 }
 
 export interface ImportTemplate extends SyncMeta {

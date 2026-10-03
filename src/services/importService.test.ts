@@ -797,3 +797,82 @@ describe('fase 5: rendimiento con miles de filas', () => {
     expect(elapsedMs).toBeLessThan(15000);
   }, 30000);
 });
+
+describe('importService: fichero ya categorizado (Categoria/Subcategoria/Excluir/Cuenta)', () => {
+  const CATEGORIZED_CSV = [
+    'Fecha;Concepto;Importe;Cuenta;Categoria;Subcategoria;Excluir de estadisticas',
+    '17/09/2026;Grab;-6,76;Revolut;Vacaciones;Transporte;No',
+    '18/09/2026;Nusa Penida Dc;-245,83;Revolut;Vacaciones;Ocio y actividades;No',
+    '19/09/2026;Recarga de *5019;300,00;Revolut;Transferencias internas;;Si',
+    '20/09/2026;Mercadona;-12,00;Ibercaja;;;',
+  ].join('\n');
+
+  it('detecta las columnas, avisa de las categorias que se crearan y las respeta frente a las reglas', async () => {
+    const { categoryService } = await import('./categoryService');
+    const { ruleService } = await import('./ruleService');
+    const revolut = await makeAccount(PROFILE_A, 'Revolut');
+    const ibercaja = await makeAccount(PROFILE_A, 'Ibercaja');
+    const vacaciones = await categoryService.createCategory(PROFILE_A, { name: 'Vacaciones', kind: 'expense' });
+    await categoryService.createCategory(PROFILE_A, { name: 'Transporte', kind: 'expense', parentId: vacaciones.id });
+    const supermercado = await categoryService.createCategory(PROFILE_A, { name: 'Supermercado', kind: 'expense' });
+    const ocio = await categoryService.createCategory(PROFILE_A, { name: 'Ocio', kind: 'expense' });
+    // Una regla que casaria con "Grab" no debe pisar la categoria del fichero.
+    await ruleService.create(PROFILE_A, {
+      name: 'grab -> ocio', enabled: true, matchMode: 'all', stopOnMatch: true,
+      conditions: [{ field: 'concept', operator: 'contains', value: 'grab', value2: null, caseSensitive: false }],
+      action: { setCategoryId: ocio.id, setSubcategoryId: null, addTagIds: [], setExcludedFromStats: null },
+    });
+    await ruleService.create(PROFILE_A, {
+      name: 'mercadona', enabled: true, matchMode: 'all', stopOnMatch: true,
+      conditions: [{ field: 'concept', operator: 'contains', value: 'mercadona', value2: null, caseSensitive: false }],
+      action: { setCategoryId: supermercado.id, setSubcategoryId: null, addTagIds: [], setExcludedFromStats: null },
+    });
+
+    const parsed = parsedFromCsv(CATEGORIZED_CSV);
+    const config = importService.suggestConfig(parsed, ibercaja.id);
+    expect(config.columnMap).toMatchObject({ account: 3, category: 4, subcategory: 5, excludeFromStats: 6 });
+    const preview = await importService.buildPreview(PROFILE_A, parsed, config, [revolut, ibercaja]);
+    expect(preview.summary.errors).toBe(0);
+    expect(preview.categoriesToCreate).toEqual([
+      'Vacaciones > Ocio y actividades',
+      'Transferencias internas',
+    ]);
+
+    await importService.commit(PROFILE_A, { parsed, preview, templateId: null });
+    const txs = await transactionsRepo.list(PROFILE_A);
+    const cats = await categoryService.listAll(PROFILE_A);
+    const name = (id: string | null) => cats.find((c) => c.id === id)?.name ?? null;
+    const byConcept = (c: string) => txs.find((t) => t.concept === c)!;
+
+    expect(name(byConcept('Grab').categoryId)).toBe('Vacaciones');
+    expect(name(byConcept('Grab').subcategoryId)).toBe('Transporte');
+    expect(byConcept('Grab').categorizedBy).toBe('import');
+    expect(name(byConcept('Nusa Penida Dc').subcategoryId)).toBe('Ocio y actividades');
+    expect(byConcept('Recarga de *5019').excludedFromStats).toBe(true);
+    expect(byConcept('Recarga de *5019').accountId).toBe(revolut.id);
+    // Sin categoria en el fichero: actuan las reglas.
+    expect(name(byConcept('Mercadona').categoryId)).toBe('Supermercado');
+    expect(byConcept('Mercadona').categorizedBy).toBe('rule');
+    expect(byConcept('Mercadona').accountId).toBe(ibercaja.id);
+  });
+
+  it('una cuenta del fichero que no existe es un error, no cae en la cuenta por defecto', async () => {
+    const revolut = await makeAccount(PROFILE_A, 'Revolut');
+    const csv = ['Fecha;Concepto;Importe;Cuenta', '01/09/2026;Cafe;-2,00;Revolut', '02/09/2026;Cine;-9,00;Revolut conjunta'].join('\n');
+    const parsed = parsedFromCsv(csv);
+    const config = importService.suggestConfig(parsed, revolut.id);
+    const preview = await importService.buildPreview(PROFILE_A, parsed, config, [revolut]);
+    expect(preview.summary.ok).toBe(1);
+    expect(preview.summary.errors).toBe(1);
+    expect(preview.rows[1]!.errors.join(' ')).toMatch(/Revolut conjunta/);
+  });
+
+  it('si la columna de cuenta no trae nombres conocidos (IBAN), todo va a la cuenta por defecto', async () => {
+    const acc = await makeAccount(PROFILE_A, 'Banco');
+    const csv = ['Fecha;Concepto;Importe;Cuenta', '01/09/2026;Cafe;-2,00;ES7620770024003102575766'].join('\n');
+    const parsed = parsedFromCsv(csv);
+    const preview = await importService.buildPreview(PROFILE_A, parsed, importService.suggestConfig(parsed, acc.id), [acc]);
+    expect(preview.summary.errors).toBe(0);
+    expect(preview.rows[0]!.transaction!.accountId).toBe(acc.id);
+  });
+});

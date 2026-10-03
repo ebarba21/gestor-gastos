@@ -93,6 +93,12 @@ export function PreviewStep({
         <Badge tone="red">{summary.errors} con error</Badge>
         <Badge tone="indigo">{selectedCount} seleccionadas</Badge>
       </div>
+      {preview.categoriesToCreate && preview.categoriesToCreate.length > 0 && (
+        <p className="rounded-lg border border-indigo-800/60 bg-indigo-950/20 px-3 py-2 text-xs text-indigo-300">
+          Al importar se crearan estas categorias que trae el fichero:{' '}
+          {preview.categoriesToCreate.join(', ')}.
+        </p>
+      )}
       <p className="text-xs text-slate-500">
         La confianza mostrada es orientativa (heuristica), no una probabilidad real. Nunca se
         borra ni se sustituye nada sin tu confirmacion explicita.
