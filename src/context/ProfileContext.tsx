@@ -77,11 +77,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setProfiles(list);
     // Si el perfil activo dejo de existir (o no pertenece a la sesion), se cae al selector y se
     // limpia la preferencia obsoleta en localStorage (no se arrastra hasta el proximo arranque).
-    setActiveProfileId((current) => {
-      if (current && list.some((p) => p.id === current)) return current;
+    // El updater de estado debe ser puro: React puede ejecutarlo mas tarde (en el render), y si
+    // borrara aqui localStorage pisaria la preferencia que createProfile/switchProfile guardan
+    // justo despues (el perfil recien creado no se recordaba al reabrir la app).
+    setActiveProfileId((current) => (current && list.some((p) => p.id === current) ? current : null));
+    const storedId = profileService.getActiveProfileId();
+    if (storedId && !list.some((p) => p.id === storedId)) {
       profileService.clearActiveProfileId();
-      return null;
-    });
+    }
   }, [ownerUserId]);
 
   const switchProfile = useCallback((id: string) => {
