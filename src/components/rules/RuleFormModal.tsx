@@ -116,6 +116,17 @@ export function eurosTextToCents(text: string): number {
   return eurosToCents(n);
 }
 
+// Invierte el signo de un importe escrito como texto. Existe porque el teclado decimal de
+// iOS (inputMode="decimal") no tiene tecla de menos, y los gastos se expresan en negativo:
+// sin este boton no se podia escribir "-78" desde el movil. Vacio pasa a "-" para que la
+// persona pueda escribir el numero despues; el resto de validacion la hace eurosTextToCents.
+export function toggleSign(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.startsWith('-')) return trimmed.slice(1);
+  if (trimmed.startsWith('+')) return `-${trimmed.slice(1)}`;
+  return `-${trimmed}`;
+}
+
 // Construye la RuleCondition a partir del estado editable.
 function draftToCondition(d: DraftCondition): RuleCondition {
   let value: string | number = d.value.trim();
@@ -400,26 +411,42 @@ export function RuleFormModal({
     if (c.field === 'amount') {
       return (
         <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => updateCondition(index, { value: toggleSign(c.value) })}
+            aria-label="Cambiar signo del importe"
+            title="Cambiar signo (gasto negativo / ingreso positivo)"
+            className={`${smallSelect} w-9 text-center font-semibold`}
+          >
+            ±
+          </button>
           <input
-            type="number"
-            step="0.01"
+            type="text"
             inputMode="decimal"
-            placeholder="Euros"
+            placeholder="-50"
             value={c.value}
             onChange={(e) => updateCondition(index, { value: e.target.value })}
-            className={`${smallSelect} w-28`}
+            className={`${smallSelect} w-24`}
           />
           {c.operator === 'between' && (
             <>
               <span className="text-xs text-slate-500">y</span>
+              <button
+                type="button"
+                onClick={() => updateCondition(index, { value2: toggleSign(c.value2) })}
+                aria-label="Cambiar signo del segundo importe"
+                title="Cambiar signo (gasto negativo / ingreso positivo)"
+                className={`${smallSelect} w-9 text-center font-semibold`}
+              >
+                ±
+              </button>
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 inputMode="decimal"
-                placeholder="Euros"
+                placeholder="-10"
                 value={c.value2}
                 onChange={(e) => updateCondition(index, { value2: e.target.value })}
-                className={`${smallSelect} w-28`}
+                className={`${smallSelect} w-24`}
               />
             </>
           )}
@@ -551,7 +578,7 @@ export function RuleFormModal({
           </button>
           {conditions.some((c) => c.field === 'amount') && (
             <p className="mt-1 text-[11px] text-slate-500">
-              Importes en euros. Los gastos son negativos (p. ej. -50 para un gasto de 50 euros).
+              Importes en euros. Los gastos son negativos (p. ej. -50 para un gasto de 50 euros). En el movil, usa el boton ± para poner el menos.
             </p>
           )}
         </div>
