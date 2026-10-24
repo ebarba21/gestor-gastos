@@ -118,6 +118,20 @@ export function CategoriesSection() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [addingSubTo, setAddingSubTo] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState<Category | null>(null);
+  const [pastelOpen, setPastelOpen] = useState(false);
+
+  // Raiz de la subcategoria en edicion y numero de hijas de la raiz a la que se anade una.
+  const parentOfEdited = useMemo(
+    () =>
+      editing?.parentId
+        ? tree.find((n) => n.category.id === editing.parentId)?.category ?? null
+        : null,
+    [editing, tree],
+  );
+  const addingSubSiblingCount = useMemo(
+    () => (addingSubTo ? tree.find((n) => n.category.id === addingSubTo.id)?.children.length ?? 0 : 0),
+    [addingSubTo, tree],
+  );
 
   const archivedCount = useMemo(
     () =>
@@ -183,15 +197,26 @@ export function CategoriesSection() {
 
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-semibold text-slate-100">Categorias</h3>
-        <button
-          type="button"
-          onClick={() => setCreateRootOpen(true)}
-          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
-        >
-          Nueva categoria
-        </button>
+        <div className="flex gap-2">
+          {tree.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setPastelOpen(true)}
+              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
+            >
+              🎨 Paleta pastel
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setCreateRootOpen(true)}
+            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            Nueva categoria
+          </button>
+        </div>
       </div>
 
       {archivedCount > 0 && (
@@ -255,6 +280,7 @@ export function CategoriesSection() {
         profileId={profileId}
         onSaved={reload}
         category={editing}
+        parentOfEdited={parentOfEdited}
       />
       <CategoryFormModal
         open={addingSubTo !== null}
@@ -262,6 +288,33 @@ export function CategoriesSection() {
         profileId={profileId}
         onSaved={reload}
         parent={addingSubTo}
+        siblingCount={addingSubSiblingCount}
+      />
+      <ConfirmDialog
+        open={pastelOpen}
+        onClose={() => setPastelOpen(false)}
+        title="Aplicar paleta pastel"
+        message={
+          <span>
+            Cada categoria tendra un tono pastel y sus subcategorias, versiones mas claras de ese
+            mismo tono. Se sustituyen los colores actuales de todas las categorias de este perfil.
+          </span>
+        }
+        buttons={[
+          { label: 'Cancelar', variant: 'ghost' },
+          {
+            label: 'Aplicar',
+            variant: 'primary',
+            onClick: async () => {
+              const n = await categoryService.applyPastelPalette(profileId);
+              showToast(
+                n > 0 ? `Colores actualizados en ${n} categorias.` : 'Ya tenias la paleta pastel.',
+                'success',
+              );
+              await reload();
+            },
+          },
+        ]}
       />
       <ConfirmDialog
         open={deleting !== null}

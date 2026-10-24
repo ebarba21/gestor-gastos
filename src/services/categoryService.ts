@@ -4,7 +4,7 @@
 import type { Category, CategoryKind } from '../db/schema';
 import { categoriesRepo } from '../db/categoriesRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
-import { pickAccentColor } from '../lib/colors';
+import { pastelAssignments, pickAccentColor, subcategoryShade } from '../lib/colors';
 import { ValidationError, assert } from '../lib/validation';
 
 export const MAX_CATEGORY_NAME_LENGTH = 40;
@@ -71,7 +71,15 @@ export const categoryService = {
     const siblings = await categoriesRepo.list(profileId);
     const sameLevel = siblings.filter((c) => c.parentId === (input.parentId ?? null));
     const sortOrder = sameLevel.length;
-    const color = input.color ?? pickAccentColor(sameLevel.length);
+    // Una subcategoria toma, por defecto, una variante clara del color de su raiz.
+    let defaultColor: string;
+    if (input.parentId) {
+      const parent = siblings.find((c) => c.id === input.parentId);
+      defaultColor = subcategoryShade(parent?.color, sameLevel.length);
+    } else {
+      defaultColor = pickAccentColor(sameLevel.length);
+    }
+    const color = input.color ?? defaultColor;
     return categoriesRepo.create(profileId, {
       name,
       parentId: input.parentId ?? null,
@@ -90,7 +98,47 @@ export const categoryService = {
   ): Promise<Category> {
     const clean = { ...patch };
     if (patch.name !== undefined) clean.name = normalizeCategoryName(patch.name);
-    return categoriesRepo.update(profileId, id, clean);
+    const before = patch.color !== undefined ? await categoriesRepo.getById(profileId, id) : undefined;
+    const updated = await categoriesRepo.update(profileId, id, clean);
+    // Si cambia el color de una raiz, sus subcategorias pasan a variantes del nuevo color
+    // para que sigan leyendose como de la misma familia.
+    if (
+      before &&
+      before.parentId === null &&
+      patch.color !== undefined &&
+      patch.color !== before.color
+    ) {
+      const children = (await categoriesRepo.listChildren(profileId, id)).sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
+      );
+      for (const [i, child] of children.entries()) {
+        const shade = subcategoryShade(updated.color, i);
+        if (child.color !== shade) await categoriesRepo.update(profileId, child.id, { color: shade });
+      }
+    }
+    return updated;
+  },
+
+  // Recolorea todo el arbol (incluidas archivadas) con la paleta pastel: cada raiz toma un
+  // tono de la paleta y sus subcategorias, variantes mas claras de ese mismo tono. Solo
+  // escribe las categorias cuyo color cambia. Devuelve cuantas se han actualizado.
+  async applyPastelPalette(profileId: string): Promise<number> {
+    const tree = await categoryService.listTree(profileId, { includeArchived: true });
+    const plan = pastelAssignments(
+      tree.map((n) => ({ id: n.category.id, children: n.children.map((c) => ({ id: c.id })) })),
+    );
+    const current = new Map<string, string | null>();
+    for (const n of tree) {
+      current.set(n.category.id, n.category.color);
+      for (const c of n.children) current.set(c.id, c.color);
+    }
+    let changed = 0;
+    for (const [id, color] of plan) {
+      if (current.get(id) === color) continue;
+      await categoriesRepo.update(profileId, id, { color });
+      changed++;
+    }
+    return changed;
   },
 
   // Cuenta el uso de una categoria (por movimientos) y sus subcategorias.

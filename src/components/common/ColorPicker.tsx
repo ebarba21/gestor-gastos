@@ -5,14 +5,23 @@ interface ColorPickerProps {
   value: string;
   onChange: (color: string) => void;
   label?: string;
+  // Paleta alternativa (p. ej. las variantes de una subcategoria). Por defecto, ACCENT_COLORS.
+  colors?: readonly string[];
+  hint?: string;
 }
 
-export function ColorPicker({ value, onChange, label = 'Color' }: ColorPickerProps) {
+export function ColorPicker({
+  value,
+  onChange,
+  label = 'Color',
+  colors = ACCENT_COLORS,
+  hint,
+}: ColorPickerProps) {
   return (
     <div>
       <span className="block text-sm font-medium text-slate-300">{label}</span>
       <div className="mt-2 flex flex-wrap gap-2">
-        {ACCENT_COLORS.map((c) => (
+        {colors.map((c) => (
           <button
             key={c}
             type="button"
@@ -27,6 +36,7 @@ export function ColorPicker({ value, onChange, label = 'Color' }: ColorPickerPro
           />
         ))}
       </div>
+      {hint && <p className="mt-1.5 text-xs text-slate-500">{hint}</p>}
     </div>
   );
 }

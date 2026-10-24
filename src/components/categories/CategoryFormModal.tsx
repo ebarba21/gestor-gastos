@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Category, CategoryKind } from '../../db/schema';
 import { Modal, ColorPicker, IconPicker } from '../common';
-import { ACCENT_COLORS } from '../../lib/colors';
+import { ACCENT_COLORS, subcategoryShade, subcategoryShades } from '../../lib/colors';
 import {
   categoryService,
   MAX_CATEGORY_NAME_LENGTH,
@@ -26,6 +26,10 @@ interface CategoryFormModalProps {
   category?: Category | null;
   // Crear una subcategoria bajo esta raiz (hereda su kind).
   parent?: Category | null;
+  // Raiz de la subcategoria que se edita (para ofrecer variantes de su color).
+  parentOfEdited?: Category | null;
+  // Numero de subcategorias que ya tiene `parent` (elige la variante por defecto).
+  siblingCount?: number;
 }
 
 export function CategoryFormModal({
@@ -35,6 +39,8 @@ export function CategoryFormModal({
   onSaved,
   category,
   parent,
+  parentOfEdited,
+  siblingCount = 0,
 }: CategoryFormModalProps) {
   const { showToast } = useToast();
   const isEdit = Boolean(category);
@@ -59,10 +65,17 @@ export function CategoryFormModal({
     } else {
       setName('');
       setKind(parent ? parent.kind : 'expense');
-      setColor(ACCENT_COLORS[0]!);
+      setColor(parent ? subcategoryShade(parent.color, siblingCount) : ACCENT_COLORS[0]!);
       setIcon(null);
     }
-  }, [open, category, parent]);
+  }, [open, category, parent, siblingCount]);
+
+  // Las subcategorias solo eligen entre variantes claras del color de su categoria.
+  const familyRoot = parent ?? parentOfEdited ?? null;
+  const subShades = !isRoot ? subcategoryShades(familyRoot?.color) : null;
+  // Si la subcategoria tenia un color fuera de su familia, se muestra tambien para no perderlo.
+  const pickerColors =
+    subShades && !subShades.includes(color) ? [color, ...subShades] : subShades ?? ACCENT_COLORS;
 
   const title = isEdit
     ? isRoot
@@ -148,7 +161,16 @@ export function CategoryFormModal({
           </div>
         )}
 
-        <ColorPicker value={color} onChange={setColor} />
+        <ColorPicker
+          value={color}
+          onChange={setColor}
+          colors={pickerColors}
+          hint={
+            isRoot
+              ? 'Sus subcategorias usaran tonos mas claros de este mismo color.'
+              : `Tonos de la familia de ${familyRoot?.name ?? 'su categoria'}.`
+          }
+        />
         <IconPicker value={icon} onChange={setIcon} />
 
         {error && <p className="text-sm text-red-400">{error}</p>}

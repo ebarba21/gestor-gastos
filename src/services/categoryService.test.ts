@@ -11,6 +11,7 @@ import { categoriesRepo } from '../db/categoriesRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
 import type { NewTransaction } from '../db/transactionsRepo';
 import { ValidationError } from '../lib/validation';
+import { ACCENT_COLORS, subcategoryShade } from '../lib/colors';
 
 const A = 'perfil-a';
 const B = 'perfil-b';
@@ -222,5 +223,81 @@ describe('aislamiento por perfil', () => {
     expect(await categoriesRepo.getById(A, subA.id)).toBeUndefined();
     // El uso de la subcategoria de B si es 1.
     expect((await categoryService.getUsage(B, subB.id)).transactions).toBe(1);
+  });
+});
+
+describe('colores de categorias (paleta pastel por familias)', () => {
+  it('una subcategoria nueva hereda una variante clara del color de su raiz', async () => {
+    const root = await categoryService.createCategory(A, {
+      name: 'Caprichos',
+      kind: 'expense',
+      color: ACCENT_COLORS[0]!,
+    });
+    const ropa = await categoryService.createCategory(A, {
+      name: 'Ropa',
+      kind: 'expense',
+      parentId: root.id,
+    });
+    const tech = await categoryService.createCategory(A, {
+      name: 'Tecnologia',
+      kind: 'expense',
+      parentId: root.id,
+    });
+    expect(ropa.color).toBe(subcategoryShade(root.color, 0));
+    expect(tech.color).toBe(subcategoryShade(root.color, 1));
+  });
+
+  it('cambiar el color de una raiz re-tine sus subcategorias', async () => {
+    const root = await categoryService.createCategory(A, { name: 'Ocio', kind: 'expense' });
+    const sub = await categoryService.createCategory(A, {
+      name: 'Cine',
+      kind: 'expense',
+      parentId: root.id,
+    });
+    await categoryService.updateCategory(A, root.id, { color: ACCENT_COLORS[3]! });
+    const after = await categoriesRepo.getById(A, sub.id);
+    expect(after?.color).toBe(subcategoryShade(ACCENT_COLORS[3], 0));
+  });
+
+  it('cambiar el color de una subcategoria no toca la raiz ni hermanas', async () => {
+    const root = await categoryService.createCategory(A, { name: 'Coche', kind: 'expense' });
+    const s1 = await categoryService.createCategory(A, { name: 'Seguro', kind: 'expense', parentId: root.id });
+    const s2 = await categoryService.createCategory(A, { name: 'Taller', kind: 'expense', parentId: root.id });
+    await categoryService.updateCategory(A, s1.id, { color: subcategoryShade(root.color, 4) });
+    expect((await categoriesRepo.getById(A, root.id))?.color).toBe(root.color);
+    expect((await categoriesRepo.getById(A, s2.id))?.color).toBe(s2.color);
+  });
+
+  it('applyPastelPalette recolorea todo el perfil (incluidas archivadas) y es idempotente', async () => {
+    const r1 = await categoryService.createCategory(A, { name: 'Uno', kind: 'expense', color: '#123456' });
+    const r2 = await categoryService.createCategory(A, { name: 'Dos', kind: 'expense', color: '#654321' });
+    const c1 = await categoryService.createCategory(A, {
+      name: 'Hija',
+      kind: 'expense',
+      parentId: r1.id,
+      color: '#000000',
+    });
+    await categoryService.archiveCategory(A, r2.id);
+    const otro = await categoryService.createCategory(B, { name: 'Ajena', kind: 'expense', color: '#abcdef' });
+
+    const changed = await categoryService.applyPastelPalette(A);
+    expect(changed).toBe(3);
+    expect((await categoriesRepo.getById(A, r1.id))?.color).toBe(ACCENT_COLORS[0]);
+    expect((await categoriesRepo.getById(A, r2.id))?.color).toBe(ACCENT_COLORS[1]);
+    expect((await categoriesRepo.getById(A, c1.id))?.color).toBe(subcategoryShade(ACCENT_COLORS[0], 0));
+    // Aislamiento: otro perfil intacto.
+    expect((await categoriesRepo.getById(B, otro.id))?.color).toBe('#abcdef');
+
+    expect(await categoryService.applyPastelPalette(A)).toBe(0);
+  });
+
+  it('el set por defecto nace con subcategorias de la misma familia de color', async () => {
+    await seedDefaultCategories(A);
+    const tree = await categoryService.listTree(A);
+    for (const node of tree) {
+      node.children.forEach((child, i) => {
+        expect(child.color).toBe(subcategoryShade(node.category.color, i));
+      });
+    }
   });
 });
