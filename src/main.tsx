@@ -12,6 +12,7 @@ import { hydrateSecurityAtBoot } from './security/pinService';
 import { setLockStatus } from './security/lockState';
 import { PwaReloadPrompt } from './pwa/PwaReloadPrompt';
 import { requestPersistentStorage } from './pwa/persistentStorage';
+import { applyAppIconAtBoot } from './pwa/appIcon';
 import './index.css';
 
 const rootElementOrNull = document.getElementById('root');
@@ -19,6 +20,9 @@ if (!rootElementOrNull) {
   throw new Error('No se encontro el elemento raiz #root en el DOM.');
 }
 const rootElement = rootElementOrNull;
+
+// Icono elegido (o el de ?icono=<id>) antes de pintar: Safari lo lee al anadir a inicio.
+applyAppIconAtBoot();
 
 // Ruta base del router: coincide con la `base` de Vite (p. ej. '/gestor-gastos/' en GitHub
 // Pages). React Router la espera sin barra final; en la raiz del dominio queda en '/'.

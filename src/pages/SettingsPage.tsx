@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useActiveProfile } from '../hooks/useProfiles';
 import { ProfileAvatar, ProfileFormModal, DeleteProfileModal } from '../components/profile';
 import { ThemeToggle } from '../components/common';
+import { AppIconSection } from '../components/settings/AppIconSection';
 
 export default function SettingsPage() {
   const profile = useActiveProfile();
@@ -61,6 +62,8 @@ export default function SettingsPage() {
           <ThemeToggle variant="segmented" />
         </div>
       </div>
+
+      <AppIconSection />
 
       <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">

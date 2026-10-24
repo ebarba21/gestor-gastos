@@ -35,6 +35,8 @@ export default defineConfig({
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
+        // Categoria de tienda/lanzador (la usan Android y escritorio; iOS la ignora).
+        categories: ['finance'],
         // Tanto start_url como scope siguen la ruta base: asi la app instalada en iPhone o PC
         // abre siempre dentro de su propio ambito, tambien publicada en una subruta.
         start_url: base,
