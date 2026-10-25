@@ -490,6 +490,69 @@ export function simulateOnTransactions(
   return { affected, eligible, changed: affected.length, skippedManual };
 }
 
+// --- Reproceso tras crear una regla. Puro. ---
+
+export interface NewRuleReprocessResult extends SimulationResult {
+  // Movimientos con los que la regla nueva casa por si sola (elegibles y no protegidos).
+  matched: number;
+  // De esos, cuantos se quedan como estan porque una regla de mayor prioridad con
+  // stopOnMatch los reclama antes (la regla nueva ni siquiera llega a evaluarse).
+  blockedByPriority: number;
+}
+
+// Calcula que movimientos hay que recategorizar al crear `newRule`. Se reprocesan TODOS los
+// movimientos del perfil, pero solo se cambian los que pertenecen a la regla nueva: aquellos
+// en los que la regla nueva interviene al evaluar el conjunto completo de reglas activas
+// (`allRules`, que debe incluir la nueva) respetando prioridades y stopOnMatch. Asi el
+// resultado es exactamente el mismo que daria "Aplicar a existentes" para esos movimientos y
+// una pasada posterior no lo revierte. Los movimientos que la regla no toca se dejan intactos
+// aunque otras reglas pudieran cambiarlos (eso es decision de "Aplicar a existentes").
+export function simulateNewRule(
+  newRule: Rule,
+  allRules: Rule[],
+  transactions: Transaction[],
+  options: SimulateOptions = {},
+): NewRuleReprocessResult {
+  const empty: NewRuleReprocessResult = {
+    affected: [],
+    eligible: 0,
+    changed: 0,
+    skippedManual: 0,
+    matched: 0,
+    blockedByPriority: 0,
+  };
+  // Una regla inactiva no categoriza nada (ni en altas ni en imports): tampoco reprocesa.
+  if (!newRule.enabled) return empty;
+  const rules = allRules.some((r) => r.id === newRule.id) ? allRules : [...allRules, newRule];
+  const overrideManual = options.overrideManual ?? false;
+  const result = { ...empty, affected: [] as RuleChange[] };
+  for (const tx of transactions) {
+    if (!isRuleEligible(tx)) continue;
+    result.eligible += 1;
+    if (!ruleMatches(newRule, tx)) continue;
+    if (!overrideManual && tx.categorizedBy === 'manual') {
+      result.skippedManual += 1;
+      continue;
+    }
+    result.matched += 1;
+    const evaluation = evaluateRules(rules, tx);
+    if (!evaluation.matchedRuleIds.includes(newRule.id)) {
+      result.blockedByPriority += 1;
+      continue;
+    }
+    const after = categorizationFrom(snapshotCategorization(tx), evaluation);
+    if (after === null) continue;
+    result.affected.push({
+      transaction: tx,
+      before: snapshotCategorization(tx),
+      after,
+      ruleId: evaluation.ruleId as string,
+    });
+  }
+  result.changed = result.affected.length;
+  return result;
+}
+
 // Aplica un conjunto de reglas sobre un BORRADOR de movimiento nuevo (alta manual o import),
 // mutandolo in situ. Solo considera reglas activas. No toca movimientos ya marcados como
 // manuales (categorizedBy 'manual'): respeta una categoria elegida a mano en el alta.
@@ -691,6 +754,50 @@ export const ruleService = {
     const clean = validateRuleInput(input);
     const priority = await rulesRepo.count(profileId);
     return rulesRepo.create(profileId, { ...clean, priority });
+  },
+
+  // Crea una regla y reprocesa todos los movimientos existentes del perfil para recategorizar
+  // los que pertenecen a ella (ver simulateNewRule). Respeta los categorizados a mano salvo
+  // overrideManual. Si la regla se guarda inactiva no se reprocesa nada. Devuelve la regla,
+  // cuantos movimientos cambiaron y los ids afectados (para generar tareas de revision).
+  async createAndReprocess(
+    profileId: string,
+    input: RuleInput,
+    options: SimulateOptions = {},
+  ): Promise<{
+    rule: Rule;
+    changed: number;
+    matched: number;
+    blockedByPriority: number;
+    skippedManual: number;
+    changedIds: string[];
+  }> {
+    requireProfileId(profileId);
+    const rule = await ruleService.create(profileId, input);
+    const [rules, transactions] = await Promise.all([
+      rulesRepo.listEnabledByPriority(profileId),
+      transactionsRepo.list(profileId),
+    ]);
+    const sim = simulateNewRule(rule, rules, transactions, options);
+    let changed = 0;
+    if (sim.affected.length > 0) {
+      const patchById = new Map<string, TransactionPatch>(
+        sim.affected.map((a) => [a.transaction.id, toPatch(a.after)]),
+      );
+      changed = await transactionsRepo.applyToMany(
+        profileId,
+        [...patchById.keys()],
+        (tx) => patchById.get(tx.id) ?? {},
+      );
+    }
+    return {
+      rule,
+      changed,
+      matched: sim.matched,
+      blockedByPriority: sim.blockedByPriority,
+      skippedManual: sim.skippedManual,
+      changedIds: sim.affected.map((a) => a.transaction.id),
+    };
   },
 
   // Actualiza una regla conservando su prioridad (el orden se cambia con move/reorder).

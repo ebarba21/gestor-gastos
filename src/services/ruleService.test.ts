@@ -10,6 +10,7 @@ import {
   evaluateRules,
   categorizationFrom,
   simulateOnTransactions,
+  simulateNewRule,
   validateRuleInput,
   validateCondition,
   isRuleEligible,
@@ -636,6 +637,137 @@ describe('aplicacion retroactiva', () => {
       newTx({ concept: 'MERCADONA', categorizedBy: 'manual', categoryId: 'mia' }),
     ]);
     expect(await ruleService.applyToTransaction(A, tx!.id)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9b. Reproceso al crear una regla
+// ---------------------------------------------------------------------------
+
+describe('crear regla reprocesa los movimientos existentes', () => {
+  it('recategoriza los movimientos que casan con la regla nueva y deja el resto', async () => {
+    await transactionsRepo.createMany(A, [
+      newTx({ concept: 'BONAREA GUISSONA', categoryId: 'cat-comida', categorizedBy: 'import' }),
+      newTx({ concept: 'BONAREA MANRESA' }),
+      newTx({ concept: 'LIDL' }),
+    ]);
+    const res = await ruleService.createAndReprocess(
+      A,
+      ruleInput({ name: 'bonArea', conditions: [cond({ value: 'bonarea' })], action: action({ setCategoryId: 'cat-gasolina' }) }),
+    );
+    expect(res.changed).toBe(2);
+    expect(res.changedIds).toHaveLength(2);
+    const txs = await transactionsRepo.list(A);
+    for (const tx of txs.filter((t) => t.concept.startsWith('BONAREA'))) {
+      expect(tx.categoryId).toBe('cat-gasolina');
+      expect(tx.categorizedBy).toBe('rule');
+      expect(tx.ruleId).toBe(res.rule.id);
+    }
+    const lidl = txs.find((t) => t.concept === 'LIDL')!;
+    expect(lidl.categorizedBy).toBe('none');
+    expect(lidl.categoryId).toBeNull();
+  });
+
+  it('recategoriza movimientos ya categorizados por otra regla que no los reclama con prioridad', async () => {
+    // Regla vieja sin stop que no casa con el nuevo concepto, y un movimiento con categoria
+    // previa asignada por regla (p. ej. de una regla ya borrada).
+    await transactionsRepo.createMany(A, [
+      newTx({ concept: 'APPLE.COM/BILL', categoryId: 'cat-google', categorizedBy: 'rule', ruleId: 'borrada' }),
+    ]);
+    const res = await ruleService.createAndReprocess(
+      A,
+      ruleInput({ conditions: [cond({ value: 'apple.com' })], action: action({ setCategoryId: 'cat-icloud' }) }),
+    );
+    expect(res.changed).toBe(1);
+    const [tx] = await transactionsRepo.list(A);
+    expect(tx.categoryId).toBe('cat-icloud');
+  });
+
+  it('respeta los manuales por defecto', async () => {
+    await transactionsRepo.createMany(A, [
+      newTx({ concept: 'TULOTERO', categorizedBy: 'manual', categoryId: 'cat-ocio' }),
+    ]);
+    const input = ruleInput({ conditions: [cond({ value: 'tulotero' })], action: action({ setCategoryId: 'cat-loteria' }) });
+    const noOverride = await ruleService.createAndReprocess(A, input);
+    expect(noOverride.changed).toBe(0);
+    expect(noOverride.skippedManual).toBe(1);
+    expect((await transactionsRepo.list(A))[0].categoryId).toBe('cat-ocio');
+  });
+
+  it('recategoriza los manuales si se pide overrideManual', async () => {
+    await transactionsRepo.createMany(A, [
+      newTx({ concept: 'TULOTERO', categorizedBy: 'manual', categoryId: 'cat-ocio' }),
+    ]);
+    const input = ruleInput({ conditions: [cond({ value: 'tulotero' })], action: action({ setCategoryId: 'cat-loteria' }) });
+    const withOverride = await ruleService.createAndReprocess(A, input, { overrideManual: true });
+    expect(withOverride.changed).toBe(1);
+    const [tx] = await transactionsRepo.list(A);
+    expect(tx.categoryId).toBe('cat-loteria');
+    expect(tx.categorizedBy).toBe('rule');
+  });
+
+  it('respeta la prioridad: si una regla anterior con stop lo reclama, no lo cambia', async () => {
+    const vieja = await ruleService.create(
+      A,
+      ruleInput({ name: 'vieja', conditions: [cond({ value: 'MERCADONA' })], action: action({ setCategoryId: 'cat-super' }) }),
+    );
+    await transactionsRepo.createMany(A, [newTx({ concept: 'MERCADONA MANRESA' })]);
+    await ruleService.applyAllRetroactive(A);
+
+    const res = await ruleService.createAndReprocess(
+      A,
+      ruleInput({ name: 'nueva', conditions: [cond({ value: 'MANRESA' })], action: action({ setCategoryId: 'cat-otra' }) }),
+    );
+    expect(res.changed).toBe(0);
+    expect(res.matched).toBe(1);
+    expect(res.blockedByPriority).toBe(1);
+    const [tx] = await transactionsRepo.list(A);
+    expect(tx.categoryId).toBe('cat-super');
+    expect(tx.ruleId).toBe(vieja.id);
+  });
+
+  it('no toca movimientos que la regla nueva no casa aunque otras reglas pudieran cambiarlos', async () => {
+    await transactionsRepo.createMany(A, [newTx({ concept: 'MERCADONA' })]);
+    // Regla creada sin reproceso: el movimiento sigue sin categoria.
+    await ruleService.create(A, ruleInput({ name: 'merca', conditions: [cond({ value: 'MERCADONA' })] }));
+    const res = await ruleService.createAndReprocess(
+      A,
+      ruleInput({ name: 'lidl', conditions: [cond({ value: 'LIDL' })], action: action({ setCategoryId: 'cat-lidl' }) }),
+    );
+    expect(res.changed).toBe(0);
+    expect((await transactionsRepo.list(A))[0].categorizedBy).toBe('none');
+  });
+
+  it('una regla creada inactiva no reprocesa nada', async () => {
+    await transactionsRepo.createMany(A, [newTx({ concept: 'MERCADONA' })]);
+    const res = await ruleService.createAndReprocess(A, ruleInput({ enabled: false }));
+    expect(res.changed).toBe(0);
+    expect((await transactionsRepo.list(A))[0].categorizedBy).toBe('none');
+  });
+
+  it('no toca transferencias ni padres de split', async () => {
+    await transactionsRepo.createMany(A, [
+      newTx({ concept: 'MERCADONA T', type: 'transfer', transferGroupId: 'g1', excludedFromStats: true }),
+      newTx({ concept: 'MERCADONA P', isSplitParent: true, excludedFromStats: true }),
+    ]);
+    const res = await ruleService.createAndReprocess(A, ruleInput());
+    expect(res.changed).toBe(0);
+  });
+
+  it('solo reprocesa los movimientos del propio perfil', async () => {
+    await transactionsRepo.createMany(A, [newTx({ concept: 'MERCADONA' })]);
+    await transactionsRepo.createMany(B, [newTx({ concept: 'MERCADONA' })]);
+    const res = await ruleService.createAndReprocess(A, ruleInput());
+    expect(res.changed).toBe(1);
+    expect((await transactionsRepo.list(B))[0].categorizedBy).toBe('none');
+  });
+
+  it('simulateNewRule anade la regla al conjunto si no venia incluida', () => {
+    const nueva = makeRule({ id: 'n', conditions: [cond({ value: 'MERCADONA' })], action: action({ setCategoryId: 'cat-N' }) });
+    const txs = [{ ...newTx({ concept: 'MERCADONA' }), id: 'x1', profileId: A, statsFlag: 0 as const, createdAt: 0, updatedAt: 0 }];
+    const sim = simulateNewRule(nueva, [], txs);
+    expect(sim.changed).toBe(1);
+    expect(sim.affected[0].after.ruleId).toBe('n');
   });
 });
 

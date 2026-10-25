@@ -1,7 +1,9 @@
 // Formulario de crear/editar una regla de autocategorizacion. Construye las condiciones
 // (combinables, con matchMode todas/alguna), la accion (categoria, subcategoria, etiquetas,
 // exclusion) y permite SIMULAR contra los movimientos existentes antes de guardar (cuenta
-// cuantos se verian afectados, sin escribir nada). Toda la logica vive en ruleService; aqui
+// cuantos se verian afectados, sin escribir nada). Al CREAR una regla se reprocesan todos los
+// movimientos existentes y se recategorizan los que pertenecen a ella (respetando manuales
+// salvo "Incluir manuales"). Toda la logica vive en ruleService; aqui
 // solo orquestacion de UI y conversion de importes euros<->centimos.
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type {
@@ -27,6 +29,26 @@ import {
   type RuleInput,
 } from '../../services/ruleService';
 import { eurosToCents } from '../../lib/money';
+import { reviewService } from '../../services/reviewService';
+import { transactionsRepo } from '../../db/transactionsRepo';
+
+// Mensaje del resultado de reprocesar los movimientos al crear una regla.
+export function describeReprocess(
+  result: { changed: number; blockedByPriority: number; skippedManual: number },
+  enabled: boolean,
+): string {
+  if (!enabled) return 'Regla creada (inactiva: no se ha aplicado a ningun movimiento).';
+  const parts = [`Regla creada. ${result.changed} movimiento(s) recategorizados.`];
+  if (result.blockedByPriority > 0) {
+    parts.push(
+      `${result.blockedByPriority} casan pero los categoriza antes otra regla con mas prioridad.`,
+    );
+  }
+  if (result.skippedManual > 0) {
+    parts.push(`${result.skippedManual} categorizados a mano se han respetado.`);
+  }
+  return parts.join(' ');
+}
 
 const FIELDS: readonly RuleConditionField[] = ['concept', 'amount', 'date', 'account', 'type', 'merchant'];
 
@@ -324,9 +346,33 @@ export function RuleFormModal({
     setSaving(true);
     try {
       const input = buildInput();
-      if (rule) await ruleService.update(profileId, rule.id, input);
-      else await ruleService.create(profileId, input);
-      showToast(isEdit ? 'Regla actualizada.' : 'Regla creada.', 'success');
+      if (rule) {
+        await ruleService.update(profileId, rule.id, input);
+        showToast('Regla actualizada.', 'success');
+      } else {
+        // Al crear, se reprocesan todos los movimientos y se recategorizan los de esta regla.
+        const result = await ruleService.createAndReprocess(profileId, input, {
+          overrideManual: simOverrideManual,
+        });
+        showToast(describeReprocess(result, input.enabled), 'success');
+        // Tareas de baja confianza sobre lo recategorizado (igual que "Aplicar a existentes").
+        // Si falla, la regla y la recategorizacion ya estan guardadas: solo se avisa.
+        if (result.changedIds.length > 0) {
+          try {
+            const [updated, enabledRules] = await Promise.all([
+              Promise.all(result.changedIds.map((id) => transactionsRepo.getById(profileId, id))),
+              ruleService.listEnabled(profileId),
+            ]);
+            await reviewService.generateFromRuleMatches(
+              profileId,
+              updated.filter((t): t is NonNullable<typeof t> => t !== undefined),
+              enabledRules,
+            );
+          } catch {
+            showToast('Regla aplicada, pero no se pudieron generar las tareas de revision.', 'error');
+          }
+        }
+      }
       await onSaved();
       onClose();
     } catch (err) {
@@ -705,6 +751,13 @@ export function RuleFormModal({
             <p className="mt-2 text-sm text-slate-300">
               Afectaria a <strong className="text-indigo-300">{simCount}</strong> movimiento(s)
               existentes.
+            </p>
+          )}
+          {!isEdit && (
+            <p className="mt-2 text-xs text-slate-500">
+              Al guardar, se reprocesan todos tus movimientos y se recategorizan los que cumplan
+              esta regla
+              {simOverrideManual ? ', incluidos los categorizados a mano.' : ' (los categorizados a mano se respetan).'}
             </p>
           )}
         </div>
