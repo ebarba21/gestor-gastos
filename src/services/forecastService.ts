@@ -180,7 +180,13 @@ export function computeForecastRange(params: {
   for (const occ of recurringOccurrences) {
     if (occ.status !== 'matched' || occ.transactionId === null) continue;
     const linked = txByIdForSeries.get(occ.transactionId);
-    if (linked && isPositiveExpense(linked, ctx)) positiveIncomeSeries.add(occ.seriesId);
+    if (!linked || !isPositiveExpense(linked, ctx)) continue;
+    // Un cobro a Ahorro/Inversion (intereses, rescates) revierte esa aportacion y no reduce el
+    // gasto una vez cobrado: tampoco debe restar mientras esta pendiente.
+    const apart = [linked.categoryId, linked.subcategoryId].some(
+      (id) => id !== null && (ctx.savingsCategoryIds.has(id) || ctx.investmentCategoryIds.has(id)),
+    );
+    if (!apart) positiveIncomeSeries.add(occ.seriesId);
   }
   for (const occ of recurringOccurrences) {
     if (occ.status !== 'expected') continue;

@@ -581,4 +581,20 @@ describe('computeForecastRange - gastos positivos (cobros que no son nomina)', (
     });
     expect(result.central.recurringPendingCents).toBe(0);
   });
+
+  it('una serie de cobro a Ahorros no resta del gasto previsto mientras esta pendiente', () => {
+    const intereses = series({ id: 's-int', name: 'Intereses', direction: 'income', expectedAmountCents: 30000 });
+    const result = computeForecastRange({
+      allTransactions: [tx({ id: 'tx-int-sep', date: '2026-09-25', type: 'income', amountCents: 30000, categoryId: 'cat-ahorro' })],
+      categories: CATS,
+      recurringSeries: [intereses],
+      recurringOccurrences: [
+        occurrence({ seriesId: 's-int', status: 'matched', transactionId: 'tx-int-sep', expectedDate: '2026-09-25', expectedAmountCents: 30000 }),
+        occurrence({ seriesId: 's-int', expectedDate: '2026-10-25', expectedAmountCents: 30000 }),
+      ],
+      range: { from: '2026-10-01', to: '2026-10-31' },
+      today: '2026-10-10',
+    });
+    expect(result.central.recurringPendingCents).toBe(0);
+  });
 });
