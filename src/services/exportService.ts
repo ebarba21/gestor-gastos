@@ -448,6 +448,7 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
       ['Ingresos', eur(s.incomeCents)],
       ['Gasto bruto', eur(s.expenseGrossCents)],
       ['Reembolsos', eur(s.refundCents)],
+      ['Gastos positivos (Bizum recibidos, devoluciones...)', eur(s.positiveExpenseCents)],
       ['Gasto neto', eur(s.expenseNetCents)],
       ['Ahorro neto', eur(s.netSavingsCents)],
       ['Ahorrado (apartado a Ahorros)', eur(s.savingsContribCents)],
@@ -459,11 +460,12 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   const porCategoria: SheetSpec = {
     name: 'Gasto por categoria',
     rows: [
-      ['Categoria', 'Gasto bruto (EUR)', 'Reembolsos (EUR)', 'Gasto neto (EUR)'],
+      ['Categoria', 'Gasto bruto (EUR)', 'Reembolsos (EUR)', 'Gastos positivos (EUR)', 'Gasto neto (EUR)'],
       ...data.byCategory.map((c) => [
         c.categoryId === null ? 'Sin categoria' : nameOf(names.categoryNames, c.categoryId),
         eur(c.grossCents),
         eur(c.refundCents),
+        eur(c.positiveCents),
         eur(c.netCents),
       ]),
     ],

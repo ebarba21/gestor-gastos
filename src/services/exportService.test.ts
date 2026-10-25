@@ -17,7 +17,7 @@ import { monthRange } from '../lib/dates';
 
 const PID = 'p1';
 
-function tx(overrides: Partial<Transaction> = {}): Transaction {
+function rawTx(overrides: Partial<Transaction> = {}): Transaction {
   return {
     id: 'tx-' + Math.random().toString(36).slice(2),
     profileId: PID,
@@ -84,6 +84,14 @@ const names: NameLookups = {
   tagNames: new Map([['tag1', 'basico']]),
   merchantNames: new Map([['merch1', 'Amazon']]),
 };
+
+// Los ingresos de los fixtures son nominas salvo que el test diga otra cosa: solo los
+// positivos en una categoria de ingreso cuentan como ingreso (el resto son gastos positivos).
+function tx(overrides: Partial<Transaction> = {}): Transaction {
+  const isSalaryDefault =
+    overrides.type === 'income' && !('categoryId' in overrides) && (overrides.refundOfId ?? null) === null;
+  return rawTx(isSalaryDefault ? { categoryId: 'cat-nomina', ...overrides } : overrides);
+}
 
 describe('computeAccountBalances', () => {
   it('suma importes con signo al saldo inicial y excluye las lineas hijas de split', () => {
@@ -254,6 +262,7 @@ describe('buildDashboardSheets', () => {
   it('genera las hojas del resumen reutilizando computeDashboard', () => {
     const categories: Category[] = [
       { id: 'cat1', profileId: PID, name: 'Alimentacion', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0, createdAt: 1, updatedAt: 1 },
+      { id: 'cat-nomina', profileId: PID, name: 'Nomina', parentId: null, kind: 'income', color: null, icon: null, archivedAt: null, sortOrder: 1, createdAt: 1, updatedAt: 1 },
     ];
     const transactions = [
       tx({ date: '2026-01-05', type: 'income', amountCents: 200000 }),

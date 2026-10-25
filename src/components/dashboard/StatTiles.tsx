@@ -156,6 +156,18 @@ function NetSavingsBreakdown({ summary }: { summary: IncomeExpenseSummary }) {
   );
 }
 
+// Desglose del gasto neto: bruto menos reembolsos y gastos positivos (Bizum recibidos,
+// devoluciones...), que ya no cuentan como ingreso.
+export function gastosHint(summary: IncomeExpenseSummary): string | undefined {
+  const parts: string[] = [];
+  if (summary.refundCents > 0) parts.push(`reembolsos ${formatCents(summary.refundCents)}`);
+  if (summary.positiveExpenseCents > 0) {
+    parts.push(`gastos positivos ${formatCents(summary.positiveExpenseCents)}`);
+  }
+  if (parts.length === 0) return undefined;
+  return `Bruto ${formatCents(summary.expenseGrossCents)} · ${parts.join(' · ')}`;
+}
+
 export function StatTiles({ summary }: StatTilesProps) {
   const savingsPositive = summary.netSavingsCents >= 0;
   // El reparto solo aporta informacion cuando hay inversion (separa lo invertido del resto del
@@ -164,16 +176,17 @@ export function StatTiles({ summary }: StatTilesProps) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="Ingresos" value={formatCents(summary.incomeCents)} valueClass="text-emerald-400" />
+        <Tile
+          label="Ingresos"
+          value={formatCents(summary.incomeCents)}
+          valueClass="text-emerald-400"
+          hint="Nomina y paro"
+        />
         <Tile
           label="Gastos"
           value={formatCents(summary.expenseNetCents)}
           valueClass="text-orange-400"
-          hint={
-            summary.refundCents > 0
-              ? `Bruto ${formatCents(summary.expenseGrossCents)} · reembolsos ${formatCents(summary.refundCents)}`
-              : undefined
-          }
+          hint={gastosHint(summary)}
         />
         <Tile
           label="Ahorro neto"

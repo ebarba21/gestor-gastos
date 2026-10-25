@@ -17,6 +17,7 @@ import { transactionService } from '../../services/transactionService';
 import { EmptyState, ConfirmDialog, VirtualList, type DialogButton } from '../common';
 import { useToast } from '../../context/ToastContext';
 import { TransactionRow, ROW_HEIGHT } from './TransactionRow';
+import { computeIncomeCategoryIds } from '../../services/statsService';
 import { TransactionFilters } from './TransactionFilters';
 import { TransactionFormModal } from './TransactionFormModal';
 import { BulkEditModal } from './BulkEditModal';
@@ -82,6 +83,7 @@ export function TransactionsSection() {
     const filtered = filterTransactions(transactions, filter);
     return sortTransactions(filtered, sort, { accountNames, categoryNames });
   }, [transactions, filter, sort, accountNames, categoryNames]);
+  const incomeCategoryIds = useMemo(() => computeIncomeCategoryIds(categories), [categories]);
 
   const visibleIds = useMemo(() => visible.map((t) => t.id), [visible]);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
@@ -263,6 +265,7 @@ export function TransactionsSection() {
                   onActions={setActionsFor}
                   accountNames={accountNames}
                   categoryNames={categoryNames}
+                  incomeCategoryIds={incomeCategoryIds}
                   merchantNames={merchantNames}
                   locale={LOCALE}
                   currency={CURRENCY}

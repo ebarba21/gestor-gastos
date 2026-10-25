@@ -55,6 +55,7 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 - **Splits (movimientos divididos)**: un ticket unico repartido en varias lineas con categorias distintas; la suma de las partes siempre cuadra con el total y las estadisticas cuentan las lineas, no el padre (sin duplicar).
 - **Transferencias internas**: par de movimientos enlazados entre dos cuentas propias; afectan al saldo de cada cuenta pero se excluyen de las estadisticas (mover tu dinero no es ni gasto ni ingreso).
 - **Reembolsos**: una devolucion se enlaza con su gasto original y reduce el gasto neto de esa categoria (no infla los ingresos). Funciona aunque el gasto original sea de otro mes.
+- **Ingresos solo de nomina y paro**: solo cuentan como ingreso los positivos en categorias de nomina o paro (o marcadas como tipo Ingreso). Bizum recibidos, devoluciones, intereses y demas positivos son "gastos positivos": restan del gasto de su categoria y en la lista aparecen como "Gasto +".
 - **Exclusion de estadisticas**: cualquier movimiento puede marcarse para no contar en las metricas, sin dejar de afectar al saldo.
 - **Trazabilidad de la categorizacion**: cada movimiento registra si se categorizo a mano, por regla (y cual), por importacion o esta sin categorizar.
 - Toasts con **deshacer** tras las operaciones reversibles; confirmacion previa en las destructivas.
@@ -88,7 +89,7 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 ## 8. Dashboard (analisis del perfil activo)
 
 - **Selector de periodo**: mes en curso por defecto, navegacion entre meses y rango personalizado de fechas.
-- **KPIs del periodo**: ingresos, gasto neto (con desglose bruto y reembolsos), ahorro neto y tasa de ahorro.
+- **KPIs del periodo**: ingresos (nomina y paro), gasto neto (con desglose bruto, reembolsos y gastos positivos), ahorro neto y tasa de ahorro.
 - **Reparto del ahorro neto** en "Ahorrado" e "Invertido" cuando hay inversion, con barra proporcional y avisos honestos (por ejemplo si invertiste mas de lo que ahorraste ese mes).
 - **Evolucion mensual**: ingresos, gasto neto y ahorro por mes en areas; pulsar un mes lo fija como periodo.
 - **Gasto por categoria**: ranking de categorias con colores propios; pulsar una categoria filtra el resto del dashboard (**filtro cruzado**).

@@ -75,12 +75,13 @@ async function seed(profileId: string) {
     parentId: food.id,
   });
   const ocio = await categoryService.createCategory(profileId, { name: 'Ocio', kind: 'expense' });
+  const nomina = await categoryService.createCategory(profileId, { name: 'Nomina', kind: 'income' });
   const acc = await accountService.createAccount(profileId, {
     name: 'Banco',
     kind: 'bank',
     openingBalanceCents: 0,
   });
-  return { foodId: food.id, superId: superM.id, ocioId: ocio.id, accId: acc.id };
+  return { foodId: food.id, superId: superM.id, ocioId: ocio.id, nominaId: nomina.id, accId: acc.id };
 }
 
 async function createBudget(profileId: string, overrides: Partial<Parameters<typeof budgetService.create>[1]> = {}): Promise<Budget> {
@@ -220,19 +221,19 @@ describe('evaluacion mensual', () => {
   });
 
   it('objetivo de ingreso: estado met al alcanzar el limite', async () => {
-    await seed(A);
+    const { nominaId } = await seed(A);
     await createBudget(A, {
       name: 'Ahorro',
       direction: 'income',
       scope: 'overall',
       limitCents: 100000,
     });
-    await transactionsRepo.create(A, txInput({ type: 'income', amountCents: 60000, date: '2026-07-01' }));
+    await transactionsRepo.create(A, txInput({ type: 'income', amountCents: 60000, categoryId: nominaId, date: '2026-07-01' }));
     let [ev] = await budgetService.evaluateActive(A, '2026-07-08');
     expect(ev!.status).toBe('ok');
     expect(ev!.consumedCents).toBe(60000);
 
-    await transactionsRepo.create(A, txInput({ type: 'income', amountCents: 50000, date: '2026-07-02' }));
+    await transactionsRepo.create(A, txInput({ type: 'income', amountCents: 50000, categoryId: nominaId, date: '2026-07-02' }));
     [ev] = await budgetService.evaluateActive(A, '2026-07-08');
     expect(ev!.consumedCents).toBe(110000);
     expect(ev!.status).toBe('met');
@@ -451,14 +452,14 @@ describe('consumo end-to-end por ambito subcategoria e ingreso con reembolso', (
   });
 
   it('objetivo de ingreso end-to-end: ignora un reembolso presente', async () => {
-    const { superId, accId } = await seed(A);
+    const { superId, accId, nominaId } = await seed(A);
     const original = await transactionsRepo.create(
       A,
       txInput({ amountCents: -5000, accountId: accId, categoryId: superId, date: '2026-07-02' }),
     );
     await transactionsRepo.create(
       A,
-      txInput({ type: 'income', amountCents: 60000, accountId: accId, date: '2026-07-03' }),
+      txInput({ type: 'income', amountCents: 60000, accountId: accId, categoryId: nominaId, date: '2026-07-03' }),
     );
     const refund = await transactionsRepo.create(
       A,

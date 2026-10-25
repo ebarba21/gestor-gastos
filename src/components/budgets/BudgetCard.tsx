@@ -117,7 +117,7 @@ export function BudgetCard({
               ? `Faltan ${formatCents(remainingCents)}`
               : `Objetivo alcanzado (+${formatCents(-remainingCents)})`}
         </span>
-        {refundCents > 0 && <span title="Reembolsos descontados del gasto">↩ {formatCents(refundCents)}</span>}
+        {refundCents > 0 && <span title="Reembolsos y gastos positivos descontados del gasto">↩ {formatCents(refundCents)}</span>}
       </div>
       <p className="mt-1 text-[11px] text-slate-600">
         {range.from} a {range.to}

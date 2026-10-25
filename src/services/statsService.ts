@@ -11,6 +11,10 @@
 //  - Reembolsos: un reembolso (movimiento con refundOfId != null) NO se cuenta como
 //    ingreso; reduce el gasto NETO de la categoria del gasto original al que reembolsa.
 //    Ver detalle en attributeRefundRefs.
+//  - Ingresos: SOLO cuentan como ingreso los rendimientos del trabajo (nomina, paro), es
+//    decir, los movimientos positivos en una categoria de ingreso (ver incomeCategoryIds).
+//    Cualquier otro movimiento positivo (Bizum recibidos, devoluciones, ventas...) es un
+//    "gasto positivo": reduce el gasto NETO de su propia categoria, como un reembolso.
 //
 // Todos los importes se manejan en centimos enteros (nunca floats). Las magnitudes de
 // gasto se devuelven como enteros positivos.
@@ -46,6 +50,10 @@ export interface StatsContext {
   // cambia de forma), asi que tampoco infla el gasto ni reduce el ahorro neto. Ver
   // investmentCategoryIds / isInvestmentMovement.
   investmentCategoryIds: Set<string>;
+  // Ids de categoria consideradas de "ingreso" (rendimiento del trabajo: nomina, paro). Solo
+  // los movimientos positivos atribuidos a ellas cuentan como ingreso; el resto de positivos
+  // son gastos positivos. Ver computeIncomeCategoryIds / isRealIncome.
+  incomeCategoryIds: Set<string>;
 }
 
 // Nombres de categoria (ya normalizados: minusculas, sin acentos) que marcan una categoria
@@ -57,6 +65,22 @@ const SAVINGS_CATEGORY_NAMES = new Set(['ahorro', 'ahorros']);
 // concepto separado). Un gasto a inversion es dinero que sigue siendo tuyo (cambia de forma),
 // no consumo: no infla el gasto y se contabiliza aparte, en su propia metrica.
 const INVESTMENT_CATEGORY_NAMES = new Set(['inversion', 'inversiones']);
+
+// Nombres de categoria (normalizados) que marcan una categoria como de ingreso por
+// rendimiento del trabajo, aunque su tipo no sea "Ingreso" (p. ej. perfiles importados con
+// la categoria "Nomina" marcada como "Ambos").
+const INCOME_CATEGORY_NAMES = new Set([
+  'nomina',
+  'nominas',
+  'salario',
+  'sueldo',
+  'paro',
+  'desempleo',
+  'subsidio desempleo',
+  'subsidio por desempleo',
+  'prestacion desempleo',
+  'prestacion por desempleo',
+]);
 
 // Conjunto de ids cuyo nombre (normalizado, sin distinguir mayusculas ni acentos) esta en
 // `names`, mas TODAS sus subcategorias (un nivel en el MVP). Base comun de las categorias de
@@ -85,6 +109,23 @@ export function computeInvestmentCategoryIds(categories: Category[]): Set<string
   return categoryIdsMatchingNames(categories, INVESTMENT_CATEGORY_NAMES);
 }
 
+// Categorias de ingreso (rendimiento del trabajo): las de tipo 'income' o cuyo nombre esta en
+// INCOME_CATEGORY_NAMES, mas TODAS sus subcategorias. Una categoria de tipo 'both' o
+// 'expense' con otro nombre NO es de ingreso: sus positivos son gastos positivos.
+export function computeIncomeCategoryIds(categories: Category[]): Set<string> {
+  const matched = new Set<string>();
+  for (const c of categories) {
+    if (c.kind === 'income' || INCOME_CATEGORY_NAMES.has(normalizeConcept(c.name))) {
+      matched.add(c.id);
+    }
+  }
+  const all = new Set<string>(matched);
+  for (const c of categories) {
+    if (c.parentId !== null && matched.has(c.parentId)) all.add(c.id);
+  }
+  return all;
+}
+
 // Construye el contexto a partir de las categorias y de TODOS los movimientos del perfil.
 // El indice completo de movimientos es necesario para atribuir reembolsos cuyo gasto
 // original cae fuera del periodo evaluado.
@@ -101,6 +142,7 @@ export function buildStatsContext(
     txById,
     savingsCategoryIds: computeSavingsCategoryIds(categories),
     investmentCategoryIds: computeInvestmentCategoryIds(categories),
+    incomeCategoryIds: computeIncomeCategoryIds(categories),
   };
 }
 
@@ -116,6 +158,38 @@ export function countsInStats(t: Transaction): boolean {
 // un reembolso es de tipo income; esta guarda evita dobles interpretaciones.
 export function isRefund(t: Transaction): boolean {
   return t.refundOfId !== null && t.type !== 'expense';
+}
+
+// True si un par de referencias de categoria apunta a una categoria de ingreso.
+function refsAreIncome(
+  categoryId: string | null,
+  subcategoryId: string | null,
+  ctx: StatsContext,
+): boolean {
+  return (
+    (categoryId !== null && ctx.incomeCategoryIds.has(categoryId)) ||
+    (subcategoryId !== null && ctx.incomeCategoryIds.has(subcategoryId))
+  );
+}
+
+// Ingreso real: movimiento positivo (no reembolso) en una categoria de ingreso (nomina,
+// paro...). Es lo unico que suma en "Ingresos" y sobre lo que se calcula la tasa de ahorro.
+export function isRealIncome(t: Transaction, ctx: StatsContext): boolean {
+  return t.type === 'income' && !isRefund(t) && refsAreIncome(t.categoryId, t.subcategoryId, ctx);
+}
+
+// Gasto positivo: movimiento positivo que NO es ingreso real ni reembolso enlazado (Bizum
+// recibido, devolucion sin enlazar, venta...). No es ingreso: reduce el gasto neto de su
+// propia categoria (o del bucket "sin categoria").
+export function isPositiveExpense(t: Transaction, ctx: StatsContext): boolean {
+  return t.type === 'income' && !isRefund(t) && !refsAreIncome(t.categoryId, t.subcategoryId, ctx);
+}
+
+// Movimiento que REDUCE gasto: un reembolso enlazado o un gasto positivo. La categoria a la
+// que se atribuye la reduccion la da attributeRefundRefs (la del gasto original para un
+// reembolso; la propia para un gasto positivo, que no tiene refundOfId).
+export function isExpenseReduction(t: Transaction, ctx: StatsContext): boolean {
+  return isRefund(t) || isPositiveExpense(t, ctx);
 }
 
 // Magnitud de gasto (entero positivo) de un movimiento de gasto; 0 si no es gasto.
@@ -243,7 +317,8 @@ export function inScope(
 export interface Consumption {
   // Gasto o ingreso bruto del ambito (entero positivo, magnitud).
   grossCents: number;
-  // Reembolsos atribuidos al ambito (entero positivo). Solo aplica a direccion 'expense'.
+  // Reembolsos y gastos positivos atribuidos al ambito (entero positivo). Solo aplica a
+  // direccion 'expense'.
   refundCents: number;
   // Consumo neto: gasto bruto menos reembolsos (expense) o ingreso bruto (income).
   consumedCents: number;
@@ -298,7 +373,7 @@ export function computeConsumption(
         // Igual para inversion: no consume un presupuesto de gasto que no sea de inversion.
         if (isInvestmentMovement(t, ctx) && !investmentScoped) continue;
         gross += expenseMagnitude(t);
-      } else if (isRefund(t) && inScope(t, scope, scopeId, ctx, true)) {
+      } else if (isExpenseReduction(t, ctx) && inScope(t, scope, scopeId, ctx, true)) {
         const refs = attributeRefundRefs(t, ctx);
         // Reembolso de una aportacion a ahorro: no altera un presupuesto de gasto normal.
         if (refsAreSavings(refs.categoryId, refs.subcategoryId, ctx) && !savingsScoped) continue;
@@ -307,8 +382,8 @@ export function computeConsumption(
         refund += Math.abs(t.amountCents);
       }
     } else {
-      // income: ingresos reales del ambito, sin reembolsos.
-      if (t.type === 'income' && !isRefund(t) && inScope(t, scope, scopeId, ctx, false)) {
+      // income: ingresos reales del ambito (nomina/paro), sin reembolsos ni gastos positivos.
+      if (isRealIncome(t, ctx) && inScope(t, scope, scopeId, ctx, false)) {
         gross += Math.abs(t.amountCents);
       }
     }
@@ -374,7 +449,9 @@ export interface IncomeExpenseSummary {
   incomeCents: number; // ingresos reales del periodo (sin reembolsos), entero >= 0
   expenseGrossCents: number; // gasto bruto (magnitud), entero >= 0
   refundCents: number; // reembolsos del periodo, entero >= 0
-  expenseNetCents: number; // gasto neto = bruto - reembolsos (puede ser < 0)
+  // Gastos positivos del periodo (Bizum recibidos, devoluciones sin enlazar...), entero >= 0.
+  positiveExpenseCents: number;
+  expenseNetCents: number; // gasto neto = bruto - reembolsos - gastos positivos (puede ser < 0)
   netSavingsCents: number; // ahorro neto = ingresos - gasto neto
   // Aportacion neta a ahorro del periodo: suma de gastos en categorias de ahorro menos los
   // reembolsos/retiradas atribuidos a ellas. Normalmente >= 0, pero puede ser NEGATIVO en un
@@ -396,7 +473,8 @@ export interface CategorySpend {
   categoryId: string | null; // null = sin categoria
   grossCents: number; // gasto bruto atribuido, entero >= 0
   refundCents: number; // reembolsos atribuidos, entero >= 0
-  netCents: number; // bruto - reembolsos (puede ser < 0)
+  positiveCents: number; // gastos positivos atribuidos, entero >= 0
+  netCents: number; // bruto - reembolsos - gastos positivos (puede ser < 0)
 }
 
 // Resultado de un unico recorrido por los movimientos del periodo: alimenta a la
@@ -419,10 +497,12 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
   let income = 0;
   let expenseGross = 0;
   let refund = 0;
+  let positive = 0;
   let savingsContrib = 0;
   let investmentContrib = 0;
   const grossByCat = new Map<string | null, number>();
   const refundByCat = new Map<string | null, number>();
+  const positiveByCat = new Map<string | null, number>();
 
   for (const t of txsInPeriod) {
     if (!countsInStats(t)) continue;
@@ -442,7 +522,7 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
       expenseGross += mag;
       const root = rootCategoryIdOf(t.categoryId, t.subcategoryId, ctx.parentOf);
       grossByCat.set(root, (grossByCat.get(root) ?? 0) + mag);
-    } else if (isRefund(t)) {
+    } else if (isExpenseReduction(t, ctx)) {
       const refs = attributeRefundRefs(t, ctx);
       const amt = Math.abs(t.amountCents);
       // Reembolso de una aportacion a ahorro: revierte ahorro, no reduce gasto.
@@ -455,21 +535,27 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
         investmentContrib -= amt;
         continue;
       }
-      refund += amt;
-      // Se atribuye a la categoria del gasto original (misma regla que presupuestos).
+      // Reembolso: categoria del gasto original. Gasto positivo: su propia categoria.
       const root = rootCategoryIdOf(refs.categoryId, refs.subcategoryId, ctx.parentOf);
-      refundByCat.set(root, (refundByCat.get(root) ?? 0) + amt);
-    } else if (t.type === 'income') {
+      if (isRefund(t)) {
+        refund += amt;
+        refundByCat.set(root, (refundByCat.get(root) ?? 0) + amt);
+      } else {
+        positive += amt;
+        positiveByCat.set(root, (positiveByCat.get(root) ?? 0) + amt);
+      }
+    } else if (isRealIncome(t, ctx)) {
       income += Math.abs(t.amountCents);
     }
   }
 
-  const expenseNet = expenseGross - refund;
+  const expenseNet = expenseGross - refund - positive;
   const netSavings = income - expenseNet;
   const summary: IncomeExpenseSummary = {
     incomeCents: income,
     expenseGrossCents: expenseGross,
     refundCents: refund,
+    positiveExpenseCents: positive,
     expenseNetCents: expenseNet,
     netSavingsCents: netSavings,
     savingsContribCents: savingsContrib,
@@ -477,13 +563,24 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
     savingsRatePerMille: savingsRatePerMille(income, netSavings),
   };
 
-  // Union de categorias con gasto o con reembolso.
-  const catIds = new Set<string | null>([...grossByCat.keys(), ...refundByCat.keys()]);
+  // Union de categorias con gasto, reembolso o gasto positivo.
+  const catIds = new Set<string | null>([
+    ...grossByCat.keys(),
+    ...refundByCat.keys(),
+    ...positiveByCat.keys(),
+  ]);
   const byCategory: CategorySpend[] = [];
   for (const id of catIds) {
     const gross = grossByCat.get(id) ?? 0;
     const ref = refundByCat.get(id) ?? 0;
-    byCategory.push({ categoryId: id, grossCents: gross, refundCents: ref, netCents: gross - ref });
+    const pos = positiveByCat.get(id) ?? 0;
+    byCategory.push({
+      categoryId: id,
+      grossCents: gross,
+      refundCents: ref,
+      positiveCents: pos,
+      netCents: gross - ref - pos,
+    });
   }
   // Orden por gasto neto descendente; el bucket "sin categoria" (null) al final a igualdad.
   byCategory.sort((a, b) => {
@@ -538,7 +635,9 @@ export function computeMonthlyEvolution(
     if (ctx && isApartFromExpense(t, ctx)) continue;
     if (t.type === 'expense') {
       expenseNet.set(k, (expenseNet.get(k) ?? 0) + expenseMagnitude(t));
-    } else if (isRefund(t)) {
+    } else if (ctx ? isExpenseReduction(t, ctx) : isRefund(t)) {
+      // Sin contexto de categorias no se puede distinguir nomina de gasto positivo: se
+      // conserva la semantica antigua (solo los reembolsos reducen gasto).
       // El reembolso de una aportacion a ahorro o inversion no reduce el gasto del mes.
       if (ctx) {
         const refs = attributeRefundRefs(t, ctx);
@@ -548,9 +647,9 @@ export function computeMonthlyEvolution(
         )
           continue;
       }
-      // El reembolso reduce el gasto del mes en que ocurre.
+      // El reembolso o gasto positivo reduce el gasto del mes en que ocurre.
       expenseNet.set(k, (expenseNet.get(k) ?? 0) - Math.abs(t.amountCents));
-    } else if (t.type === 'income') {
+    } else if (ctx ? isRealIncome(t, ctx) : t.type === 'income') {
       income.set(k, (income.get(k) ?? 0) + Math.abs(t.amountCents));
     }
   }
@@ -956,7 +1055,7 @@ export function computeSavingsInvestment(
       allTimeSavings += expenseMagnitude(t);
     } else if (isInvestmentMovement(t, ctx)) {
       allTimeInvestment += expenseMagnitude(t);
-    } else if (isRefund(t)) {
+    } else if (isExpenseReduction(t, ctx)) {
       const refs = attributeRefundRefs(t, ctx);
       if (refsAreSavings(refs.categoryId, refs.subcategoryId, ctx)) {
         allTimeSavings -= Math.abs(t.amountCents);
@@ -1109,7 +1208,7 @@ export interface DashboardData {
 // Categoria raiz atribuida a un movimiento a efectos del filtro cruzado: la del gasto
 // original si es un reembolso (misma atribucion que en el desglose), la propia en otro caso.
 function filterRootCategoryId(t: Transaction, ctx: StatsContext): string | null {
-  if (isRefund(t)) {
+  if (isExpenseReduction(t, ctx)) {
     const refs = attributeRefundRefs(t, ctx);
     return rootCategoryIdOf(refs.categoryId, refs.subcategoryId, ctx.parentOf);
   }

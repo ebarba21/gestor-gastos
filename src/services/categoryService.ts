@@ -215,8 +215,11 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
     icon: '📱',
     children: [{ name: 'Telefono e internet' }, { name: 'Suscripciones' }],
   },
+  // Solo el rendimiento del trabajo es ingreso (ver statsService.computeIncomeCategoryIds).
   { name: 'Nomina', kind: 'income', icon: '💼' },
-  { name: 'Otros ingresos', kind: 'income', icon: '💰' },
+  { name: 'Prestacion por desempleo', kind: 'income', icon: '🏛️' },
+  // Otros cobros (Bizum recibidos, ventas...) son gastos positivos, no ingresos.
+  { name: 'Otros cobros', kind: 'both', icon: '💰' },
 ];
 
 // Crea el set por defecto para un perfil recien creado. Secuencial: crea cada raiz y

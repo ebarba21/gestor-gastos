@@ -3,6 +3,7 @@ import type { Category, Transaction } from '../db/schema';
 import { db } from '../db';
 import { transactionsRepo } from '../db/transactionsRepo';
 import type { NewTransaction } from '../db/transactionsRepo';
+import { categoryService } from './categoryService';
 import { accountService } from './accountService';
 import {
   aggregatePeriod,
@@ -14,6 +15,10 @@ import {
   computeMonthlyEvolution,
   computeRecurringExpenses,
   computeSavingsCategoryIds,
+  computeIncomeCategoryIds,
+  isExpenseReduction,
+  isPositiveExpense,
+  isRealIncome,
   computeSavingsInvestment,
   computeTopExpenses,
   isInvestmentMovement,
@@ -26,7 +31,7 @@ import {
 } from './statsService';
 
 // --- Factoria de movimientos puros (sin base de datos) ---
-function tx(overrides: Partial<Transaction> = {}): Transaction {
+function rawTx(overrides: Partial<Transaction> = {}): Transaction {
   return {
     id: overrides.id ?? crypto.randomUUID(),
     profileId: 'perfil-a',
@@ -83,6 +88,7 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
 
 // Alimentacion (raiz) -> Supermercado (sub). Ocio (raiz) suelta. Ahorros (raiz) -> Fondo (sub).
 const CATEGORIES: Category[] = [
+  { id: 'cat-nomina', profileId: 'perfil-a', name: 'Nomina', parentId: null, kind: 'income', color: null, icon: null, archivedAt: null, sortOrder: 9, createdAt: 0, updatedAt: 0 },
   { id: 'cat-food', profileId: 'perfil-a', name: 'Alimentacion', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0, createdAt: 0, updatedAt: 0 },
   { id: 'sub-super', profileId: 'perfil-a', name: 'Supermercado', parentId: 'cat-food', kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0, createdAt: 0, updatedAt: 0 },
   { id: 'cat-ocio', profileId: 'perfil-a', name: 'Ocio', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 1, createdAt: 0, updatedAt: 0 },
@@ -94,6 +100,14 @@ const CATEGORIES: Category[] = [
 
 function ctxFor(txs: Transaction[]) {
   return buildStatsContext(CATEGORIES, txs);
+}
+
+// Los ingresos de los fixtures son nominas salvo que el test diga otra cosa: solo los
+// positivos en una categoria de ingreso cuentan como ingreso (el resto son gastos positivos).
+function tx(overrides: Partial<Transaction> = {}): Transaction {
+  const isSalaryDefault =
+    overrides.type === 'income' && !('categoryId' in overrides) && (overrides.refundOfId ?? null) === null;
+  return rawTx(isSalaryDefault ? { categoryId: 'cat-nomina', ...overrides } : overrides);
 }
 
 describe('rootCategoryIdOf', () => {
@@ -131,6 +145,7 @@ describe('aggregatePeriod - resumen', () => {
       incomeCents: 0,
       expenseGrossCents: 0,
       refundCents: 0,
+      positiveExpenseCents: 0,
       expenseNetCents: 0,
       netSavingsCents: 0,
       savingsContribCents: 0,
@@ -195,9 +210,9 @@ describe('aggregatePeriod - desglose por categoria', () => {
     const { byCategory } = aggregatePeriod(txs, ctxFor(txs));
     // cat-food: bruto 3000 (raiz + sub) - reembolso 800 = 2200
     expect(byCategory).toEqual([
-      { categoryId: 'cat-food', grossCents: 3000, refundCents: 800, netCents: 2200 },
-      { categoryId: 'cat-ocio', grossCents: 500, refundCents: 0, netCents: 500 },
-      { categoryId: null, grossCents: 300, refundCents: 0, netCents: 300 },
+      { categoryId: 'cat-food', grossCents: 3000, refundCents: 800, positiveCents: 0, netCents: 2200 },
+      { categoryId: 'cat-ocio', grossCents: 500, refundCents: 0, positiveCents: 0, netCents: 500 },
+      { categoryId: null, grossCents: 300, refundCents: 0, positiveCents: 0, netCents: 300 },
     ]);
   });
 
@@ -412,7 +427,7 @@ describe('reembolsos entre periodos y no resolubles', () => {
     expect(data.summary.expenseNetCents).toBe(-2000);
     expect(data.summary.incomeCents).toBe(0); // el reembolso no es ingreso
     expect(data.byCategory).toEqual([
-      { categoryId: 'cat-food', grossCents: 0, refundCents: 2000, netCents: -2000 },
+      { categoryId: 'cat-food', grossCents: 0, refundCents: 2000, positiveCents: 0, netCents: -2000 },
     ]);
   });
 
@@ -421,7 +436,7 @@ describe('reembolsos entre periodos y no resolubles', () => {
     const { summary, byCategory } = aggregatePeriod([refund], ctxFor([refund]));
     expect(summary.refundCents).toBe(1500);
     expect(summary.incomeCents).toBe(0);
-    expect(byCategory).toEqual([{ categoryId: null, grossCents: 0, refundCents: 1500, netCents: -1500 }]);
+    expect(byCategory).toEqual([{ categoryId: null, grossCents: 0, refundCents: 1500, positiveCents: 0, netCents: -1500 }]);
   });
 
   it('ordena por neto aunque una categoria quede negativa por reembolsos', () => {
@@ -786,7 +801,7 @@ describe('computeDashboard - filtro cruzado por categoria', () => {
     tx({ date: '2026-07-05', type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
     tx({ date: '2026-07-06', type: 'expense', amountCents: -1000, categoryId: 'cat-food', subcategoryId: 'sub-super' }),
     tx({ date: '2026-07-07', type: 'expense', amountCents: -2500, categoryId: 'cat-ocio' }),
-    tx({ date: '2026-07-08', type: 'income', amountCents: 100000, categoryId: null }),
+    tx({ date: '2026-07-08', type: 'income', amountCents: 100000, categoryId: 'cat-nomina' }),
   ];
   const base = { range: { from: '2026-07-01', to: '2026-07-31' }, anchorISO: '2026-07-15', today: '2026-07-15' };
 
@@ -875,7 +890,11 @@ describe('statsService.computeDashboard - aislamiento por perfil', () => {
     const accA = await accountService.createAccount(A, { name: 'Banco', kind: 'bank', openingBalanceCents: 0 });
     const accB = await accountService.createAccount(B, { name: 'Banco', kind: 'bank', openingBalanceCents: 0 });
     await transactionsRepo.create(A, txInput({ accountId: accA.id, amountCents: -1000, type: 'expense' }));
-    await transactionsRepo.create(A, txInput({ accountId: accA.id, amountCents: 300000, type: 'income' }));
+    const nominaA = await categoryService.createCategory(A, { name: 'Nomina', kind: 'income' });
+    await transactionsRepo.create(
+      A,
+      txInput({ accountId: accA.id, amountCents: 300000, type: 'income', categoryId: nominaA.id }),
+    );
     await transactionsRepo.create(B, txInput({ accountId: accB.id, amountCents: -5000, type: 'expense' }));
 
     const params = {
@@ -899,5 +918,118 @@ describe('statsService.computeDashboard - aislamiento por perfil', () => {
         anchorISO: '2026-07-15',
       }),
     ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ingresos = solo rendimiento del trabajo; el resto de positivos son gastos positivos
+// ---------------------------------------------------------------------------
+
+describe('ingresos solo de nomina/paro y gastos positivos', () => {
+  const cat = (id: string, name: string, kind: Category['kind'], parentId: string | null = null): Category => ({
+    id, profileId: 'perfil-a', name, parentId, kind, color: null, icon: null, archivedAt: null, sortOrder: 0, createdAt: 0, updatedAt: 0,
+  });
+  const CATS: Category[] = [
+    cat('c-nom', 'Nómina', 'both'), // marcada como "Ambos" pero es nomina por nombre
+    cat('c-paro', 'Paro', 'both'),
+    cat('c-ing', 'Ingresos trabajo', 'income'), // tipo Ingreso explicito
+    cat('c-ing-sub', 'Extra verano', 'both', 'c-ing'), // hereda del padre
+    cat('c-bizum', 'Bizum', 'both'),
+    cat('c-extra', 'Ingresos Extra', 'both'),
+    cat('c-food', 'Supermercado', 'both'),
+    cat('c-inv', 'Inversiones', 'expense'),
+  ];
+
+  it('computeIncomeCategoryIds: por tipo Ingreso o por nombre, con subcategorias', () => {
+    const ids = computeIncomeCategoryIds(CATS);
+    expect([...ids].sort()).toEqual(['c-ing', 'c-ing-sub', 'c-nom', 'c-paro'].sort());
+  });
+
+  it('clasifica nomina, gasto positivo y reembolso', () => {
+    const ctx = buildStatsContext(CATS, []);
+    const nomina = tx({ type: 'income', amountCents: 150000, categoryId: 'c-nom' });
+    const bizum = tx({ type: 'income', amountCents: 2000, categoryId: 'c-bizum' });
+    const sinCat = tx({ type: 'income', amountCents: 500, categoryId: null });
+    const reembolso = tx({ type: 'income', amountCents: 800, refundOfId: 'g', categoryId: 'c-nom' });
+    expect(isRealIncome(nomina, ctx)).toBe(true);
+    expect(isRealIncome(bizum, ctx)).toBe(false);
+    expect(isPositiveExpense(bizum, ctx)).toBe(true);
+    expect(isPositiveExpense(sinCat, ctx)).toBe(true);
+    expect(isRealIncome(reembolso, ctx)).toBe(false); // un reembolso nunca es ingreso
+    expect(isPositiveExpense(reembolso, ctx)).toBe(false);
+    expect(isExpenseReduction(reembolso, ctx)).toBe(true);
+  });
+
+  it('aggregatePeriod: solo la nomina y el paro son ingreso; el resto reduce el gasto de su categoria', () => {
+    const txs = [
+      tx({ type: 'income', amountCents: 150000, categoryId: 'c-nom' }),
+      tx({ type: 'income', amountCents: 50000, categoryId: 'c-paro' }),
+      tx({ type: 'expense', amountCents: -3000, categoryId: 'c-bizum' }),
+      tx({ type: 'income', amountCents: 1200, categoryId: 'c-bizum' }), // Bizum recibido
+      tx({ type: 'income', amountCents: 10000, categoryId: 'c-extra' }), // Ingresos Extra
+      tx({ type: 'expense', amountCents: -4000, categoryId: 'c-food' }),
+      tx({ type: 'income', amountCents: 300, categoryId: null }), // sin categoria
+    ];
+    const { summary, byCategory } = aggregatePeriod(txs, buildStatsContext(CATS, txs));
+    expect(summary.incomeCents).toBe(200000);
+    expect(summary.expenseGrossCents).toBe(7000);
+    expect(summary.positiveExpenseCents).toBe(11500);
+    expect(summary.expenseNetCents).toBe(7000 - 11500);
+    expect(summary.netSavingsCents).toBe(200000 - (7000 - 11500));
+    const byId = new Map(byCategory.map((c) => [c.categoryId, c]));
+    expect(byId.get('c-bizum')).toEqual({ categoryId: 'c-bizum', grossCents: 3000, refundCents: 0, positiveCents: 1200, netCents: 1800 });
+    expect(byId.get('c-extra')).toEqual({ categoryId: 'c-extra', grossCents: 0, refundCents: 0, positiveCents: 10000, netCents: -10000 });
+    expect(byId.get(null)?.netCents).toBe(-300);
+    expect(byId.has('c-nom')).toBe(false); // la nomina no entra en el desglose de gasto
+  });
+
+  it('un positivo en Inversiones revierte la inversion, no reduce el gasto', () => {
+    const txs = [
+      tx({ type: 'expense', amountCents: -10000, categoryId: 'c-inv' }),
+      tx({ type: 'income', amountCents: 1338, categoryId: 'c-inv' }),
+    ];
+    const { summary } = aggregatePeriod(txs, buildStatsContext(CATS, txs));
+    expect(summary.investmentContribCents).toBe(10000 - 1338);
+    expect(summary.positiveExpenseCents).toBe(0);
+    expect(summary.expenseNetCents).toBe(0);
+    expect(summary.incomeCents).toBe(0);
+  });
+
+  it('computeMonthlyEvolution: los gastos positivos reducen el gasto del mes y no son ingreso', () => {
+    const txs = [
+      tx({ date: '2026-10-01', type: 'income', amountCents: 150000, categoryId: 'c-nom' }),
+      tx({ date: '2026-10-05', type: 'expense', amountCents: -5000, categoryId: 'c-food' }),
+      tx({ date: '2026-10-06', type: 'income', amountCents: 2000, categoryId: 'c-bizum' }),
+    ];
+    const [m] = computeMonthlyEvolution(txs, '2026-10-15', 1, buildStatsContext(CATS, txs));
+    expect(m).toEqual({ month: '2026-10', incomeCents: 150000, expenseNetCents: 3000, netSavingsCents: 147000 });
+  });
+
+  it('presupuestos: el objetivo de ingreso ignora los gastos positivos y el de gasto los descuenta', () => {
+    const txs = [
+      tx({ type: 'income', amountCents: 150000, categoryId: 'c-nom' }),
+      tx({ type: 'income', amountCents: 2000, categoryId: 'c-bizum' }),
+      tx({ type: 'expense', amountCents: -5000, categoryId: 'c-bizum' }),
+    ];
+    const ctx = buildStatsContext(CATS, txs);
+    expect(computeConsumption(txs, 'overall', null, 'income', ctx).consumedCents).toBe(150000);
+    const exp = computeConsumption(txs, 'category', 'c-bizum', 'expense', ctx);
+    expect(exp).toEqual({ grossCents: 5000, refundCents: 2000, consumedCents: 3000 });
+  });
+
+  it('el filtro cruzado por categoria incluye los gastos positivos de esa categoria', () => {
+    const txs = [
+      tx({ date: '2026-07-05', type: 'expense', amountCents: -5000, categoryId: 'c-bizum' }),
+      tx({ date: '2026-07-06', type: 'income', amountCents: 2000, categoryId: 'c-bizum' }),
+      tx({ date: '2026-07-07', type: 'income', amountCents: 150000, categoryId: 'c-nom' }),
+    ];
+    const data = computeDashboard(txs, CATS, {
+      range: { from: '2026-07-01', to: '2026-07-31' },
+      anchorISO: '2026-07-15',
+      today: '2026-07-31',
+      filter: { categoryId: 'c-bizum' },
+    });
+    expect(data.summary.expenseNetCents).toBe(3000);
+    expect(data.summary.incomeCents).toBe(0);
   });
 });

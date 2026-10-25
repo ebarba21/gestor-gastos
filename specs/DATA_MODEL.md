@@ -358,6 +358,10 @@ Objetivo: al importar, detectar filas que probablemente ya existen sin bloquear 
 - Periodo de imputacion: lo fija `statsService` (fuente de verdad de la semantica vigente), que soporta reembolsos entre periodos; un fixture de `FINANCIAL_ALGORITHMS.md` congela la regla exacta y `finance-auditor` la valida. Ambos documentos deben describirla igual.
 - MVP: enlace simple `refundOfId`. Logica avanzada (matching automatico, reembolsos multiples encadenados): fase 2. El campo se define ahora.
 
+### 6.3 bis Ingresos y gastos positivos
+- Solo es ingreso el rendimiento del trabajo (nomina, paro): un movimiento positivo en una categoria de tipo `income` o con un nombre reconocido como nomina/paro. Detalle y lista de nombres en `FINANCIAL_ALGORITHMS.md` seccion 3.
+- El resto de movimientos positivos (`type = 'income'` sin categoria de ingreso y sin `refundOfId`) son **gastos positivos**: reducen el gasto neto de su propia categoria. No cambia el modelo de datos (siguen siendo `type = 'income'` con importe positivo); cambia solo como se computan en estadisticas, presupuestos, forecast y exportaciones.
+
 ### 6.4 Exclusion de estadisticas
 - `excludedFromStats = true` saca al movimiento de todos los calculos de gasto/ingreso/ahorro/forecast, pero sigue visible en la lista de movimientos y afecta al saldo de cuenta.
 - Se aplican por defecto a: transferencias (ambas patas) y padres de split. El usuario puede marcar cualquier movimiento como excluido manualmente.

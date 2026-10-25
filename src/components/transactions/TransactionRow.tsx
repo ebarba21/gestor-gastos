@@ -31,6 +31,21 @@ interface TransactionRowProps {
   merchantNames: Map<string, string>;
   locale: string;
   currency: string;
+  // Categorias de ingreso (nomina, paro). Un positivo fuera de ellas se etiqueta como gasto
+  // positivo, igual que se computa en estadisticas. Opcional: sin el, se muestra el tipo tal cual.
+  incomeCategoryIds?: Set<string>;
+}
+
+// Etiqueta del tipo para la fila. Coherente con statsService: un movimiento positivo que no es
+// nomina/paro ni reembolso enlazado es un "gasto positivo", no un ingreso.
+export function typeLabelFor(tx: Transaction, incomeCategoryIds?: Set<string>): string {
+  if (tx.type === 'income' && incomeCategoryIds && tx.refundOfId === null) {
+    const isIncome =
+      (tx.categoryId !== null && incomeCategoryIds.has(tx.categoryId)) ||
+      (tx.subcategoryId !== null && incomeCategoryIds.has(tx.subcategoryId));
+    if (!isIncome) return 'Gasto +';
+  }
+  return TYPE_LABEL[tx.type];
 }
 
 export function TransactionRow({
@@ -44,6 +59,7 @@ export function TransactionRow({
   merchantNames,
   locale,
   currency,
+  incomeCategoryIds,
 }: TransactionRowProps) {
   const amountClass =
     tx.amountCents < 0 ? 'text-red-400' : tx.amountCents > 0 ? 'text-emerald-400' : 'text-slate-300';
@@ -101,7 +117,7 @@ export function TransactionRow({
       </button>
 
       <span className="hidden w-24 shrink-0 text-xs text-slate-500 sm:block">
-        {TYPE_LABEL[tx.type]}
+        {typeLabelFor(tx, incomeCategoryIds)}
       </span>
 
       <span className={`w-24 shrink-0 text-right font-medium tabular-nums sm:w-28 ${amountClass}`}>

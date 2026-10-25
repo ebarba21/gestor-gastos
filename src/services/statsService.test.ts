@@ -12,7 +12,7 @@ import {
 
 // Factoria de movimientos para tests puros (sin base de datos). Valores por defecto de un
 // gasto normal que cuenta en estadisticas.
-function tx(overrides: Partial<Transaction> = {}): Transaction {
+function rawTx(overrides: Partial<Transaction> = {}): Transaction {
   return {
     ...syncDefaults(),
     id: overrides.id ?? crypto.randomUUID(),
@@ -70,6 +70,7 @@ function tx(overrides: Partial<Transaction> = {}): Transaction {
 
 // Jerarquia: Alimentacion (raiz) -> Supermercado (sub). Ocio (raiz) suelta.
 const CATEGORIES: Category[] = [
+  { id: 'cat-nomina', profileId: 'perfil-a', name: 'Nomina', parentId: null, kind: 'income', color: null, icon: null, archivedAt: null, sortOrder: 9, createdAt: 0, updatedAt: 0 },
   {
     id: 'cat-food',
     profileId: 'perfil-a',
@@ -139,6 +140,14 @@ const CATEGORIES: Category[] = [
 
 function ctxFor(txs: Transaction[]) {
   return buildStatsContext(CATEGORIES, txs);
+}
+
+// Los ingresos de los fixtures son nominas salvo que el test diga otra cosa: solo los
+// positivos en una categoria de ingreso cuentan como ingreso (el resto son gastos positivos).
+function tx(overrides: Partial<Transaction> = {}): Transaction {
+  const isSalaryDefault =
+    overrides.type === 'income' && !('categoryId' in overrides) && (overrides.refundOfId ?? null) === null;
+  return rawTx(isSalaryDefault ? { categoryId: 'cat-nomina', ...overrides } : overrides);
 }
 
 describe('predicados base', () => {
@@ -298,7 +307,7 @@ describe('computeConsumption - reembolsos', () => {
   });
 
   it('el reembolso NO se cuenta como ingreso', () => {
-    const salary = tx({ type: 'income', amountCents: 200000, categoryId: null });
+    const salary = tx({ type: 'income', amountCents: 200000, categoryId: 'cat-nomina' });
     const refund = tx({ type: 'income', amountCents: 2000, refundOfId: 'g', categoryId: null });
     const txs = [salary, refund];
     const ctx = ctxFor(txs);
