@@ -16,6 +16,7 @@ import {
   computeRecurringExpenses,
   computeSavingsCategoryIds,
   computeIncomeCategoryIds,
+  isIncomeCategoryName,
   isExpenseReduction,
   isPositiveExpense,
   isRealIncome,
@@ -243,7 +244,7 @@ describe('computeMonthlyEvolution', () => {
       tx({ date: '2026-01-22', type: 'expense', amountCents: -1000 }),
       tx({ date: '2025-06-01', type: 'expense', amountCents: -9999 }), // fuera de ventana
     ];
-    const series = computeMonthlyEvolution(txs, '2026-01-15', 3);
+    const series = computeMonthlyEvolution(txs, '2026-01-15', 3, ctxFor(txs));
     expect(series).toEqual([
       { month: '2025-11', incomeCents: 0, expenseNetCents: 0, netSavingsCents: 0 },
       { month: '2025-12', incomeCents: 0, expenseNetCents: 3000, netSavingsCents: -3000 },
@@ -256,7 +257,7 @@ describe('computeMonthlyEvolution', () => {
       tx({ id: 'g', date: '2026-07-02', type: 'expense', amountCents: -5000, categoryId: 'cat-food' }),
       tx({ date: '2026-07-20', type: 'income', amountCents: 1500, refundOfId: 'g', categoryId: null }),
     ];
-    const series = computeMonthlyEvolution(txs, '2026-07-15', 1);
+    const series = computeMonthlyEvolution(txs, '2026-07-15', 1, ctxFor(txs));
     expect(series).toEqual([
       { month: '2026-07', incomeCents: 0, expenseNetCents: 3500, netSavingsCents: -3500 },
     ]);
@@ -272,7 +273,7 @@ describe('computeComparison', () => {
       tx({ date: '2026-01-10', type: 'expense', amountCents: -2500 }),
     ];
     // `today` en otro mes: 2026-01 es un mes cerrado, sin prorrateo (mes completo vs media).
-    const cmp = computeComparison(txs, '2026-01-15', 3, undefined, '2026-07-10');
+    const cmp = computeComparison(txs, '2026-01-15', 3, ctxFor(txs), '2026-07-10');
     expect(cmp.currentExpenseNetCents).toBe(2500);
     expect(cmp.monthsCompared).toBe(2); // 11 y 12; no el 10 vacio
     expect(cmp.averageExpenseNetCents).toBe(2000);
@@ -284,7 +285,7 @@ describe('computeComparison', () => {
 
   it('sin historial previo con actividad: media 0 y variacion null (no divide por cero)', () => {
     const txs = [tx({ date: '2026-01-10', type: 'expense', amountCents: -2500 })];
-    const cmp = computeComparison(txs, '2026-01-15', 3, undefined, '2026-07-10');
+    const cmp = computeComparison(txs, '2026-01-15', 3, ctxFor(txs), '2026-07-10');
     expect(cmp.monthsCompared).toBe(0);
     expect(cmp.averageExpenseNetCents).toBe(0);
     expect(cmp.averageComparedCents).toBe(0);
@@ -300,7 +301,7 @@ describe('computeComparison', () => {
       tx({ date: '2026-07-05', type: 'expense', amountCents: -1200 }),
     ];
     // Hoy es 15 de julio: han pasado 15 de 31 dias.
-    const cmp = computeComparison(txs, '2026-07-15', 2, undefined, '2026-07-15');
+    const cmp = computeComparison(txs, '2026-07-15', 2, ctxFor(txs), '2026-07-15');
     expect(cmp.prorated).toBe(true);
     expect(cmp.daysElapsed).toBe(15);
     expect(cmp.daysInMonth).toBe(31);
@@ -328,7 +329,7 @@ describe('computeComparison', () => {
       tx({ date: '2026-06-10', type: 'expense', amountCents: -3000 }),
       tx({ date: '2026-07-10', type: 'expense', amountCents: -2000 }),
     ];
-    const cmp = computeComparison(txs, '2026-07-31', 1, undefined, '2026-07-31');
+    const cmp = computeComparison(txs, '2026-07-31', 1, ctxFor(txs), '2026-07-31');
     expect(cmp.prorated).toBe(false);
     expect(cmp.daysElapsed).toBe(31);
     expect(cmp.averageComparedCents).toBe(3000);
@@ -387,7 +388,7 @@ describe('computeRecurringExpenses', () => {
       tx({ date: '2026-01-16', concept: 'Cafe', amountCents: -300 }), // mismo mes, no cuenta como 2 meses
       tx({ date: '2026-06-30', concept: '', amountCents: -500 }), // sin concepto: se ignora
     ];
-    const rec = computeRecurringExpenses(txs, '2026-06-15', 6, 3, 8);
+    const rec = computeRecurringExpenses(txs, '2026-06-15', 6, 3, 8, ctxFor(txs));
     expect(rec).toHaveLength(1);
     expect(rec[0]).toMatchObject({
       label: 'netflix ',
@@ -406,7 +407,7 @@ describe('computeRecurringExpenses', () => {
       tx({ date: '2024-03-03', concept: 'Netflix', amountCents: -1000 }),
     ];
     // Ventana ancla 2026: los de 2024 quedan fuera.
-    expect(computeRecurringExpenses(txs, '2026-06-15', 6, 3, 8)).toEqual([]);
+    expect(computeRecurringExpenses(txs, '2026-06-15', 6, 3, 8, ctxFor(txs))).toEqual([]);
   });
 });
 
@@ -462,7 +463,7 @@ describe('computeComparison - mes previo neutralizado por reembolso', () => {
       tx({ date: '2026-02-20', type: 'income', amountCents: 1000, refundOfId: 'gf' }),
       tx({ date: '2026-03-10', type: 'expense', amountCents: -500 }),
     ];
-    const cmp = computeComparison(txs, '2026-03-15', 2, undefined, '2026-07-10');
+    const cmp = computeComparison(txs, '2026-03-15', 2, ctxFor(txs), '2026-07-10');
     // Solo enero cuenta como mes anterior con actividad.
     expect(cmp.monthsCompared).toBe(1);
     expect(cmp.averageExpenseNetCents).toBe(1000);
@@ -1031,5 +1032,44 @@ describe('ingresos solo de nomina/paro y gastos positivos', () => {
     });
     expect(data.summary.expenseNetCents).toBe(3000);
     expect(data.summary.incomeCents).toBe(0);
+  });
+});
+
+describe('deteccion de categorias de ingreso por nombre y casos limite', () => {
+  it('reconoce variantes de nomina y paro por palabras', () => {
+    for (const name of ['Nómina', 'Nominas', 'Nómina - AstraZeneca', 'Paro (SEPE)', 'Subsidio de desempleo', 'Prestación por desempleo', 'Salarios', 'Sueldo', 'Atur', 'NÒMINA']) {
+      expect(isIncomeCategoryName(name)).toBe(true);
+    }
+  });
+  it('no confunde nombres de gasto', () => {
+    for (const name of ['Parking', 'Parking y peajes', 'Comparo', 'Ingresos Extra', 'Bizum', 'Otros cobros', 'Aparcamiento']) {
+      expect(isIncomeCategoryName(name)).toBe(false);
+    }
+  });
+  it('un positivo en Ahorros revierte la aportacion de ahorro, no es ingreso ni reduce gasto', () => {
+    const txs = [
+      tx({ type: 'expense', amountCents: -20000, categoryId: 'cat-ahorro' }),
+      tx({ type: 'income', amountCents: 5000, categoryId: 'cat-ahorro', subcategoryId: 'sub-fondo' }),
+    ];
+    const { summary } = aggregatePeriod(txs, ctxFor(txs));
+    expect(summary.savingsContribCents).toBe(15000);
+    expect(summary.incomeCents).toBe(0);
+    expect(summary.positiveExpenseCents).toBe(0);
+    expect(summary.expenseNetCents).toBe(0);
+  });
+  it('un positivo excluido de estadisticas no cuenta en nada', () => {
+    const txs = [tx({ type: 'income', amountCents: 5000, categoryId: 'cat-ocio', excludedFromStats: true })];
+    const { summary } = aggregatePeriod(txs, ctxFor(txs));
+    expect(summary.positiveExpenseCents).toBe(0);
+    expect(summary.incomeCents).toBe(0);
+  });
+  it('la prevision lineal no extrapola los gastos positivos del mes', () => {
+    const txs = [
+      tx({ date: '2026-07-01', type: 'expense', amountCents: -3100, categoryId: 'cat-ocio' }),
+      tx({ date: '2026-07-02', type: 'income', amountCents: 1000, categoryId: 'cat-ocio' }),
+    ];
+    const f = computeForecast(txs, '2026-07-10', ctxFor(txs), '2026-07-10');
+    // 31 EUR en 10 dias -> 96,10 EUR a fin de mes; el cobro de 10 EUR se resta una sola vez.
+    expect(f.projectedExpenseCents).toBe(Math.round((3100 * 31) / 10) - 1000);
   });
 });

@@ -6,6 +6,7 @@
 import type { Category, RecurringOccurrence, RecurringSeries, Transaction } from '../db/schema';
 import {
   buildStatsContext,
+  isPositiveExpense,
   aggregatePeriod,
   type StatsContext,
 } from './statsService';
@@ -86,8 +87,14 @@ function variableExpenseNetForMonth(
   recurringLinkedIds: ReadonlySet<string>,
   ctx: StatsContext,
 ): number {
-  const monthTx = allTx.filter((t) => isWithinRange(t.date, range) && !recurringLinkedIds.has(t.id));
-  return aggregatePeriod(monthTx, ctx).summary.expenseNetCents;
+  // Los gastos positivos (cobros puntuales no laborales: ventas, Bizum recibidos...) no forman
+  // parte del ritmo de gasto: se excluyen del historico para que un cobro aislado no hunda la
+  // media (ya cuentan, una sola vez, en el gasto realizado del periodo en que ocurren). Los
+  // reembolsos enlazados SI se mantienen (reducen el gasto real del mes). Nunca negativo.
+  const monthTx = allTx.filter(
+    (t) => isWithinRange(t.date, range) && !recurringLinkedIds.has(t.id) && !isPositiveExpense(t, ctx),
+  );
+  return Math.max(0, aggregatePeriod(monthTx, ctx).summary.expenseNetCents);
 }
 
 // Reduce outliers: si hay 3 o mas meses de muestra, descarta los que se desvian de la mediana
@@ -163,21 +170,45 @@ export function computeForecastRange(params: {
   let recurringPendingCents = 0;
   let recurringLowerCents = 0;
   let recurringUpperCents = 0;
+  // Series de COBRO cuyos movimientos son gastos positivos (p. ej. un Bizum mensual de un
+  // companero de piso): sus cobros ya realizados reducen el gasto realizado, asi que sus
+  // ocurrencias pendientes tambien deben restar; si no, el total dependeria de si el cobro llega
+  // antes o despues de hoy. Se identifican por sus movimientos ya vinculados. Los cobros de
+  // nomina/paro (ingreso real) siguen fuera del forecast de gasto.
+  const txByIdForSeries = new Map(allTransactions.map((t) => [t.id, t] as const));
+  const positiveIncomeSeries = new Set<string>();
+  for (const occ of recurringOccurrences) {
+    if (occ.status !== 'matched' || occ.transactionId === null) continue;
+    const linked = txByIdForSeries.get(occ.transactionId);
+    if (linked && isPositiveExpense(linked, ctx)) positiveIncomeSeries.add(occ.seriesId);
+  }
   for (const occ of recurringOccurrences) {
     if (occ.status !== 'expected') continue;
     if (!isWithinRange(occ.expectedDate, range)) continue;
     const series = seriesById.get(occ.seriesId);
-    if (!series || series.status !== 'active' || series.direction !== 'expense') continue;
-    recurringPendingCents += occ.expectedAmountCents;
+    if (!series || series.status !== 'active') continue;
     const tolerance = effectiveAmountTolerance(series);
-    recurringLowerCents += Math.max(0, occ.expectedAmountCents - tolerance);
-    recurringUpperCents += occ.expectedAmountCents + tolerance;
+    let signedAmount: number;
+    if (series.direction === 'expense') {
+      signedAmount = occ.expectedAmountCents;
+      recurringLowerCents += Math.max(0, occ.expectedAmountCents - tolerance);
+      recurringUpperCents += occ.expectedAmountCents + tolerance;
+    } else if (positiveIncomeSeries.has(series.id)) {
+      // Cobro pendiente que es gasto positivo: resta. El limite inferior asume el cobro maximo
+      // y el superior el minimo.
+      signedAmount = -occ.expectedAmountCents;
+      recurringLowerCents -= occ.expectedAmountCents + tolerance;
+      recurringUpperCents -= Math.max(0, occ.expectedAmountCents - tolerance);
+    } else {
+      continue;
+    }
+    recurringPendingCents += signedAmount;
     pendingCharges.push({
       occurrenceId: occ.id,
       seriesId: series.id,
       seriesName: series.name,
       expectedDate: occ.expectedDate,
-      expectedAmountCents: occ.expectedAmountCents,
+      expectedAmountCents: signedAmount,
     });
   }
   pendingCharges.sort((a, b) => a.expectedDate.localeCompare(b.expectedDate));
@@ -249,7 +280,7 @@ export function computeForecastRange(params: {
   const methodology: string[] = [
     'Formula: gasto realizado + recurrentes pendientes del periodo + gasto variable restante estimado.',
     'Gasto realizado: movimientos ya ocurridos en el periodo (hasta hoy), con la misma semantica que las estadisticas (excluye transferencias, movimientos excluidos, padres de split y aportaciones a ahorro/inversion; los reembolsos ya reducen el gasto de su categoria original).',
-    'Recurrentes pendientes: ocurrencias esperadas de series de gasto activas dentro del periodo que aun no se han cobrado (las ya cobradas cuentan como gasto realizado, nunca dos veces).',
+    'Recurrentes pendientes: ocurrencias esperadas de series de gasto activas dentro del periodo que aun no se han cobrado (las ya cobradas cuentan como gasto realizado, nunca dos veces). Los cobros recurrentes que no son nomina ni paro (gastos positivos) restan con importe negativo.',
     insufficientHistory
       ? `Gasto variable restante: sin historico comparable suficiente (se necesitan meses completos anteriores a hoy); se muestra como 0 en vez de inventar precision.`
       : `Gasto variable restante: media ponderada del gasto no recurrente de los ultimos ${kept.length} de ${historyMonths} meses comparables (mas peso a los recientes, outliers reducidos), en tasa diaria, multiplicada por los ${remainingDays} dias que quedan del periodo.`,

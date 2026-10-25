@@ -180,7 +180,7 @@ export function StatTiles({ summary }: StatTilesProps) {
           label="Ingresos"
           value={formatCents(summary.incomeCents)}
           valueClass="text-emerald-400"
-          hint="Nomina y paro"
+          hint="Rendimiento del trabajo (nomina, paro)"
         />
         <Tile
           label="Gastos"

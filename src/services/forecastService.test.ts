@@ -486,3 +486,99 @@ describe('forecastService.computeForRange - orquestador (Dexie, sincronizacion, 
     expect(resultB.central.realizedCents).toBe(0);
   });
 });
+
+describe('computeForecastRange - gastos positivos (cobros que no son nomina)', () => {
+  const CATS: Category[] = [
+    ...CATEGORIES,
+    { id: 'cat-ventas', profileId: 'p', name: 'Ventas', parentId: null, kind: 'both', color: null, icon: null, archivedAt: null, sortOrder: 2, createdAt: 0, updatedAt: 0 },
+    { id: 'cat-bizum', profileId: 'p', name: 'Bizum', parentId: null, kind: 'both', color: null, icon: null, archivedAt: null, sortOrder: 3, createdAt: 0, updatedAt: 0 },
+  ];
+
+  it('un cobro puntual en el historico no hunde la estimacion ni la vuelve negativa', () => {
+    const base = [
+      tx({ date: '2026-07-15', amountCents: -60000 }),
+      tx({ date: '2026-08-15', amountCents: -60000 }),
+      tx({ date: '2026-09-15', amountCents: -60000 }),
+      tx({ date: '2026-10-05', amountCents: -10000 }),
+    ];
+    const params = {
+      categories: CATS,
+      recurringSeries: [],
+      recurringOccurrences: [],
+      range: { from: '2026-10-01', to: '2026-10-31' },
+      today: '2026-10-10',
+    };
+    const sinVenta = computeForecastRange({ ...params, allTransactions: base });
+    const conVenta = computeForecastRange({
+      ...params,
+      allTransactions: [...base, tx({ date: '2026-09-20', type: 'income', amountCents: 800000, categoryId: 'cat-ventas' })],
+    });
+    expect(conVenta.central.variableRemainingCents).toBe(sinVenta.central.variableRemainingCents);
+    expect(conVenta.central.variableRemainingCents).toBeGreaterThan(0);
+    expect(conVenta.lowerTotalCents).toBeGreaterThanOrEqual(0);
+  });
+
+  it('un cobro de este mes cuenta una sola vez en lo realizado', () => {
+    const result = computeForecastRange({
+      allTransactions: [
+        tx({ date: '2026-10-05', amountCents: -10000 }),
+        tx({ date: '2026-10-06', type: 'income', amountCents: 3000, categoryId: 'cat-bizum' }),
+      ],
+      categories: CATS,
+      recurringSeries: [],
+      recurringOccurrences: [],
+      range: { from: '2026-10-01', to: '2026-10-31' },
+      today: '2026-10-10',
+    });
+    expect(result.central.realizedCents).toBe(7000);
+  });
+
+  it('una serie de cobro que es gasto positivo resta sus ocurrencias pendientes', () => {
+    const cobro = series({ id: 's-piso', name: 'Bizum piso', direction: 'income', expectedAmountCents: 30000, amountToleranceCents: 0 });
+    const julio = tx({ id: 'tx-piso-jul', date: '2026-07-01', type: 'income', amountCents: 30000, categoryId: 'cat-bizum' });
+    const common = {
+      categories: CATS,
+      recurringSeries: [cobro],
+      range: { from: '2026-10-01', to: '2026-10-31' },
+      today: '2026-10-10',
+    };
+    const matchedJul = occurrence({ seriesId: 's-piso', status: 'matched', transactionId: 'tx-piso-jul', expectedDate: '2026-07-01', expectedAmountCents: 30000 });
+    // Cobro de octubre aun pendiente (esperado el 25).
+    const pendiente = computeForecastRange({
+      ...common,
+      allTransactions: [julio],
+      recurringOccurrences: [matchedJul, occurrence({ seriesId: 's-piso', expectedDate: '2026-10-25', expectedAmountCents: 30000 })],
+    });
+    expect(pendiente.central.recurringPendingCents).toBe(-30000);
+    // Mismo cobro ya realizado el 5: el total recurrente+realizado es el mismo.
+    const octubre = tx({ id: 'tx-piso-oct', date: '2026-10-05', type: 'income', amountCents: 30000, categoryId: 'cat-bizum' });
+    const cobrado = computeForecastRange({
+      ...common,
+      allTransactions: [julio, octubre],
+      recurringOccurrences: [
+        matchedJul,
+        occurrence({ seriesId: 's-piso', status: 'matched', transactionId: 'tx-piso-oct', expectedDate: '2026-10-05', expectedAmountCents: 30000 }),
+      ],
+    });
+    expect(cobrado.central.realizedCents + cobrado.central.recurringPendingCents).toBe(
+      pendiente.central.realizedCents + pendiente.central.recurringPendingCents,
+    );
+  });
+
+  it('una serie de nomina sigue fuera del forecast de gasto', () => {
+    const cats: Category[] = [...CATS, { id: 'cat-nom', profileId: 'p', name: 'Nomina', parentId: null, kind: 'both', color: null, icon: null, archivedAt: null, sortOrder: 4, createdAt: 0, updatedAt: 0 }];
+    const nomina = series({ id: 's-nom', name: 'Nomina', direction: 'income', expectedAmountCents: 300000 });
+    const result = computeForecastRange({
+      allTransactions: [tx({ id: 'tx-nom-sep', date: '2026-09-25', type: 'income', amountCents: 300000, categoryId: 'cat-nom' })],
+      categories: cats,
+      recurringSeries: [nomina],
+      recurringOccurrences: [
+        occurrence({ seriesId: 's-nom', status: 'matched', transactionId: 'tx-nom-sep', expectedDate: '2026-09-25', expectedAmountCents: 300000 }),
+        occurrence({ seriesId: 's-nom', expectedDate: '2026-10-25', expectedAmountCents: 300000 }),
+      ],
+      range: { from: '2026-10-01', to: '2026-10-31' },
+      today: '2026-10-10',
+    });
+    expect(result.central.recurringPendingCents).toBe(0);
+  });
+});

@@ -66,21 +66,28 @@ const SAVINGS_CATEGORY_NAMES = new Set(['ahorro', 'ahorros']);
 // no consumo: no infla el gasto y se contabiliza aparte, en su propia metrica.
 const INVESTMENT_CATEGORY_NAMES = new Set(['inversion', 'inversiones']);
 
-// Nombres de categoria (normalizados) que marcan una categoria como de ingreso por
-// rendimiento del trabajo, aunque su tipo no sea "Ingreso" (p. ej. perfiles importados con
-// la categoria "Nomina" marcada como "Ambos").
-const INCOME_CATEGORY_NAMES = new Set([
+// Palabras (normalizadas: minusculas, sin acentos) que marcan una categoria como de ingreso
+// por rendimiento del trabajo aunque su tipo no sea "Ingreso" (p. ej. perfiles importados con
+// "Nomina" marcada como "Ambos"). Se compara por PALABRAS del nombre, no por el nombre entero,
+// para reconocer variantes como "Nomina - Empresa", "Paro (SEPE)", "Subsidio de desempleo" o
+// "Atur" (catalan). Solo palabras inequivocas: ninguna aparece en nombres de gasto habituales.
+const INCOME_NAME_TOKENS = new Set([
   'nomina',
   'nominas',
   'salario',
+  'salarios',
   'sueldo',
+  'sueldos',
   'paro',
   'desempleo',
-  'subsidio desempleo',
-  'subsidio por desempleo',
-  'prestacion desempleo',
-  'prestacion por desempleo',
+  'atur',
 ]);
+
+// True si el nombre de una categoria contiene alguna palabra de INCOME_NAME_TOKENS.
+export function isIncomeCategoryName(name: string): boolean {
+  const tokens = normalizeConcept(name).split(/[^a-z0-9]+/);
+  return tokens.some((tok) => INCOME_NAME_TOKENS.has(tok));
+}
 
 // Conjunto de ids cuyo nombre (normalizado, sin distinguir mayusculas ni acentos) esta en
 // `names`, mas TODAS sus subcategorias (un nivel en el MVP). Base comun de las categorias de
@@ -110,12 +117,12 @@ export function computeInvestmentCategoryIds(categories: Category[]): Set<string
 }
 
 // Categorias de ingreso (rendimiento del trabajo): las de tipo 'income' o cuyo nombre esta en
-// INCOME_CATEGORY_NAMES, mas TODAS sus subcategorias. Una categoria de tipo 'both' o
+// contiene una palabra de INCOME_NAME_TOKENS, mas TODAS sus subcategorias. Una categoria de tipo 'both' o
 // 'expense' con otro nombre NO es de ingreso: sus positivos son gastos positivos.
 export function computeIncomeCategoryIds(categories: Category[]): Set<string> {
   const matched = new Set<string>();
   for (const c of categories) {
-    if (c.kind === 'income' || INCOME_CATEGORY_NAMES.has(normalizeConcept(c.name))) {
+    if (c.kind === 'income' || isIncomeCategoryName(c.name)) {
       matched.add(c.id);
     }
   }
@@ -320,7 +327,8 @@ export interface Consumption {
   // Reembolsos y gastos positivos atribuidos al ambito (entero positivo). Solo aplica a
   // direccion 'expense'.
   refundCents: number;
-  // Consumo neto: gasto bruto menos reembolsos (expense) o ingreso bruto (income).
+  // Consumo neto: gasto bruto menos reembolsos y gastos positivos (expense) o ingreso real
+  // bruto (income).
   consumedCents: number;
 }
 
@@ -329,9 +337,10 @@ export interface Consumption {
 // los movimientos que cuentan en estadisticas (countsInStats).
 //
 //  - direccion 'expense': suma la magnitud de los gastos del ambito y le resta los
-//    reembolsos atribuidos a ese ambito (gasto neto). El neto puede ser negativo si en el
+//    reembolsos y gastos positivos atribuidos a ese ambito (gasto neto). El neto puede ser negativo si en el
 //    periodo se devuelve mas de lo gastado; se devuelve tal cual (la UI decide como pintarlo).
-//  - direccion 'income': suma los ingresos del ambito, EXCLUYENDO reembolsos (un reembolso
+//  - direccion 'income': suma los ingresos REALES (nomina/paro) del ambito, EXCLUYENDO
+//    reembolsos y gastos positivos (un reembolso
 //    no es un ingreso real; contarlo inflaria ingresos y ahorro).
 //
 // Aportaciones a ahorro: una aportacion a una categoria de ahorro NO es gasto (misma regla
@@ -446,7 +455,7 @@ export function monthKey(dateISO: string): string {
 // --- Resumen ingresos / gastos / ahorro de un periodo ---
 
 export interface IncomeExpenseSummary {
-  incomeCents: number; // ingresos reales del periodo (sin reembolsos), entero >= 0
+  incomeCents: number; // ingresos reales del periodo (nomina/paro), entero >= 0
   expenseGrossCents: number; // gasto bruto (magnitud), entero >= 0
   refundCents: number; // reembolsos del periodo, entero >= 0
   // Gastos positivos del periodo (Bizum recibidos, devoluciones sin enlazar...), entero >= 0.
@@ -598,7 +607,7 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
 export interface MonthPoint {
   month: string; // YYYY-MM
   incomeCents: number; // ingresos reales del mes (>= 0)
-  expenseNetCents: number; // gasto neto del mes (bruto - reembolsos del mes)
+  expenseNetCents: number; // gasto neto del mes (bruto - reembolsos - gastos positivos del mes)
   netSavingsCents: number; // ingresos - gasto neto
 }
 
@@ -619,7 +628,7 @@ export function computeMonthlyEvolution(
   allTx: Transaction[],
   anchorISO: string,
   monthsBack: number,
-  ctx?: StatsContext,
+  ctx: StatsContext,
 ): MonthPoint[] {
   const keys = monthKeysEndingAt(anchorISO, monthsBack);
   const first = keys[0]!;
@@ -632,24 +641,21 @@ export function computeMonthlyEvolution(
     const k = monthKey(t.date);
     if (k < first || k > last) continue; // fuera de la ventana
     // Las aportaciones a ahorro o a inversion no son gasto: no reducen el gasto neto mensual.
-    if (ctx && isApartFromExpense(t, ctx)) continue;
+    if (isApartFromExpense(t, ctx)) continue;
     if (t.type === 'expense') {
       expenseNet.set(k, (expenseNet.get(k) ?? 0) + expenseMagnitude(t));
-    } else if (ctx ? isExpenseReduction(t, ctx) : isRefund(t)) {
-      // Sin contexto de categorias no se puede distinguir nomina de gasto positivo: se
-      // conserva la semantica antigua (solo los reembolsos reducen gasto).
-      // El reembolso de una aportacion a ahorro o inversion no reduce el gasto del mes.
-      if (ctx) {
-        const refs = attributeRefundRefs(t, ctx);
-        if (
-          refsAreSavings(refs.categoryId, refs.subcategoryId, ctx) ||
-          refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)
-        )
-          continue;
-      }
+    } else if (isExpenseReduction(t, ctx)) {
+      // El reembolso (o gasto positivo) de una aportacion a ahorro o inversion no reduce el
+      // gasto del mes.
+      const refs = attributeRefundRefs(t, ctx);
+      if (
+        refsAreSavings(refs.categoryId, refs.subcategoryId, ctx) ||
+        refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)
+      )
+        continue;
       // El reembolso o gasto positivo reduce el gasto del mes en que ocurre.
       expenseNet.set(k, (expenseNet.get(k) ?? 0) - Math.abs(t.amountCents));
-    } else if (ctx ? isRealIncome(t, ctx) : t.type === 'income') {
+    } else if (isRealIncome(t, ctx)) {
       income.set(k, (income.get(k) ?? 0) + Math.abs(t.amountCents));
     }
   }
@@ -721,7 +727,7 @@ export function computeRecurringExpenses(
   monthsBack: number,
   minMonths: number,
   limit: number,
-  ctx?: StatsContext,
+  ctx: StatsContext,
 ): RecurringExpense[] {
   const keys = monthKeysEndingAt(anchorISO, monthsBack);
   const first = keys[0]!;
@@ -739,7 +745,7 @@ export function computeRecurringExpenses(
   for (const t of allTx) {
     if (!countsInStats(t) || t.type !== 'expense') continue;
     // Las aportaciones a ahorro o inversion no son gasto: no se consideran recurrentes de gasto.
-    if (ctx && isApartFromExpense(t, ctx)) continue;
+    if (isApartFromExpense(t, ctx)) continue;
     const mk = monthKey(t.date);
     if (mk < first || mk > last) continue;
     const norm = normalizeConcept(t.concept);
@@ -852,7 +858,7 @@ export function computeComparison(
   allTx: Transaction[],
   anchorISO: string,
   monthsBack: number,
-  ctx?: StatsContext,
+  ctx: StatsContext,
   today: string = todayISO(),
 ): Comparison {
   // Ventana: mes de referencia + monthsBack previos.
@@ -934,7 +940,8 @@ export function computeForecast(
   const cutoff = applicable ? today : toISO(anchor.y, anchor.m, dim);
   const range: DateRange = { from: toISO(anchor.y, anchor.m, 1), to: cutoff };
   const inRange = allTx.filter((t) => isWithinRange(t.date, range));
-  const spentSoFar = aggregatePeriod(inRange, ctx).summary.expenseNetCents;
+  const periodSummary = aggregatePeriod(inRange, ctx).summary;
+  const spentSoFar = periodSummary.expenseNetCents;
 
   if (!applicable) {
     return {
@@ -946,7 +953,10 @@ export function computeForecast(
     };
   }
   const daysElapsed = now.d; // >= 1, nunca 0: no hay division por cero
-  const projected = Math.round((spentSoFar * dim) / daysElapsed);
+  // Los gastos positivos (cobros puntuales no laborales) se cuentan UNA vez, sin extrapolar:
+  // un Bizum recibido o una venta no se repite a diario. Se extrapola solo el resto.
+  const positives = periodSummary.positiveExpenseCents;
+  const projected = Math.round(((spentSoFar + positives) * dim) / daysElapsed) - positives;
   return {
     applicable: true,
     spentSoFarCents: spentSoFar,
