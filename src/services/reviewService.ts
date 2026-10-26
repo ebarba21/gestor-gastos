@@ -17,7 +17,10 @@ import type {
 import { now } from '../db/index';
 import { reviewItemsRepo } from '../db/reviewItemsRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
+import { categoriesRepo } from '../db/categoriesRepo';
+import { rulesRepo } from '../db/rulesRepo';
 import type { Rule } from '../db/schema';
+import { categoryPathLabel } from '../lib/categoryLabel';
 import {
   estimateRuleMatchConfidence,
   matchingConditionIndexes,
@@ -264,6 +267,53 @@ async function generateFromRuleMatches(
   }
 }
 
+// Categoria propuesta por la regla en una tarea "lowConfidenceRule": lo que se mantiene al
+// aceptar. categoryLabel null = el movimiento ya no tiene categoria (aceptar no asigna nada).
+export interface RuleProposal {
+  itemId: string;
+  transactionId: string;
+  concept: string;
+  categoryLabel: string | null;
+  ruleName: string | null;
+}
+
+// Describe, para cada tarea "lowConfidenceRule" de la lista, que categoria tiene asignada el
+// movimiento (la que puso la regla) y que regla la propuso. Las demas tareas se ignoran. Si el
+// movimiento ya no existe no se devuelve entrada para esa tarea.
+async function describeRuleProposals(
+  profileId: string,
+  items: readonly ReviewItem[],
+): Promise<Map<string, RuleProposal>> {
+  requireProfileId(profileId);
+  const result = new Map<string, RuleProposal>();
+  const relevant = items.filter(
+    (i) => i.type === 'lowConfidenceRule' && i.entityType === 'transaction' && i.profileId === profileId,
+  );
+  if (relevant.length === 0) return result;
+
+  const [categories, rules, txs] = await Promise.all([
+    categoriesRepo.list(profileId),
+    rulesRepo.list(profileId),
+    Promise.all(relevant.map((i) => transactionsRepo.getById(profileId, i.entityId))),
+  ]);
+  const categoriesById = new Map(categories.map((c) => [c.id, c] as const));
+  const rulesById = new Map(rules.map((r) => [r.id, r] as const));
+
+  relevant.forEach((item, idx) => {
+    const tx = txs[idx];
+    if (!tx) return;
+    const ruleId = tx.ruleId ?? (item.metadata.ruleId as string | undefined) ?? null;
+    result.set(item.id, {
+      itemId: item.id,
+      transactionId: tx.id,
+      concept: tx.concept,
+      categoryLabel: categoryPathLabel(categoriesById, tx.categoryId, tx.subcategoryId),
+      ruleName: ruleId ? rulesById.get(ruleId)?.name ?? null : null,
+    });
+  });
+  return result;
+}
+
 // Disparado tras crear/actualizar un Conflict de sincronizacion (src/sync/conflictsRepo.ts).
 // entityId referencia el propio Conflict (entityType='conflict'), nunca la entidad financiera
 // en conflicto directamente: el conflicto ya guarda esa referencia (Conflict.entityType/
@@ -507,6 +557,7 @@ async function countsByType(
 export const reviewService = {
   generateFromImportBatch,
   generateFromRuleMatches,
+  describeRuleProposals,
   generateFromConflict,
   generatePossibleDuplicates,
   generateNewMerchantCandidates,

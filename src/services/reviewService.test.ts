@@ -3,6 +3,7 @@ import { db } from '../db/index';
 import { transactionsRepo, type NewTransaction } from '../db/transactionsRepo';
 import { reviewItemsRepo } from '../db/reviewItemsRepo';
 import { rulesRepo } from '../db/rulesRepo';
+import { categoriesRepo } from '../db/categoriesRepo';
 import { reviewService } from './reviewService';
 
 const PROFILE_A = 'profile-a';
@@ -343,6 +344,82 @@ describe('reviewService: regla de baja confianza', () => {
     await reviewService.generateFromRuleMatches(PROFILE_A, [tx], [rule]);
     const item = await reviewItemsRepo.findOpenByTypeAndEntity(PROFILE_A, 'lowConfidenceRule', tx.id);
     expect(item).toBeUndefined();
+  });
+});
+
+describe('reviewService.describeRuleProposals: categoria propuesta', () => {
+  async function weakRule(profileId: string, categoryId: string, subcategoryId: string | null) {
+    return rulesRepo.create(profileId, {
+      name: 'Gasolineras',
+      enabled: true,
+      priority: 0,
+      matchMode: 'any',
+      conditions: [
+        { field: 'concept', operator: 'contains', value: 'a', value2: null, caseSensitive: false },
+        { field: 'concept', operator: 'contains', value: 'b', value2: null, caseSensitive: false },
+        { field: 'concept', operator: 'contains', value: 'c', value2: null, caseSensitive: false },
+      ],
+      action: { setCategoryId: categoryId, setSubcategoryId: subcategoryId, addTagIds: [], setExcludedFromStats: null },
+      stopOnMatch: false,
+    });
+  }
+
+  async function categoryPair(profileId: string) {
+    const coche = await categoriesRepo.create(profileId, {
+      name: 'Coche', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0,
+    });
+    const gasolina = await categoriesRepo.create(profileId, {
+      name: 'Gasolina', parentId: coche.id, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0,
+    });
+    return { coche, gasolina };
+  }
+
+  it('devuelve la categoria y subcategoria que se mantendrian al aceptar, y la regla', async () => {
+    const { coche, gasolina } = await categoryPair(PROFILE_A);
+    const rule = await weakRule(PROFILE_A, coche.id, gasolina.id);
+    const tx = await transactionsRepo.create(
+      PROFILE_A,
+      txInput({
+        concept: 'a', categoryId: coche.id, subcategoryId: gasolina.id, categorizedBy: 'rule', ruleId: rule.id,
+      }),
+    );
+    await reviewService.generateFromRuleMatches(PROFILE_A, [tx], [rule]);
+    const item = await reviewItemsRepo.findOpenByTypeAndEntity(PROFILE_A, 'lowConfidenceRule', tx.id);
+    const proposals = await reviewService.describeRuleProposals(PROFILE_A, [item!]);
+    expect(proposals.get(item!.id)).toMatchObject({
+      concept: 'a',
+      categoryLabel: 'Coche / Gasolina',
+      ruleName: 'Gasolineras',
+    });
+  });
+
+  it('ignora tareas de otros tipos y de otro perfil', async () => {
+    const { coche } = await categoryPair(PROFILE_B);
+    const rule = await weakRule(PROFILE_B, coche.id, null);
+    const tx = await transactionsRepo.create(
+      PROFILE_B,
+      txInput({ concept: 'a', categoryId: coche.id, categorizedBy: 'rule', ruleId: rule.id }),
+    );
+    await reviewService.generateFromRuleMatches(PROFILE_B, [tx], [rule]);
+    const foreign = await reviewItemsRepo.findOpenByTypeAndEntity(PROFILE_B, 'lowConfidenceRule', tx.id);
+    const uncategorizedTx = await transactionsRepo.create(PROFILE_A, txInput({ categoryId: null }));
+    await reviewService.generateFromImportBatch(PROFILE_A, 'batch-1', [uncategorizedTx]);
+    const own = await reviewItemsRepo.listOpen(PROFILE_A);
+    const proposals = await reviewService.describeRuleProposals(PROFILE_A, [...own, foreign!]);
+    expect(proposals.size).toBe(0);
+  });
+
+  it('marca sin categoria (null) si el movimiento ya no tiene categoria', async () => {
+    const rule = await weakRule(PROFILE_A, 'cat-x', null);
+    const tx = await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ concept: 'a', categoryId: 'cat-x', categorizedBy: 'rule', ruleId: rule.id }),
+    );
+    await reviewService.generateFromRuleMatches(PROFILE_A, [tx], [rule]);
+    const item = await reviewItemsRepo.findOpenByTypeAndEntity(PROFILE_A, 'lowConfidenceRule', tx.id);
+    await transactionsRepo.update(PROFILE_A, tx.id, { categoryId: null, subcategoryId: null });
+    const proposals = await reviewService.describeRuleProposals(PROFILE_A, [item!]);
+    expect(proposals.get(item!.id)?.categoryLabel).toBeNull();
   });
 });
 

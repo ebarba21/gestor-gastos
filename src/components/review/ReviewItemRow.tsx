@@ -1,13 +1,16 @@
 // Fila de una tarea en la bandeja de revision. Presentacion pura: seleccion, tipo, motivos,
-// confianza y fecha. La accion (ver/resolver) la maneja el contenedor.
+// confianza y fecha. En tareas "lowConfidenceRule" muestra ademas el concepto y la categoria
+// propuesta por la regla (la que se mantiene al aceptar). La accion (ver/resolver) la maneja
+// el contenedor.
 import type { ReviewItem } from '../../db/schema';
-import { REVIEW_TYPE_LABELS } from '../../services/reviewService';
+import { REVIEW_TYPE_LABELS, type RuleProposal } from '../../services/reviewService';
 
 interface ReviewItemRowProps {
   item: ReviewItem;
   selected: boolean;
   onToggleSelect: () => void;
   onOpen: () => void;
+  proposal?: RuleProposal;
 }
 
 const LOCALE = 'es-ES';
@@ -25,7 +28,7 @@ const TYPE_BADGE_CLASS: Record<ReviewItem['type'], string> = {
   recurringAnomaly: 'bg-fuchsia-900 text-fuchsia-200',
 };
 
-export function ReviewItemRow({ item, selected, onToggleSelect, onOpen }: ReviewItemRowProps) {
+export function ReviewItemRow({ item, selected, onToggleSelect, onOpen, proposal }: ReviewItemRowProps) {
   return (
     <li
       className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2.5 hover:border-slate-700"
@@ -57,6 +60,25 @@ export function ReviewItemRow({ item, selected, onToggleSelect, onOpen }: Review
         <span className="ml-auto shrink-0 text-xs text-slate-500">
           {new Date(item.createdAt).toLocaleDateString(LOCALE)}
         </span>
+        {proposal && (
+          <span className="flex min-w-0 basis-full items-center gap-1.5 text-xs">
+            <span className="truncate text-slate-300">{proposal.concept}</span>
+            <span aria-hidden="true" className="shrink-0 text-slate-500">
+              →
+            </span>
+            {proposal.categoryLabel ? (
+              <span
+                className="shrink-0 rounded-md bg-amber-950 px-1.5 py-0.5 font-medium text-amber-200"
+                data-testid="review-proposed-category"
+              >
+                <span className="sr-only">Categoria propuesta: </span>
+                {proposal.categoryLabel}
+              </span>
+            ) : (
+              <span className="shrink-0 text-slate-500">Sin categoria</span>
+            )}
+          </span>
+        )}
       </button>
     </li>
   );

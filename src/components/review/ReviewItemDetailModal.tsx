@@ -11,7 +11,7 @@ import { transactionsRepo } from '../../db/transactionsRepo';
 import { categoryService, type CategoryNode } from '../../services/categoryService';
 import { merchantService } from '../../services/merchantService';
 import { transactionService } from '../../services/transactionService';
-import { reviewService, REVIEW_TYPE_LABELS } from '../../services/reviewService';
+import { reviewService, REVIEW_TYPE_LABELS, type RuleProposal } from '../../services/reviewService';
 import { formatCents } from '../../lib/money';
 
 interface ReviewItemDetailModalProps {
@@ -56,6 +56,7 @@ export function ReviewItemDetailModal({
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [merchantName, setMerchantName] = useState('');
+  const [proposal, setProposal] = useState<RuleProposal | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +77,10 @@ export function ReviewItemDetailModal({
       if (item.type === 'uncategorized' || item.type === 'lowConfidenceRule') {
         const tree = await categoryService.listTree(profileId, { includeArchived: false });
         if (!cancelled) setCategories(tree);
+      }
+      if (item.type === 'lowConfidenceRule') {
+        const map = await reviewService.describeRuleProposals(profileId, [item]);
+        if (!cancelled) setProposal(map.get(item.id) ?? null);
       }
       if (item.type === 'newMerchant') {
         const concept = String(item.metadata.normalizedConcept ?? '');
@@ -180,6 +185,22 @@ export function ReviewItemDetailModal({
             <p className="text-slate-300">
               Una regla categorizo este movimiento, pero con poca certeza (coincidencia debil).
             </p>
+            <div
+              className="rounded-lg border border-amber-800 bg-amber-950/40 p-3"
+              data-testid="review-proposed-category-detail"
+            >
+              <p className="text-xs uppercase tracking-wide text-amber-300/80">Categoria propuesta</p>
+              <p className="mt-0.5 text-base font-semibold text-amber-100">
+                {proposal ? proposal.categoryLabel ?? 'Sin categoria' : 'Cargando...'}
+              </p>
+              {proposal?.ruleName && (
+                <p className="mt-1 text-xs text-slate-400">Regla: {proposal.ruleName}</p>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">
+              Si aceptas, el movimiento se queda en esta categoria. Si la quitas, queda sin categoria
+              para que la elijas tu.
+            </p>
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
@@ -187,7 +208,7 @@ export function ReviewItemDetailModal({
                 className={buttonGhost}
                 onClick={() => run(() => reviewService.resolve(profileId, item.id, 'rule:accepted'))}
               >
-                Aceptar la categoria
+                {proposal?.categoryLabel ? `Aceptar ${proposal.categoryLabel}` : 'Aceptar la categoria'}
               </button>
               <button
                 type="button"

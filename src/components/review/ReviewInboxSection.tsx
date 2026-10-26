@@ -2,9 +2,14 @@
 // seccion 16). Contadores totales y por tipo, filtros, busqueda, orden, seleccion multiple,
 // acciones masivas, panel de detalle por tarea y estados vacios. Responsive: lista apilada en
 // cualquier ancho, sin tablas anchas que desborden en movil.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useReviewItems } from '../../hooks/useReviewItems';
-import { reviewService, REVIEW_TYPE_LABELS, REVIEW_STATUS_LABELS } from '../../services/reviewService';
+import {
+  reviewService,
+  REVIEW_TYPE_LABELS,
+  REVIEW_STATUS_LABELS,
+  type RuleProposal,
+} from '../../services/reviewService';
 import type { ReviewItem, ReviewItemStatus, ReviewItemType } from '../../db/schema';
 import { EmptyState } from '../common';
 import { useToast } from '../../context/ToastContext';
@@ -28,6 +33,24 @@ export function ReviewInboxSection() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openItem, setOpenItem] = useState<ReviewItem | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [proposals, setProposals] = useState<Map<string, RuleProposal>>(new Map());
+
+  // Categoria propuesta de cada tarea "regla de baja confianza", para verla sin abrir el detalle.
+  useEffect(() => {
+    let cancelled = false;
+    reviewService
+      .describeRuleProposals(profileId, items)
+      .then((map) => {
+        if (!cancelled) setProposals(map);
+      })
+      .catch(() => {
+        // La bandeja sigue siendo usable sin este dato; el detalle de la tarea lo vuelve a cargar.
+        if (!cancelled) setProposals(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, items]);
 
   const typeEntries = useMemo(
     () => Object.entries(counts.byType) as [ReviewItemType, number][],
@@ -209,6 +232,7 @@ export function ReviewInboxSection() {
                 selected={selected.has(item.id)}
                 onToggleSelect={() => toggleSelect(item.id)}
                 onOpen={() => setOpenItem(item)}
+                proposal={proposals.get(item.id)}
               />
             ))}
           </ul>

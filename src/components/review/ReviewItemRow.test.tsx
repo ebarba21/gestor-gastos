@@ -82,4 +82,27 @@ describe('ReviewItemRow: teclado y accesibilidad', () => {
     expect(screen.getByText('85%')).toBeInTheDocument();
     expect(screen.getByText(/sameAccountAmountCurrency/)).toBeInTheDocument();
   });
+
+  it('en una regla de baja confianza muestra el concepto y la categoria propuesta', () => {
+    const item = makeItem({ type: 'lowConfidenceRule', confidence: 300 });
+    render(
+      <ul>
+        <ReviewItemRow
+          item={item}
+          selected={false}
+          onToggleSelect={() => {}}
+          onOpen={() => {}}
+          proposal={{
+            itemId: item.id,
+            transactionId: 'tx-1',
+            concept: 'BONAREA MANRESA',
+            categoryLabel: 'Coche / Gasolina',
+            ruleName: 'Gasolineras',
+          }}
+        />
+      </ul>,
+    );
+    expect(screen.getByText('BONAREA MANRESA')).toBeInTheDocument();
+    expect(screen.getByTestId('review-proposed-category')).toHaveTextContent('Coche / Gasolina');
+  });
 });
