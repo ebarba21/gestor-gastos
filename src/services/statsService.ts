@@ -1098,6 +1098,75 @@ export interface SavingsInvestmentMonthPoint {
   savingsRatePerMille: number | null; // tasa de ahorro del mes (null sin ingresos)
 }
 
+// Bucket de una aportacion: ahorro o inversion.
+export type ContributionBucket = 'savings' | 'investment';
+
+// Movimiento que compone las aportaciones de la ventana (desglose de los graficos de
+// ahorro e inversion). Misma semantica que aggregatePeriod: un gasto en Ahorro/Inversion
+// aporta en positivo; un reembolso o gasto positivo atribuido a esas categorias es una
+// retirada y aporta en negativo.
+export interface SavingsContributionItem {
+  id: string;
+  date: string;
+  month: string; // YYYY-MM
+  concept: string;
+  accountId: string;
+  // Categoria mas especifica del movimiento (subcategoria si la tiene; la del gasto
+  // original si es una retirada enlazada).
+  categoryId: string | null;
+  bucket: ContributionBucket;
+  contributionCents: number; // positiva = aportacion, negativa = retirada
+}
+
+// Clasifica un movimiento como aportacion (o retirada) a ahorro o inversion, con la MISMA
+// prioridad que aggregatePeriod (ahorro antes que inversion). null si no es ninguna.
+function classifyContribution(
+  t: Transaction,
+  ctx: StatsContext,
+): { bucket: ContributionBucket; cents: number; categoryId: string | null } | null {
+  if (!countsInStats(t)) return null;
+  if (t.type === 'expense') {
+    const categoryId = t.subcategoryId ?? t.categoryId;
+    if (isSavingsMovement(t, ctx)) return { bucket: 'savings', cents: expenseMagnitude(t), categoryId };
+    if (isInvestmentMovement(t, ctx)) return { bucket: 'investment', cents: expenseMagnitude(t), categoryId };
+    return null;
+  }
+  if (isExpenseReduction(t, ctx)) {
+    const refs = attributeRefundRefs(t, ctx);
+    const categoryId = refs.subcategoryId ?? refs.categoryId;
+    const amt = Math.abs(t.amountCents);
+    if (refsAreSavings(refs.categoryId, refs.subcategoryId, ctx)) return { bucket: 'savings', cents: -amt, categoryId };
+    if (refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)) {
+      return { bucket: 'investment', cents: -amt, categoryId };
+    }
+  }
+  return null;
+}
+
+// Seleccion de aportaciones entre dos meses (incluidos) con sus totales por bucket. Lo usa
+// la UI al pulsar un mes: barras -> ese mes; acumulado -> desde el inicio de la ventana.
+export interface SavingsContributionSelection {
+  items: SavingsContributionItem[];
+  savingsCents: number;
+  investmentCents: number;
+  totalCents: number;
+}
+
+export function selectSavingsContributions(
+  items: readonly SavingsContributionItem[],
+  fromMonth: string,
+  toMonth: string,
+): SavingsContributionSelection {
+  const selected = items.filter((it) => it.month >= fromMonth && it.month <= toMonth);
+  let savings = 0;
+  let investment = 0;
+  for (const it of selected) {
+    if (it.bucket === 'savings') savings += it.contributionCents;
+    else investment += it.contributionCents;
+  }
+  return { items: selected, savingsCents: savings, investmentCents: investment, totalCents: savings + investment };
+}
+
 // Mejor mes de una metrica: clave de mes e importe. Solo se declara "mejor" un mes con
 // valor positivo (con todo negativo o cero no hay mejor mes que celebrar: null).
 export interface BestMonth {
@@ -1137,6 +1206,9 @@ export interface SavingsInvestmentAnalysis {
   // Hay alguna aportacion (historica o de la ventana) a ahorro o inversion. La UI lo usa
   // para explicar como activar el apartado cuando aun no se usan esas categorias.
   hasAnyContrib: boolean;
+  // Movimientos que componen las aportaciones de la ventana (fecha desc). Su suma por mes
+  // cuadra con savingsContribCents/investmentContribCents de cada punto.
+  contributions: SavingsContributionItem[];
 }
 
 // Actividad de un mes a efectos de medias y rachas: mismo criterio deliberado que
@@ -1173,23 +1245,34 @@ export function computeSavingsInvestment(
   const byMonth = new Map<string, Transaction[]>();
   let allTimeSavings = 0;
   let allTimeInvestment = 0;
+  const contribRows: { item: SavingsContributionItem; createdAt: number }[] = [];
   for (const t of allTx) {
     if (!countsInStats(t)) continue;
-    // Acumulado historico de aportaciones netas (independiente de la ventana).
-    if (isSavingsMovement(t, ctx)) {
-      allTimeSavings += expenseMagnitude(t);
-    } else if (isInvestmentMovement(t, ctx)) {
-      allTimeInvestment += expenseMagnitude(t);
-    } else if (isExpenseReduction(t, ctx)) {
-      const refs = attributeRefundRefs(t, ctx);
-      if (refsAreSavings(refs.categoryId, refs.subcategoryId, ctx)) {
-        allTimeSavings -= Math.abs(t.amountCents);
-      } else if (refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)) {
-        allTimeInvestment -= Math.abs(t.amountCents);
+    const k = monthKey(t.date);
+    const inWindow = k >= first && k <= last;
+    // Acumulado historico de aportaciones netas (independiente de la ventana) y, dentro de
+    // la ventana, el movimiento para el desglose.
+    const contrib = classifyContribution(t, ctx);
+    if (contrib !== null) {
+      if (contrib.bucket === 'savings') allTimeSavings += contrib.cents;
+      else allTimeInvestment += contrib.cents;
+      if (inWindow) {
+        contribRows.push({
+          item: {
+            id: t.id,
+            date: t.date,
+            month: k,
+            concept: t.concept,
+            accountId: t.accountId,
+            categoryId: contrib.categoryId,
+            bucket: contrib.bucket,
+            contributionCents: contrib.cents,
+          },
+          createdAt: t.createdAt,
+        });
       }
     }
-    const k = monthKey(t.date);
-    if (k < first || k > last) continue;
+    if (!inWindow) continue;
     const bucket = byMonth.get(k);
     if (bucket) bucket.push(t);
     else byMonth.set(k, [t]);
@@ -1282,6 +1365,12 @@ export function computeSavingsInvestment(
     allTimeSavingsContribCents: allTimeSavings,
     allTimeInvestmentContribCents: allTimeInvestment,
     hasAnyContrib: allTimeSavings !== 0 || allTimeInvestment !== 0,
+    contributions: contribRows
+      .sort((a, b) => {
+        if (a.item.date !== b.item.date) return a.item.date < b.item.date ? 1 : -1;
+        return b.createdAt - a.createdAt;
+      })
+      .map((r) => r.item),
   };
 }
 

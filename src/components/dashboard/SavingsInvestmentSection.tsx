@@ -15,8 +15,10 @@ import { SavingsCumulativeChart } from './SavingsCumulativeChart';
 
 interface SavingsInvestmentSectionProps {
   analysis: SavingsInvestmentAnalysis;
-  // Pulsar un mes en los graficos lo fija como periodo del dashboard.
-  onSelectMonth?: (monthKey: string) => void;
+  // Pulsar un mes abre el desglose de movimientos: 'month' = solo ese mes (barras),
+  // 'cumulative' = desde el inicio de la ventana hasta ese mes (acumulado). No cambia el
+  // periodo ni los filtros del dashboard.
+  onOpenMonth?: (mode: 'month' | 'cumulative', monthKey: string) => void;
 }
 
 // Tarjeta KPI local, mismo lenguaje visual que StatTiles.
@@ -74,7 +76,7 @@ function monthsLabel(n: number): string {
   return n === 1 ? '1 mes' : `${n} meses`;
 }
 
-export function SavingsInvestmentSection({ analysis, onSelectMonth }: SavingsInvestmentSectionProps) {
+export function SavingsInvestmentSection({ analysis, onOpenMonth }: SavingsInvestmentSectionProps) {
   const windowMonths = analysis.months.length;
 
   return (
@@ -189,15 +191,21 @@ export function SavingsInvestmentSection({ analysis, onSelectMonth }: SavingsInv
       <div className="grid gap-6 lg:grid-cols-2">
         <Card
           title="Aportaciones por mes"
-          subtitle="Traspasos netos a ahorro e inversión. Pulsa un mes para verlo"
+          subtitle="Traspasos netos a ahorro e inversión. Pulsa un mes para ver sus movimientos"
         >
-          <SavingsContributionsChart months={analysis.months} onSelectMonth={onSelectMonth} />
+          <SavingsContributionsChart
+            months={analysis.months}
+            onOpenMonth={onOpenMonth ? (m) => onOpenMonth('month', m) : undefined}
+          />
         </Card>
         <Card
           title="Acumulado de la ventana"
-          subtitle="Aportado neto hasta cada mes (ahorro e inversión apilados)"
+          subtitle="Aportado neto hasta cada mes (ahorro e inversión apilados). Pulsa un mes para ver los movimientos"
         >
-          <SavingsCumulativeChart months={analysis.months} onSelectMonth={onSelectMonth} />
+          <SavingsCumulativeChart
+            months={analysis.months}
+            onOpenMonth={onOpenMonth ? (m) => onOpenMonth('cumulative', m) : undefined}
+          />
         </Card>
       </div>
     </div>

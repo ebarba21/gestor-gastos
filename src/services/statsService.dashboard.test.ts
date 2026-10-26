@@ -29,6 +29,7 @@ import {
   monthKeysEndingAt,
   rootCategoryIdOf,
   savingsRatePerMille,
+  selectSavingsContributions,
   statsService,
 } from './statsService';
 
@@ -794,6 +795,52 @@ describe('computeSavingsInvestment', () => {
     // La analitica de ahorro ignora el filtro: sigue viendo la aportacion y los ingresos.
     expect(data.savingsInvestment.totalSavingsContribCents).toBe(20000);
     expect(data.savingsInvestment.totalIncomeCents).toBe(100000);
+  });
+});
+
+describe('desglose de aportaciones (graficos de ahorro e inversion)', () => {
+  const original = tx({ id: 'ap-may', date: '2026-05-10', type: 'expense', amountCents: -10000, categoryId: 'cat-ahorro', createdAt: 1 });
+  const txs = [
+    tx({ id: 'fuera', date: '2026-01-10', type: 'expense', amountCents: -7000, categoryId: 'cat-ahorro' }),
+    original,
+    tx({ id: 'ret-jun', date: '2026-06-10', type: 'income', amountCents: 4000, refundOfId: 'ap-may', categoryId: null }),
+    tx({ id: 'inv-jun', date: '2026-06-15', type: 'expense', amountCents: -20000, subcategoryId: 'sub-indexado' }),
+    tx({ id: 'fondo-jul', date: '2026-07-03', type: 'expense', amountCents: -5000, categoryId: 'cat-ahorro', subcategoryId: 'sub-fondo' }),
+    tx({ id: 'excl-jul', date: '2026-07-04', type: 'expense', amountCents: -9999, categoryId: 'cat-ahorro', excludedFromStats: true, statsFlag: 1 }),
+    tx({ id: 'comida-jul', date: '2026-07-05', type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
+    tx({ id: 'nomina-jul', date: '2026-07-01', type: 'income', amountCents: 150000 }),
+  ];
+  const a = computeSavingsInvestment(txs, '2026-07-15', 3, ctxFor(txs));
+
+  it('lista solo aportaciones y retiradas de la ventana, fecha desc, con signo y bucket', () => {
+    expect(a.contributions.map((c) => c.id)).toEqual(['fondo-jul', 'inv-jun', 'ret-jun', 'ap-may']);
+    const byId = new Map(a.contributions.map((c) => [c.id, c]));
+    expect(byId.get('ret-jun')).toMatchObject({ bucket: 'savings', contributionCents: -4000, categoryId: 'cat-ahorro', month: '2026-06' });
+    expect(byId.get('inv-jun')).toMatchObject({ bucket: 'investment', contributionCents: 20000, categoryId: 'sub-indexado' });
+    expect(byId.get('fondo-jul')).toMatchObject({ bucket: 'savings', contributionCents: 5000, categoryId: 'sub-fondo' });
+  });
+
+  it('la suma por mes cuadra con cada barra del grafico', () => {
+    for (const m of a.months) {
+      const sel = selectSavingsContributions(a.contributions, m.month, m.month);
+      expect(sel.savingsCents).toBe(m.savingsContribCents);
+      expect(sel.investmentCents).toBe(m.investmentContribCents);
+      expect(sel.totalCents).toBe(m.savingsContribCents + m.investmentContribCents);
+    }
+  });
+
+  it('desde el inicio de la ventana hasta un mes cuadra con el acumulado de ese mes', () => {
+    const first = a.months[0]!.month;
+    for (const m of a.months) {
+      const sel = selectSavingsContributions(a.contributions, first, m.month);
+      expect(sel.savingsCents).toBe(m.cumulativeSavingsContribCents);
+      expect(sel.investmentCents).toBe(m.cumulativeInvestmentContribCents);
+    }
+  });
+
+  it('un mes sin aportaciones devuelve una seleccion vacia', () => {
+    const sel = selectSavingsContributions(a.contributions, '2026-08', '2026-08');
+    expect(sel).toEqual({ items: [], savingsCents: 0, investmentCents: 0, totalCents: 0 });
   });
 });
 

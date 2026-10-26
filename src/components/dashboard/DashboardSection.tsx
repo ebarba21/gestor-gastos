@@ -1,13 +1,13 @@
 // Seccion Dashboard: selector de periodo y todas las metricas del perfil activo. Toda la
 // agregacion vive en statsService (via useDashboard); aqui solo hay presentacion y layout
 // responsive. Estados cuidados: cargando, rango invalido, periodo sin datos.
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useDashboard } from '../../hooks/useDashboard';
 import { useForecastRange } from '../../hooks/useForecastRange';
 import { useRecurringSeries } from '../../hooks/useRecurringSeries';
 import { useMovementEditor } from '../../hooks/useMovementEditor';
 import { useToast } from '../../context/ToastContext';
-import type { DrillDownKind } from '../../services/statsService';
+import { selectSavingsContributions, type DrillDownKind } from '../../services/statsService';
 import { useFrozenDrillDown } from '../../hooks/useFrozenDrillDown';
 import { TransactionFormModal } from '../transactions/TransactionFormModal';
 import { EmptyState } from '../common';
@@ -23,6 +23,8 @@ import { UpcomingChargesCard } from './UpcomingChargesCard';
 import { MerchantSpendCard } from './MerchantSpendCard';
 import { SavingsInvestmentSection } from './SavingsInvestmentSection';
 import { MovementsDrillDownModal } from './MovementsDrillDownModal';
+import { SavingsContributionsModal } from './SavingsContributionsModal';
+import { longMonthLabel } from './chartTheme';
 
 // Tarjeta con titulo para envolver un grafico o lista.
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
@@ -75,6 +77,20 @@ export function DashboardSection() {
   const [drillKind, setDrillKind] = useState<DrillDownKind | null>(null);
   // Orden congelado al abrir el panel: editar un movimiento no lo mueve de sitio.
   const drillDown = useFrozenDrillDown(drillKind, data?.drillDown ?? null);
+  // Desglose de los graficos de ahorro e inversion: mes pulsado y si es la barra del mes o
+  // el acumulado hasta el. Se recalcula con los datos vivos (editar un movimiento lo refleja)
+  // y nunca toca el periodo ni el filtro del dashboard.
+  const [savingsPick, setSavingsPick] = useState<{ mode: 'month' | 'cumulative'; month: string } | null>(null);
+  const savingsSelection = useMemo(() => {
+    if (savingsPick === null || !data) return null;
+    const analysis = data.savingsInvestment;
+    const from = savingsPick.mode === 'month' ? savingsPick.month : analysis.months[0]?.month ?? savingsPick.month;
+    return selectSavingsContributions(analysis.contributions, from, savingsPick.month);
+  }, [savingsPick, data]);
+  const openSavingsMonth = useCallback(
+    (mode: 'month' | 'cumulative', month: string) => setSavingsPick({ mode, month }),
+    [],
+  );
   const openEditor = editor.open;
   const openMovement = useCallback((id: string) => void openEditor(id), [openEditor]);
 
@@ -214,8 +230,9 @@ export function DashboardSection() {
           </Card>
 
           {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolucion completa,
-              sin filtro cruzado (ver DashboardData.savingsInvestment). */}
-          <SavingsInvestmentSection analysis={data.savingsInvestment} onSelectMonth={selectMonth} />
+              sin filtro cruzado (ver DashboardData.savingsInvestment). Pulsar sus graficos
+              abre el desglose de movimientos, sin cambiar periodo ni filtros. */}
+          <SavingsInvestmentSection analysis={data.savingsInvestment} onOpenMonth={openSavingsMonth} />
         </div>
       )}
 
@@ -225,6 +242,26 @@ export function DashboardSection() {
         kind={drillKind ?? 'expense'}
         drillDown={drillDown}
         filterName={activeFilterName}
+        categoryNames={categoryNames}
+        accountNames={accountNames}
+        onSelectMovement={openMovement}
+      />
+      <SavingsContributionsModal
+        open={savingsPick !== null && editor.editing === null}
+        onClose={() => setSavingsPick(null)}
+        title={
+          savingsPick === null
+            ? ''
+            : savingsPick.mode === 'month'
+              ? `Aportaciones de ${longMonthLabel(savingsPick.month)}`
+              : `Acumulado hasta ${longMonthLabel(savingsPick.month)}`
+        }
+        subtitle={
+          savingsPick?.mode === 'cumulative' && data
+            ? `Desde ${longMonthLabel(data.savingsInvestment.months[0]?.month ?? savingsPick.month)}`
+            : 'Ahorro e inversión del mes'
+        }
+        selection={savingsSelection}
         categoryNames={categoryNames}
         accountNames={accountNames}
         onSelectMovement={openMovement}

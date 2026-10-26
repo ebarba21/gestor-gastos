@@ -1,7 +1,8 @@
 // Acumulado de lo aportado a ahorro e inversion dentro de la ventana analizada: areas
 // apiladas (la altura total es todo lo apartado hasta ese mes). Mismo lenguaje visual que
 // la evolucion mensual (degradado bajo cada area, rejilla recesiva, un unico eje Y).
-// Puede descender si un mes hay retirada neta. Pulsar un mes lo fija como periodo.
+// Puede descender si un mes hay retirada neta. Pulsar un mes abre los movimientos
+// acumulados hasta el; no cambia el periodo ni los filtros.
 import {
   Area,
   AreaChart,
@@ -19,7 +20,7 @@ import { MoneyTooltip } from './MoneyTooltip';
 
 interface SavingsCumulativeChartProps {
   months: SavingsInvestmentMonthPoint[];
-  onSelectMonth?: (monthKey: string) => void;
+  onOpenMonth?: (monthKey: string) => void;
 }
 
 interface Datum {
@@ -28,7 +29,7 @@ interface Datum {
   Inversion: number;
 }
 
-export function SavingsCumulativeChart({ months, onSelectMonth }: SavingsCumulativeChartProps) {
+export function SavingsCumulativeChart({ months, onOpenMonth }: SavingsCumulativeChartProps) {
   const colors = useChartColors();
   const data: Datum[] = months.map((m) => ({
     month: m.month,
@@ -38,7 +39,7 @@ export function SavingsCumulativeChart({ months, onSelectMonth }: SavingsCumulat
 
   const handleClick = (state: CategoricalChartState) => {
     const label = state?.activeLabel;
-    if (onSelectMonth && typeof label === 'string') onSelectMonth(label);
+    if (onOpenMonth && typeof label === 'string') onOpenMonth(label);
   };
 
   return (
@@ -46,8 +47,8 @@ export function SavingsCumulativeChart({ months, onSelectMonth }: SavingsCumulat
       <AreaChart
         data={data}
         margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
-        onClick={onSelectMonth ? handleClick : undefined}
-        style={onSelectMonth ? { cursor: 'pointer' } : undefined}
+        onClick={onOpenMonth ? handleClick : undefined}
+        style={onOpenMonth ? { cursor: 'pointer' } : undefined}
       >
         <defs>
           <linearGradient id="gsi-saved" x1="0" y1="0" x2="0" y2="1">

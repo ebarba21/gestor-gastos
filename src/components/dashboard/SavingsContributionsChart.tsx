@@ -1,7 +1,7 @@
 // Aportaciones mensuales a ahorro e inversion: barras apiladas por mes (dos series ->
 // leyenda siempre presente; la identidad nunca es solo color). Un unico eje Y. Una
 // aportacion negativa (retirada neta del mes) se apila hacia abajo y se lee tal cual.
-// Actua de control del periodo: pulsar un mes lo fija como periodo del dashboard.
+// Pulsar un mes abre el desglose de sus movimientos; no cambia el periodo ni los filtros.
 import {
   Bar,
   BarChart,
@@ -19,7 +19,7 @@ import { MoneyTooltip } from './MoneyTooltip';
 
 interface SavingsContributionsChartProps {
   months: SavingsInvestmentMonthPoint[];
-  onSelectMonth?: (monthKey: string) => void;
+  onOpenMonth?: (monthKey: string) => void;
 }
 
 interface Datum {
@@ -28,7 +28,7 @@ interface Datum {
   Inversion: number;
 }
 
-export function SavingsContributionsChart({ months, onSelectMonth }: SavingsContributionsChartProps) {
+export function SavingsContributionsChart({ months, onOpenMonth }: SavingsContributionsChartProps) {
   const colors = useChartColors();
   const data: Datum[] = months.map((m) => ({
     month: m.month,
@@ -38,7 +38,7 @@ export function SavingsContributionsChart({ months, onSelectMonth }: SavingsCont
 
   const handleClick = (state: CategoricalChartState) => {
     const label = state?.activeLabel;
-    if (onSelectMonth && typeof label === 'string') onSelectMonth(label);
+    if (onOpenMonth && typeof label === 'string') onOpenMonth(label);
   };
 
   return (
@@ -46,8 +46,8 @@ export function SavingsContributionsChart({ months, onSelectMonth }: SavingsCont
       <BarChart
         data={data}
         margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
-        onClick={onSelectMonth ? handleClick : undefined}
-        style={onSelectMonth ? { cursor: 'pointer' } : undefined}
+        onClick={onOpenMonth ? handleClick : undefined}
+        style={onOpenMonth ? { cursor: 'pointer' } : undefined}
       >
         <CartesianGrid stroke={colors.grid} vertical={false} />
         <XAxis
