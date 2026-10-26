@@ -89,7 +89,7 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 ## 8. Dashboard (analisis del perfil activo)
 
 - **Selector de periodo**: mes en curso por defecto, navegacion entre meses y rango personalizado de fechas.
-- **KPIs del periodo**: ingresos (nomina y paro), gasto neto (con desglose bruto, reembolsos y gastos positivos), ahorro neto y tasa de ahorro. Pulsar Ingresos o Gastos abre la lista de movimientos que componen la cifra (respetando periodo y filtro), con un total que cuadra con la tarjeta; pulsar un movimiento abre su ficha para verlo y editarlo.
+- **KPIs del periodo**: ingresos (nomina y paro), gasto neto (con desglose bruto, reembolsos y gastos positivos), ahorro neto y tasa de ahorro. Pulsar Ingresos o Gastos abre la lista de movimientos que componen la cifra (respetando periodo y filtro), con un total que cuadra con la tarjeta; pulsar un movimiento abre su ficha para verlo y editarlo. Mientras la lista siga abierta, los movimientos editados se actualizan pero no cambian de posicion: se mantiene el orden que tenia al abrirla.
 - **Reparto del ahorro neto** en "Ahorrado" e "Invertido" cuando hay inversion, con barra proporcional y avisos honestos (por ejemplo si invertiste mas de lo que ahorraste ese mes).
 - **Evolucion mensual**: ingresos, gasto neto y ahorro por mes en areas; pulsar un mes lo fija como periodo.
 - **Gasto por categoria**: ranking de categorias con colores propios; pulsar una categoria filtra el resto del dashboard (**filtro cruzado**); con el filtro activo, "Ver sus movimientos" lista todos los de esa categoria.

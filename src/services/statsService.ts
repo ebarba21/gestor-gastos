@@ -798,6 +798,27 @@ export function computeDrillDown(
   return { items: rows.map((r) => r.item), totalCents: total };
 }
 
+// Reordena un desglose ya recalculado segun el orden de ids que tenia al abrirse el panel,
+// para que editar un movimiento no lo mueva de sitio mientras se revisa la lista. Los
+// importes, categorias y el total son siempre los del desglose recalculado: solo cambia el
+// orden. Los movimientos que ya no forman parte del KPI (p. ej. pasados a Ahorro o excluidos
+// de estadisticas) desaparecen, porque el total debe seguir cuadrando con la tarjeta; los
+// que entran nuevos se anaden al final, en su orden natural.
+export function applyFrozenDrillDownOrder(drillDown: DrillDown, frozenIds: readonly string[]): DrillDown {
+  const position = new Map<string, number>();
+  frozenIds.forEach((id, i) => {
+    if (!position.has(id)) position.set(id, i);
+  });
+  const known: DrillDownItem[] = [];
+  const fresh: DrillDownItem[] = [];
+  for (const it of drillDown.items) {
+    if (position.has(it.id)) known.push(it);
+    else fresh.push(it);
+  }
+  known.sort((a, b) => position.get(a.id)! - position.get(b.id)!);
+  return { items: [...known, ...fresh], totalCents: drillDown.totalCents };
+}
+
 // --- Gastos recurrentes detectados ---
 
 export interface RecurringExpense {

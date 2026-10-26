@@ -8,6 +8,7 @@ import { useRecurringSeries } from '../../hooks/useRecurringSeries';
 import { useMovementEditor } from '../../hooks/useMovementEditor';
 import { useToast } from '../../context/ToastContext';
 import type { DrillDownKind } from '../../services/statsService';
+import { useFrozenDrillDown } from '../../hooks/useFrozenDrillDown';
 import { TransactionFormModal } from '../transactions/TransactionFormModal';
 import { EmptyState } from '../common';
 import { PeriodSelector } from './PeriodSelector';
@@ -72,6 +73,8 @@ export function DashboardSection() {
   // Desglose abierto (Gastos o Ingresos). Mientras la ficha de un movimiento esta abierta el
   // desglose se oculta (sin perder cual era) y reaparece, ya recalculado, al cerrarla.
   const [drillKind, setDrillKind] = useState<DrillDownKind | null>(null);
+  // Orden congelado al abrir el panel: editar un movimiento no lo mueve de sitio.
+  const drillDown = useFrozenDrillDown(drillKind, data?.drillDown ?? null);
   const openEditor = editor.open;
   const openMovement = useCallback((id: string) => void openEditor(id), [openEditor]);
 
@@ -220,7 +223,7 @@ export function DashboardSection() {
         open={drillKind !== null && editor.editing === null}
         onClose={() => setDrillKind(null)}
         kind={drillKind ?? 'expense'}
-        drillDown={drillKind !== null && data ? data.drillDown[drillKind] : null}
+        drillDown={drillDown}
         filterName={activeFilterName}
         categoryNames={categoryNames}
         accountNames={accountNames}
