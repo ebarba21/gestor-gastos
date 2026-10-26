@@ -1,7 +1,8 @@
 // Top gastos individuales del periodo: lista compacta con concepto, categoria, fecha e
 // importe. Solo presentacion: recibe la lista ya calculada y ordenada por statsService.
-// Cada fila es pulsable: filtra el dashboard por la categoria de ese gasto (y de nuevo lo
-// quita), coherente con el filtro cruzado del grafico de categorias.
+// Cada fila es pulsable: abre la ficha del movimiento para ver y editar sus detalles. El
+// filtro por categoria se controla desde el grafico de categorias; aqui solo se resalta la
+// categoria activa.
 import type { TopExpense } from '../../services/statsService';
 import { formatCents } from '../../lib/money';
 
@@ -11,7 +12,8 @@ interface TopExpensesCardProps {
   accountNames: Map<string, string>;
   // Categoria del filtro cruzado activo (undefined = sin filtro). null = "sin categoria".
   activeCategoryId?: string | null;
-  onSelectCategory?: (categoryId: string | null) => void;
+  // Abre la ficha (detalle y edicion) del movimiento pulsado.
+  onSelectMovement?: (id: string) => void;
 }
 
 export function TopExpensesCard({
@@ -19,7 +21,7 @@ export function TopExpensesCard({
   categoryNames,
   accountNames,
   activeCategoryId,
-  onSelectCategory,
+  onSelectMovement,
 }: TopExpensesCardProps) {
   if (topExpenses.length === 0) {
     return <p className="py-6 text-center text-sm text-slate-500">Sin gastos en este periodo.</p>;
@@ -32,11 +34,11 @@ export function TopExpensesCard({
           <li key={t.id}>
             <button
               type="button"
-              onClick={() => onSelectCategory?.(t.categoryId)}
-              disabled={!onSelectCategory}
+              onClick={() => onSelectMovement?.(t.id)}
+              disabled={!onSelectMovement}
               className={[
                 'flex w-full items-center justify-between gap-3 py-2 text-left transition-colors',
-                onSelectCategory ? 'cursor-pointer hover:bg-slate-800/40' : '',
+                onSelectMovement ? 'cursor-pointer hover:bg-slate-800/40' : '',
                 active ? 'bg-indigo-600/10' : '',
                 '-mx-2 rounded px-2',
               ].join(' ')}

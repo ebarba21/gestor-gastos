@@ -14,6 +14,10 @@ import { formatCents } from '../../lib/money';
 
 interface StatTilesProps {
   summary: IncomeExpenseSummary;
+  // Abren el desglose de movimientos de la tarjeta (Ingresos / Gastos). Opcionales: sin
+  // handler la tarjeta es estatica.
+  onOpenIncome?: () => void;
+  onOpenExpenses?: () => void;
 }
 
 function Tile({
@@ -21,18 +25,40 @@ function Tile({
   value,
   hint,
   valueClass = 'text-slate-100',
+  onClick,
 }: {
   label: string;
   value: string;
   hint?: string;
   valueClass?: string;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+  const body = (
+    <>
+      <p className="flex items-center justify-between gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+        {onClick && (
+          <span aria-hidden className="text-sm normal-case text-slate-600 group-hover:text-slate-300">
+            ›
+          </span>
+        )}
+      </p>
       <p className={`mt-1 text-lg font-semibold tabular-nums sm:text-xl ${valueClass}`}>{value}</p>
       {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
-    </div>
+    </>
+  );
+  if (!onClick) {
+    return <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">{body}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Ver ${label.toLowerCase()} del periodo`}
+      className="group rounded-xl border border-slate-800 bg-slate-900 p-4 text-left transition-colors hover:border-slate-600 hover:bg-slate-800/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+    >
+      {body}
+    </button>
   );
 }
 
@@ -168,7 +194,7 @@ export function gastosHint(summary: IncomeExpenseSummary): string | undefined {
   return `Bruto ${formatCents(summary.expenseGrossCents)} · ${parts.join(' · ')}`;
 }
 
-export function StatTiles({ summary }: StatTilesProps) {
+export function StatTiles({ summary, onOpenIncome, onOpenExpenses }: StatTilesProps) {
   const savingsPositive = summary.netSavingsCents >= 0;
   // El reparto solo aporta informacion cuando hay inversion (separa lo invertido del resto del
   // ahorro). Sin inversion, el ahorro neto ya ES el ahorro y su KPI lo muestra: no se desglosa.
@@ -181,12 +207,14 @@ export function StatTiles({ summary }: StatTilesProps) {
           value={formatCents(summary.incomeCents)}
           valueClass="text-emerald-400"
           hint="Rendimiento del trabajo (nomina, paro)"
+          onClick={onOpenIncome}
         />
         <Tile
           label="Gastos"
           value={formatCents(summary.expenseNetCents)}
           valueClass="text-orange-400"
           hint={gastosHint(summary)}
+          onClick={onOpenExpenses}
         />
         <Tile
           label="Ahorro neto"

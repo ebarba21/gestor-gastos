@@ -1,10 +1,14 @@
 // Seccion Dashboard: selector de periodo y todas las metricas del perfil activo. Toda la
 // agregacion vive en statsService (via useDashboard); aqui solo hay presentacion y layout
 // responsive. Estados cuidados: cargando, rango invalido, periodo sin datos.
-import type { ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useDashboard } from '../../hooks/useDashboard';
 import { useForecastRange } from '../../hooks/useForecastRange';
 import { useRecurringSeries } from '../../hooks/useRecurringSeries';
+import { useMovementEditor } from '../../hooks/useMovementEditor';
+import { useToast } from '../../context/ToastContext';
+import type { DrillDownKind } from '../../services/statsService';
+import { TransactionFormModal } from '../transactions/TransactionFormModal';
 import { EmptyState } from '../common';
 import { PeriodSelector } from './PeriodSelector';
 import { StatTiles } from './StatTiles';
@@ -17,6 +21,7 @@ import { TopExpensesCard } from './TopExpensesCard';
 import { UpcomingChargesCard } from './UpcomingChargesCard';
 import { MerchantSpendCard } from './MerchantSpendCard';
 import { SavingsInvestmentSection } from './SavingsInvestmentSection';
+import { MovementsDrillDownModal } from './MovementsDrillDownModal';
 
 // Tarjeta con titulo para envolver un grafico o lista.
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
@@ -33,6 +38,7 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 
 export function DashboardSection() {
   const {
+    profileId,
     mode,
     setMode,
     referenceISO,
@@ -48,15 +54,26 @@ export function DashboardSection() {
     toggleCategoryFilter,
     clearFilter,
     data,
+    categories,
+    accounts,
     categoryNames,
     categoryColors,
     accountNames,
     merchantNames,
     loading,
     error,
+    reload,
   } = useDashboard();
   const { forecast, loading: forecastLoading, error: forecastError } = useForecastRange(range);
   const { upcomingCharges, loading: recurringLoading } = useRecurringSeries();
+  const { showToast } = useToast();
+  const onEditorError = useCallback((message: string) => showToast(message, 'error'), [showToast]);
+  const editor = useMovementEditor(onEditorError);
+  // Desglose abierto (Gastos o Ingresos). Mientras la ficha de un movimiento esta abierta el
+  // desglose se oculta (sin perder cual era) y reaparece, ya recalculado, al cerrarla.
+  const [drillKind, setDrillKind] = useState<DrillDownKind | null>(null);
+  const openEditor = editor.open;
+  const openMovement = useCallback((id: string) => void openEditor(id), [openEditor]);
 
   // Nombre legible de la categoria del filtro activo (para el chip).
   const activeFilterName =
@@ -71,8 +88,8 @@ export function DashboardSection() {
       <h2 className="text-xl font-semibold text-slate-100">Dashboard</h2>
       <p className="mt-1 text-sm text-slate-400">
         Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
-        cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa una categoria o un mes en
-        los graficos para filtrar el resto.
+        cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa Ingresos o Gastos para ver
+        sus movimientos, y una categoria o un mes en los graficos para filtrar el resto.
       </p>
 
       <div className="mt-4">
@@ -103,6 +120,15 @@ export function DashboardSection() {
             </span>
             <span className="sr-only">Quitar filtro</span>
           </button>
+          {data?.hasData && (
+            <button
+              type="button"
+              onClick={() => setDrillKind('expense')}
+              className="rounded-full border border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-slate-800"
+            >
+              Ver sus movimientos
+            </button>
+          )}
         </div>
       )}
 
@@ -132,7 +158,11 @@ export function DashboardSection() {
         </div>
       ) : (
         <div className="mt-6 space-y-6">
-          <StatTiles summary={data.summary} />
+          <StatTiles
+            summary={data.summary}
+            onOpenIncome={() => setDrillKind('income')}
+            onOpenExpenses={() => setDrillKind('expense')}
+          />
           <div className="grid gap-3 sm:grid-cols-2">
             <ComparisonForecast comparison={data.comparison} />
             <ForecastRangeCard forecast={forecast} loading={forecastLoading} error={forecastError} />
@@ -162,13 +192,13 @@ export function DashboardSection() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title="Top gastos" subtitle="Mayores gastos individuales del periodo">
+            <Card title="Top gastos" subtitle="Mayores gastos del periodo. Pulsa uno para ver y editar sus detalles">
               <TopExpensesCard
                 topExpenses={data.topExpenses}
                 categoryNames={categoryNames}
                 accountNames={accountNames}
                 activeCategoryId={filter?.categoryId}
-                onSelectCategory={toggleCategoryFilter}
+                onSelectMovement={openMovement}
               />
             </Card>
             <Card title="Proximos cobros" subtitle="Series recurrentes confirmadas">
@@ -185,6 +215,27 @@ export function DashboardSection() {
           <SavingsInvestmentSection analysis={data.savingsInvestment} onSelectMonth={selectMonth} />
         </div>
       )}
+
+      <MovementsDrillDownModal
+        open={drillKind !== null && editor.editing === null}
+        onClose={() => setDrillKind(null)}
+        kind={drillKind ?? 'expense'}
+        drillDown={drillKind !== null && data ? data.drillDown[drillKind] : null}
+        filterName={activeFilterName}
+        categoryNames={categoryNames}
+        accountNames={accountNames}
+        onSelectMovement={openMovement}
+      />
+      <TransactionFormModal
+        open={editor.editing !== null}
+        onClose={editor.close}
+        profileId={profileId}
+        accounts={accounts}
+        categories={categories}
+        tags={editor.tags}
+        onSaved={reload}
+        tx={editor.editing}
+      />
     </section>
   );
 }

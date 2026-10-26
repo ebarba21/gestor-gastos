@@ -89,12 +89,12 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 ## 8. Dashboard (analisis del perfil activo)
 
 - **Selector de periodo**: mes en curso por defecto, navegacion entre meses y rango personalizado de fechas.
-- **KPIs del periodo**: ingresos (nomina y paro), gasto neto (con desglose bruto, reembolsos y gastos positivos), ahorro neto y tasa de ahorro.
+- **KPIs del periodo**: ingresos (nomina y paro), gasto neto (con desglose bruto, reembolsos y gastos positivos), ahorro neto y tasa de ahorro. Pulsar Ingresos o Gastos abre la lista de movimientos que componen la cifra (respetando periodo y filtro), con un total que cuadra con la tarjeta; pulsar un movimiento abre su ficha para verlo y editarlo.
 - **Reparto del ahorro neto** en "Ahorrado" e "Invertido" cuando hay inversion, con barra proporcional y avisos honestos (por ejemplo si invertiste mas de lo que ahorraste ese mes).
 - **Evolucion mensual**: ingresos, gasto neto y ahorro por mes en areas; pulsar un mes lo fija como periodo.
-- **Gasto por categoria**: ranking de categorias con colores propios; pulsar una categoria filtra el resto del dashboard (**filtro cruzado**).
+- **Gasto por categoria**: ranking de categorias con colores propios; pulsar una categoria filtra el resto del dashboard (**filtro cruzado**); con el filtro activo, "Ver sus movimientos" lista todos los de esa categoria.
 - **Ingresos vs gastos** del periodo.
-- **Top gastos** individuales del periodo.
+- **Top gastos** individuales del periodo; pulsar uno abre su ficha para verlo y editarlo.
 - **Gastos recurrentes** detectados automaticamente (conceptos repetidos en varios meses distintos: suscripciones, recibos...).
 - **Comparativa contra tu promedio**: el gasto del mes frente a la media de los meses anteriores con actividad, prorrateada con regla de 3 si el mes esta a medias (comparacion justa dia a dia).
 - **Forecast de cierre de mes**: proyeccion simple del gasto a fin de mes segun el ritmo actual, claramente etiquetada como estimacion.

@@ -11,6 +11,7 @@ import {
   computeComparison,
   computeConsumption,
   computeDashboard,
+  computeDrillDown,
   computeForecast,
   computeMonthlyEvolution,
   computeRecurringExpenses,
@@ -1071,5 +1072,61 @@ describe('deteccion de categorias de ingreso por nombre y casos limite', () => {
     const f = computeForecast(txs, '2026-07-10', ctxFor(txs), '2026-07-10');
     // 31 EUR en 10 dias -> 96,10 EUR a fin de mes; el cobro de 10 EUR se resta una sola vez.
     expect(f.projectedExpenseCents).toBe(Math.round((3100 * 31) / 10) - 1000);
+  });
+});
+
+describe('computeDrillDown (desglose de las tarjetas Gastos e Ingresos)', () => {
+  const gasto = tx({ id: 'g-food', date: '2026-07-05', type: 'expense', amountCents: -3000, categoryId: 'cat-food' });
+  const txs = [
+    gasto,
+    tx({ id: 'g-super', date: '2026-07-06', type: 'expense', amountCents: -1000, categoryId: 'cat-food', subcategoryId: 'sub-super' }),
+    tx({ id: 'g-ocio', date: '2026-07-07', type: 'expense', amountCents: -2500, categoryId: 'cat-ocio' }),
+    tx({ id: 'nomina', date: '2026-07-01', type: 'income', amountCents: 100000 }),
+    tx({ id: 'bizum', date: '2026-07-09', type: 'income', amountCents: 700, categoryId: 'cat-ocio' }),
+    tx({ id: 'reemb', date: '2026-07-10', type: 'income', amountCents: 500, refundOfId: 'g-food', categoryId: null }),
+    tx({ id: 'ahorro', date: '2026-07-11', type: 'expense', amountCents: -20000, categoryId: 'cat-ahorro' }),
+    tx({ id: 'invers', date: '2026-07-12', type: 'expense', amountCents: -15000, categoryId: 'cat-invers' }),
+    tx({ id: 'excl', date: '2026-07-13', type: 'expense', amountCents: -9999, categoryId: 'cat-ocio', excludedFromStats: true }),
+  ];
+  const base = { range: { from: '2026-07-01', to: '2026-07-31' }, anchorISO: '2026-07-15', today: '2026-07-15' };
+
+  it('el total del desglose de gastos cuadra con el gasto neto y excluye ahorro, inversion y excluidos', () => {
+    const data = computeDashboard(txs, CATEGORIES, base);
+    const dd = data.drillDown.expense;
+    expect(dd.totalCents).toBe(data.summary.expenseNetCents);
+    expect(dd.items.reduce((s, i) => s + i.contributionCents, 0)).toBe(dd.totalCents);
+    expect(dd.items.map((i) => i.id).sort()).toEqual(['bizum', 'g-food', 'g-ocio', 'g-super', 'reemb'].sort());
+  });
+
+  it('marca el papel de cada movimiento y atribuye el reembolso a la categoria del gasto original', () => {
+    const dd = computeDrillDown(txs, ctxFor(txs), 'expense');
+    const byId = new Map(dd.items.map((i) => [i.id, i]));
+    expect(byId.get('g-food')).toMatchObject({ role: 'expense', contributionCents: 3000 });
+    expect(byId.get('g-super')).toMatchObject({ role: 'expense', categoryId: 'cat-food' });
+    expect(byId.get('bizum')).toMatchObject({ role: 'positive', contributionCents: -700, categoryId: 'cat-ocio' });
+    expect(byId.get('reemb')).toMatchObject({ role: 'refund', contributionCents: -500, categoryId: 'cat-food' });
+  });
+
+  it('el desglose de ingresos solo lista ingresos reales y cuadra con la tarjeta', () => {
+    const data = computeDashboard(txs, CATEGORIES, base);
+    expect(data.drillDown.income.items.map((i) => i.id)).toEqual(['nomina']);
+    expect(data.drillDown.income.totalCents).toBe(data.summary.incomeCents);
+  });
+
+  it('respeta el filtro cruzado por categoria', () => {
+    const data = computeDashboard(txs, CATEGORIES, { ...base, filter: { categoryId: 'cat-food' } });
+    const dd = data.drillDown.expense;
+    expect(dd.items.map((i) => i.id).sort()).toEqual(['g-food', 'g-super', 'reemb'].sort());
+    expect(dd.totalCents).toBe(data.summary.expenseNetCents);
+    expect(data.drillDown.income.items).toEqual([]);
+  });
+
+  it('ordena por fecha descendente', () => {
+    const dates = computeDrillDown(txs, ctxFor(txs), 'expense').items.map((i) => i.date);
+    expect(dates).toEqual([...dates].sort().reverse());
+  });
+
+  it('sin movimientos devuelve lista vacia y total cero', () => {
+    expect(computeDrillDown([], ctxFor([]), 'expense')).toEqual({ items: [], totalCents: 0 });
   });
 });

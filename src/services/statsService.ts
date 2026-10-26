@@ -704,6 +704,100 @@ export function computeTopExpenses(
   return expenses.slice(0, limit);
 }
 
+// --- Desglose de los KPIs (drill-down de Ingresos y Gastos) ---
+
+// Que KPI se desglosa: los movimientos que componen el gasto neto o los ingresos.
+export type DrillDownKind = 'expense' | 'income';
+
+// Papel de un movimiento dentro del desglose:
+//  - expense: gasto que suma al gasto neto.
+//  - refund: reembolso enlazado que reduce el gasto neto.
+//  - positive: gasto positivo (Bizum recibido, devolucion...) que reduce el gasto neto.
+//  - income: ingreso real (nomina, paro).
+export type DrillDownRole = 'expense' | 'refund' | 'positive' | 'income';
+
+export interface DrillDownItem {
+  id: string;
+  date: string;
+  concept: string;
+  accountId: string;
+  categoryId: string | null; // categoria raiz atribuida (la del gasto original si es reembolso)
+  role: DrillDownRole;
+  // Aportacion con signo al total del KPI, en centimos: positiva suma, negativa resta.
+  contributionCents: number;
+}
+
+export interface DrillDown {
+  items: DrillDownItem[];
+  // Suma exacta de las aportaciones. Coincide con summary.expenseNetCents (expense) o con
+  // summary.incomeCents (income) del mismo conjunto de movimientos.
+  totalCents: number;
+}
+
+// Movimientos que componen un KPI del periodo, con la MISMA semantica que aggregatePeriod
+// (de modo que la suma del desglose cuadra con la tarjeta). Precondicion: txsInPeriod ya
+// esta acotado al periodo (y al filtro cruzado, si lo hay). Orden: fecha desc y, a igualdad,
+// el mas reciente creado primero.
+export function computeDrillDown(
+  txsInPeriod: Transaction[],
+  ctx: StatsContext,
+  kind: DrillDownKind,
+): DrillDown {
+  const rows: { item: DrillDownItem; createdAt: number }[] = [];
+  let total = 0;
+
+  const push = (t: Transaction, role: DrillDownRole, contribution: number, categoryId: string | null) => {
+    total += contribution;
+    rows.push({
+      item: {
+        id: t.id,
+        date: t.date,
+        concept: t.concept,
+        accountId: t.accountId,
+        categoryId,
+        role,
+        contributionCents: contribution,
+      },
+      createdAt: t.createdAt,
+    });
+  };
+
+  for (const t of txsInPeriod) {
+    if (!countsInStats(t)) continue;
+
+    if (kind === 'income') {
+      if (isRealIncome(t, ctx)) {
+        push(t, 'income', Math.abs(t.amountCents), rootCategoryIdOf(t.categoryId, t.subcategoryId, ctx.parentOf));
+      }
+      continue;
+    }
+
+    // kind === 'expense'
+    if (t.type === 'expense') {
+      // Ahorro e inversion no son gasto (igual que en aggregatePeriod).
+      if (isApartFromExpense(t, ctx)) continue;
+      push(t, 'expense', expenseMagnitude(t), rootCategoryIdOf(t.categoryId, t.subcategoryId, ctx.parentOf));
+    } else if (isExpenseReduction(t, ctx)) {
+      const refs = attributeRefundRefs(t, ctx);
+      // Reembolsos de ahorro/inversion revierten esas metricas, no reducen el gasto.
+      if (refsAreSavings(refs.categoryId, refs.subcategoryId, ctx)) continue;
+      if (refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)) continue;
+      push(
+        t,
+        isRefund(t) ? 'refund' : 'positive',
+        -Math.abs(t.amountCents),
+        rootCategoryIdOf(refs.categoryId, refs.subcategoryId, ctx.parentOf),
+      );
+    }
+  }
+
+  rows.sort((a, b) => {
+    if (a.item.date !== b.item.date) return a.item.date < b.item.date ? 1 : -1;
+    return b.createdAt - a.createdAt;
+  });
+  return { items: rows.map((r) => r.item), totalCents: total };
+}
+
 // --- Gastos recurrentes detectados ---
 
 export interface RecurringExpense {
@@ -1205,6 +1299,8 @@ export interface DashboardData {
   byCategory: CategorySpend[]; // SIEMPRE completo (control del filtro), no acotado por filter
   monthly: MonthPoint[];
   topExpenses: TopExpense[];
+  // Movimientos que componen las tarjetas de Gastos e Ingresos (periodo + filtro cruzado).
+  drillDown: Record<DrillDownKind, DrillDown>;
   recurring: RecurringExpense[];
   merchantSpend: MerchantSpend[];
   comparison: Comparison;
@@ -1276,6 +1372,10 @@ export function computeDashboard(
     byCategory,
     monthly: computeMonthlyEvolution(allTxFiltered, anchorISO, monthsBack, ctx),
     topExpenses: computeTopExpenses(inPeriodFiltered, ctx, topLimit),
+    drillDown: {
+      expense: computeDrillDown(inPeriodFiltered, ctx, 'expense'),
+      income: computeDrillDown(inPeriodFiltered, ctx, 'income'),
+    },
     recurring: computeRecurringExpenses(
       allTxFiltered,
       anchorISO,
