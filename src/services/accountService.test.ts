@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../db';
-import { accountService, normalizeAccountName } from './accountService';
+import { accountService, normalizeAccountName, sumActiveBalances } from './accountService';
+import type { Account } from '../db/schema';
 import { accountsRepo } from '../db/accountsRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
 import type { NewTransaction } from '../db/transactionsRepo';
@@ -155,5 +156,69 @@ describe('aislamiento por perfil', () => {
     expect(await accountService.listAll(A)).toHaveLength(1);
     expect(await accountService.listAll(B)).toHaveLength(1);
     expect((await accountService.listAll(A))[0]?.name).toBe('A');
+  });
+});
+
+describe('saldo actual por cuenta', () => {
+  it('suma al saldo inicial los gastos e ingresos de cada cuenta', async () => {
+    const banco = await accountService.createAccount(A, { name: 'Banco', kind: 'bank', openingBalanceCents: 100000 });
+    const revolut = await accountService.createAccount(A, { name: 'Revolut', kind: 'bank', openingBalanceCents: 2550 });
+    await transactionsRepo.create(A, txInput({ accountId: banco.id, amountCents: -4599 }));
+    await transactionsRepo.create(A, txInput({ accountId: banco.id, type: 'income', amountCents: 180000 }));
+    await transactionsRepo.create(A, txInput({ accountId: revolut.id, amountCents: -1250 }));
+    // Transferencia excluida de estadisticas: SI cambia el saldo.
+    await transactionsRepo.create(A, txInput({ accountId: banco.id, type: 'transfer', amountCents: -20000, excludedFromStats: true }));
+    await transactionsRepo.create(A, txInput({ accountId: revolut.id, type: 'transfer', amountCents: 20000, excludedFromStats: true }));
+
+    const balances = await accountService.getBalances(A);
+    expect(balances.get(banco.id)).toBe(100000 - 4599 + 180000 - 20000);
+    expect(balances.get(revolut.id)).toBe(2550 - 1250 + 20000);
+  });
+
+  it('una cuenta sin movimientos tiene como saldo su saldo inicial', async () => {
+    const efectivo = await accountService.createAccount(A, { name: 'Efectivo', kind: 'cash', openingBalanceCents: 3000 });
+    expect((await accountService.getBalances(A)).get(efectivo.id)).toBe(3000);
+  });
+
+  it('un movimiento borrado deja de contar en el saldo', async () => {
+    const banco = await accountService.createAccount(A, { name: 'Banco', kind: 'bank', openingBalanceCents: 10000 });
+    const tx = await transactionsRepo.create(A, txInput({ accountId: banco.id, amountCents: -2500 }));
+    expect((await accountService.getBalances(A)).get(banco.id)).toBe(7500);
+    await transactionsRepo.remove(A, tx.id);
+    expect((await accountService.getBalances(A)).get(banco.id)).toBe(10000);
+  });
+
+  it('no mezcla cuentas ni movimientos de otro perfil', async () => {
+    const accA = await accountService.createAccount(A, { name: 'Banco', kind: 'bank', openingBalanceCents: 1000 });
+    const accB = await accountService.createAccount(B, { name: 'Banco', kind: 'bank', openingBalanceCents: 5000 });
+    await transactionsRepo.create(B, txInput({ accountId: accB.id, amountCents: -700 }));
+
+    const balancesA = await accountService.getBalances(A);
+    expect([...balancesA.keys()]).toEqual([accA.id]);
+    expect(balancesA.get(accA.id)).toBe(1000);
+    expect((await accountService.getBalances(B)).get(accB.id)).toBe(4300);
+  });
+});
+
+describe('sumActiveBalances', () => {
+  const base = { profileId: A, kind: 'bank' as const, currency: 'EUR', color: null, createdAt: 1, updatedAt: 1 };
+  const accounts: Account[] = [
+    { ...base, id: 'a1', name: 'Banco', openingBalanceCents: 0, archivedAt: null },
+    { ...base, id: 'a2', name: 'Revolut', openingBalanceCents: 0, archivedAt: null },
+    { ...base, id: 'a3', name: 'Antigua', openingBalanceCents: 0, archivedAt: 123 },
+    { ...base, id: 'a4', name: 'Sin calcular', openingBalanceCents: 900, archivedAt: null },
+  ];
+
+  it('suma solo las cuentas activas, admite negativos y usa el inicial si falta el saldo', () => {
+    const balances = new Map([
+      ['a1', 150000],
+      ['a2', -2000],
+      ['a3', 99999],
+    ]);
+    expect(sumActiveBalances(accounts, balances)).toBe(150000 - 2000 + 900);
+  });
+
+  it('sin cuentas el total es 0', () => {
+    expect(sumActiveBalances([], new Map())).toBe(0);
   });
 });

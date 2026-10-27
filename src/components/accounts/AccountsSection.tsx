@@ -1,10 +1,15 @@
 // Seccion de cuentas: CRUD, archivar/restaurar y borrado con regla de integridad (una
-// cuenta con movimientos no se puede borrar; se ofrece archivar). El saldo actual se
-// mostrara cuando existan movimientos (fases posteriores); aqui se ve el saldo inicial.
+// cuenta con movimientos no se puede borrar; se ofrece archivar). Cada cuenta muestra su
+// saldo actual (saldo inicial + movimientos) y, arriba, el total de las cuentas activas.
 import { useState } from 'react';
 import type { Account } from '../../db/schema';
 import { useAccounts } from '../../hooks/useAccounts';
-import { accountService, ACCOUNT_KIND_LABELS } from '../../services/accountService';
+import { useAccountBalances } from '../../hooks/useAccountBalances';
+import {
+  accountService,
+  ACCOUNT_KIND_LABELS,
+  sumActiveBalances,
+} from '../../services/accountService';
 import { formatCents } from '../../lib/money';
 import { EmptyState, ConfirmDialog, type DialogButton } from '../common';
 import { useToast } from '../../context/ToastContext';
@@ -12,6 +17,14 @@ import { AccountFormModal } from './AccountFormModal';
 
 export function AccountsSection() {
   const { profileId, accounts, loading, error, reload } = useAccounts();
+  const {
+    balances,
+    loading: balancesLoading,
+    error: balancesError,
+  } = useAccountBalances(profileId, accounts);
+  const totalCents = sumActiveBalances(accounts, balances);
+  const hasArchived = accounts.some((a) => a.archivedAt !== null);
+  const amountClass = (cents: number) => (cents < 0 ? 'text-red-400' : 'text-slate-100');
   const { showToast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
@@ -70,6 +83,7 @@ export function AccountsSection() {
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
+      {balancesError && <p className="text-sm text-red-400">{balancesError}</p>}
       {loading ? (
         <p className="text-sm text-slate-500">Cargando...</p>
       ) : accounts.length === 0 ? (
@@ -89,8 +103,19 @@ export function AccountsSection() {
         />
       ) : (
         <div className="space-y-2">
+          <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-3">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Total en tus cuentas</p>
+            <p className={`text-2xl font-semibold ${amountClass(totalCents)}`}>
+              {balancesLoading ? '...' : formatCents(totalCents)}
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Saldo inicial + todos los movimientos de cada cuenta
+              {hasArchived ? '. No incluye las cuentas archivadas.' : '.'}
+            </p>
+          </div>
           {accounts.map((acc) => {
             const archived = acc.archivedAt !== null;
+            const currentCents = balances.get(acc.id) ?? acc.openingBalanceCents;
             return (
               <div
                 key={acc.id}
@@ -111,8 +136,12 @@ export function AccountsSection() {
                   <p className="text-xs text-slate-500">{ACCOUNT_KIND_LABELS[acc.kind]}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-slate-200">{formatCents(acc.openingBalanceCents)}</p>
-                  <p className="text-[11px] text-slate-500">Saldo inicial</p>
+                  <p className={`text-sm font-semibold ${amountClass(currentCents)}`}>
+                    {balancesLoading ? '...' : formatCents(currentCents)}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Saldo actual · inicial {formatCents(acc.openingBalanceCents)}
+                  </p>
                 </div>
                 {archived && (
                   <span className="rounded bg-amber-900/40 px-1.5 py-0.5 text-[11px] text-amber-300">

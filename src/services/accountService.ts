@@ -1,11 +1,12 @@
 // Logica de negocio de cuentas o fuentes de dinero (Account). Ver DATA_MODEL 2.3.
 // Reglas de integridad al borrar: una cuenta con movimientos no se puede borrar (se
-// ofrece archivar). El saldo actual se calcula en fases posteriores (movimientos), aqui
-// solo se gestiona el saldo inicial (openingBalanceCents).
-import type { Account, AccountKind } from '../db/schema';
+// ofrece archivar). El saldo actual NO se guarda: se calcula siempre como saldo inicial
+// (openingBalanceCents) + suma de los movimientos de la cuenta (computeAccountBalances).
+import type { Account, AccountKind, Transaction } from '../db/schema';
 import { accountsRepo } from '../db/accountsRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
 import { pickAccentColor } from '../lib/colors';
+import { assertCents } from '../lib/money';
 import { ValidationError, assert } from '../lib/validation';
 
 export const MAX_ACCOUNT_NAME_LENGTH = 40;
@@ -50,6 +51,40 @@ export function normalizeAccountName(name: string): string {
   return trimmed;
 }
 
+// --- Saldos de cuenta (funcion canonica, compartida con exportacion y conciliacion) ---
+
+// Saldo actual de cada cuenta = saldo inicial + suma de importes de sus movimientos. Se
+// excluyen las lineas hijas de un split (parentId != null): el importe real en la cuenta lo
+// aporta el movimiento padre; sumar tambien las hijas duplicaria el importe. Transferencias
+// y movimientos excluidos de estadisticas SI afectan al saldo (DATA_MODEL seccion 6.4).
+export function computeAccountBalances(
+  accounts: Account[],
+  transactions: Transaction[],
+): Map<string, number> {
+  const balance = new Map<string, number>();
+  for (const a of accounts) balance.set(a.id, a.openingBalanceCents);
+  for (const t of transactions) {
+    if (t.parentId !== null) continue; // linea hija de split: no suma al saldo
+    const current = balance.get(t.accountId);
+    if (current === undefined) continue; // cuenta desconocida (no deberia ocurrir)
+    balance.set(t.accountId, current + t.amountCents);
+  }
+  for (const v of balance.values()) assertCents(v);
+  return balance;
+}
+
+// Total del dinero en las cuentas ACTIVAS (las archivadas quedan fuera: se consideran
+// cerradas). Si una cuenta no tiene saldo calculado se usa su saldo inicial.
+export function sumActiveBalances(accounts: Account[], balances: Map<string, number>): number {
+  let total = 0;
+  for (const a of accounts) {
+    if (a.archivedAt !== null) continue;
+    total += balances.get(a.id) ?? a.openingBalanceCents;
+  }
+  assertCents(total);
+  return total;
+}
+
 export const accountService = {
   listAll(profileId: string): Promise<Account[]> {
     return accountsRepo.list(profileId);
@@ -87,6 +122,15 @@ export const accountService = {
     const clean = { ...patch };
     if (patch.name !== undefined) clean.name = normalizeAccountName(patch.name);
     return accountsRepo.update(profileId, id, clean);
+  },
+
+  // Saldo actual de todas las cuentas del perfil (activas y archivadas).
+  async getBalances(profileId: string): Promise<Map<string, number>> {
+    const [accounts, transactions] = await Promise.all([
+      accountsRepo.list(profileId),
+      transactionsRepo.list(profileId),
+    ]);
+    return computeAccountBalances(accounts, transactions);
   },
 
   countUsage(profileId: string, id: string): Promise<number> {
