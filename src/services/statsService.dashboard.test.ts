@@ -13,6 +13,7 @@ import {
   computeDashboard,
   computeDrillDown,
   computeForecast,
+  computeMonthlyDrillDowns,
   computeMonthlyEvolution,
   computeRecurringExpenses,
   computeSavingsCategoryIds,
@@ -795,6 +796,57 @@ describe('computeSavingsInvestment', () => {
     // La analitica de ahorro ignora el filtro: sigue viendo la aportacion y los ingresos.
     expect(data.savingsInvestment.totalSavingsContribCents).toBe(20000);
     expect(data.savingsInvestment.totalIncomeCents).toBe(100000);
+  });
+});
+
+describe('computeMonthlyDrillDowns (pulsar un mes de la evolucion)', () => {
+  const original = tx({ id: 'cena', date: '2026-05-20', type: 'expense', amountCents: -6000, categoryId: 'cat-ocio' });
+  const txs = [
+    tx({ id: 'fuera', date: '2026-02-10', type: 'expense', amountCents: -1000, categoryId: 'cat-food' }),
+    original,
+    tx({ id: 'nom-may', date: '2026-05-01', type: 'income', amountCents: 180000 }),
+    tx({ id: 'super-jun', date: '2026-06-03', type: 'expense', amountCents: -4500, subcategoryId: 'sub-super' }),
+    tx({ id: 'reemb-jun', date: '2026-06-05', type: 'income', amountCents: 2000, refundOfId: 'cena', categoryId: null }),
+    tx({ id: 'bizum-jun', date: '2026-06-06', type: 'income', amountCents: 1500, categoryId: 'cat-ocio' }),
+    tx({ id: 'ahorro-jun', date: '2026-06-07', type: 'expense', amountCents: -30000, categoryId: 'cat-ahorro' }),
+    tx({ id: 'excl-jun', date: '2026-06-08', type: 'expense', amountCents: -777, excludedFromStats: true, statsFlag: 1 }),
+    tx({ id: 'nom-jul', date: '2026-07-01', type: 'income', amountCents: 180000 }),
+  ];
+  const ctx = ctxFor(txs);
+  const evolution = computeMonthlyEvolution(txs, '2026-07-15', 3, ctx);
+  const drill = computeMonthlyDrillDowns(txs, '2026-07-15', 3, ctx);
+
+  it('tiene una entrada por cada mes de la ventana, tambien sin movimientos', () => {
+    expect(Object.keys(drill).sort()).toEqual(['2026-05', '2026-06', '2026-07']);
+  });
+
+  it('los totales de cada mes cuadran con el punto del grafico', () => {
+    for (const p of evolution) {
+      expect(drill[p.month]!.income.totalCents).toBe(p.incomeCents);
+      expect(drill[p.month]!.expense.totalCents).toBe(p.expenseNetCents);
+    }
+  });
+
+  it('lista reembolsos y gastos positivos restando, y deja fuera ahorro y excluidos', () => {
+    const jun = drill['2026-06']!.expense;
+    expect(jun.items.map((i) => i.id).sort()).toEqual(['bizum-jun', 'reemb-jun', 'super-jun']);
+    expect(jun.totalCents).toBe(4500 - 2000 - 1500);
+    expect(drill['2026-06']!.income.items).toHaveLength(0);
+  });
+
+  it('computeDashboard aplica el filtro cruzado tambien al desglose mensual', () => {
+    const data = computeDashboard(txs, CATEGORIES, {
+      range: { from: '2026-07-01', to: '2026-07-31' },
+      anchorISO: '2026-07-15',
+      today: '2026-07-15',
+      monthsBack: 3,
+      filter: { categoryId: 'cat-food' },
+    });
+    expect(data.monthlyDrillDown['2026-06']!.expense.items.map((i) => i.id)).toEqual(['super-jun']);
+    for (const p of data.monthly) {
+      expect(data.monthlyDrillDown[p.month]!.expense.totalCents).toBe(p.expenseNetCents);
+      expect(data.monthlyDrillDown[p.month]!.income.totalCents).toBe(p.incomeCents);
+    }
   });
 });
 

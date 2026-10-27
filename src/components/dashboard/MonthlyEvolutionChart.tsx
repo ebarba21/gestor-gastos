@@ -3,8 +3,8 @@
 // signo; tres series -> leyenda siempre presente (la identidad no es solo color). Un unico eje
 // Y (nunca dos escalas). Superficie/rejilla recesivas.
 //
-// Actua de control del periodo: pulsar un mes fija ese mes como periodo del dashboard. El mes
-// activo (el del periodo) se marca con una linea de referencia.
+// Pulsar un mes abre el desglose de sus movimientos; no cambia el periodo ni los filtros. El
+// mes activo (el del periodo) se marca con una linea de referencia.
 import {
   Area,
   AreaChart,
@@ -25,8 +25,8 @@ interface MonthlyEvolutionChartProps {
   monthly: MonthPoint[];
   // Mes del periodo activo (YYYY-MM), resaltado con una linea de referencia.
   activeMonth?: string;
-  // Pulsar un mes lo fija como periodo del dashboard.
-  onSelectMonth?: (monthKey: string) => void;
+  // Pulsar un mes abre sus movimientos.
+  onOpenMonth?: (monthKey: string) => void;
 }
 
 interface Datum {
@@ -36,7 +36,7 @@ interface Datum {
   Ahorro: number;
 }
 
-export function MonthlyEvolutionChart({ monthly, activeMonth, onSelectMonth }: MonthlyEvolutionChartProps) {
+export function MonthlyEvolutionChart({ monthly, activeMonth, onOpenMonth }: MonthlyEvolutionChartProps) {
   const colors = useChartColors();
   const data: Datum[] = monthly.map((m) => ({
     month: m.month,
@@ -47,7 +47,7 @@ export function MonthlyEvolutionChart({ monthly, activeMonth, onSelectMonth }: M
 
   const handleClick = (state: CategoricalChartState) => {
     const label = state?.activeLabel;
-    if (onSelectMonth && typeof label === 'string') onSelectMonth(label);
+    if (onOpenMonth && typeof label === 'string') onOpenMonth(label);
   };
 
   return (
@@ -55,8 +55,8 @@ export function MonthlyEvolutionChart({ monthly, activeMonth, onSelectMonth }: M
       <AreaChart
         data={data}
         margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
-        onClick={onSelectMonth ? handleClick : undefined}
-        style={onSelectMonth ? { cursor: 'pointer' } : undefined}
+        onClick={onOpenMonth ? handleClick : undefined}
+        style={onOpenMonth ? { cursor: 'pointer' } : undefined}
       >
         <defs>
           {/* Degradado bajo cada area: opaco arriba, transparente abajo. */}

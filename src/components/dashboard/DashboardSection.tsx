@@ -16,6 +16,7 @@ import { StatTiles } from './StatTiles';
 import { ComparisonForecast } from './ComparisonForecast';
 import { ForecastRangeCard } from './ForecastRangeCard';
 import { MonthlyEvolutionChart } from './MonthlyEvolutionChart';
+import { MonthMovementsModal } from './MonthMovementsModal';
 import { CategorySpendChart } from './CategorySpendChart';
 import { IncomeExpenseChart } from './IncomeExpenseChart';
 import { TopExpensesCard } from './TopExpensesCard';
@@ -47,7 +48,6 @@ export function DashboardSection() {
     referenceISO,
     setReferenceMonths,
     resetReference,
-    selectMonth,
     customFrom,
     customTo,
     setCustomFrom,
@@ -91,6 +91,8 @@ export function DashboardSection() {
     (mode: 'month' | 'cumulative', month: string) => setSavingsPick({ mode, month }),
     [],
   );
+  // Mes pulsado en la evolucion mensual: abre sus movimientos sin cambiar el periodo.
+  const [evolutionMonth, setEvolutionMonth] = useState<string | null>(null);
   const openEditor = editor.open;
   const openMovement = useCallback((id: string) => void openEditor(id), [openEditor]);
 
@@ -108,7 +110,8 @@ export function DashboardSection() {
       <p className="mt-1 text-sm text-slate-400">
         Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
         cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa Ingresos o Gastos para ver
-        sus movimientos, y una categoria o un mes en los graficos para filtrar el resto.
+        sus movimientos, una categoria para filtrar el resto, y un mes en los graficos para ver sus
+        movimientos.
       </p>
 
       <div className="mt-4">
@@ -187,11 +190,11 @@ export function DashboardSection() {
             <ForecastRangeCard forecast={forecast} loading={forecastLoading} error={forecastError} />
           </div>
 
-          <Card title="Evolucion mensual" subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para verlo">
+          <Card title="Evolucion mensual" subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para ver sus movimientos">
             <MonthlyEvolutionChart
               monthly={data.monthly}
               activeMonth={data.anchorMonth}
-              onSelectMonth={selectMonth}
+              onOpenMonth={setEvolutionMonth}
             />
           </Card>
 
@@ -241,6 +244,16 @@ export function DashboardSection() {
         onClose={() => setDrillKind(null)}
         kind={drillKind ?? 'expense'}
         drillDown={drillDown}
+        filterName={activeFilterName}
+        categoryNames={categoryNames}
+        accountNames={accountNames}
+        onSelectMovement={openMovement}
+      />
+      <MonthMovementsModal
+        open={evolutionMonth !== null && editor.editing === null}
+        onClose={() => setEvolutionMonth(null)}
+        monthLabel={evolutionMonth === null ? '' : longMonthLabel(evolutionMonth)}
+        drillDown={evolutionMonth !== null ? data?.monthlyDrillDown[evolutionMonth] ?? null : null}
         filterName={activeFilterName}
         categoryNames={categoryNames}
         accountNames={accountNames}

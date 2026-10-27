@@ -798,6 +798,38 @@ export function computeDrillDown(
   return { items: rows.map((r) => r.item), totalCents: total };
 }
 
+// Desglose por mes de la evolucion mensual: para cada mes de la ventana, los movimientos
+// que componen sus Ingresos y su Gasto neto (misma semantica que computeMonthlyEvolution, de
+// modo que cada total cuadra con el punto del grafico). Lo usa la UI al pulsar un mes: abre
+// sus movimientos sin cambiar el periodo del dashboard. Meses sin movimientos incluidos.
+export function computeMonthlyDrillDowns(
+  allTx: Transaction[],
+  anchorISO: string,
+  monthsBack: number,
+  ctx: StatsContext,
+): Record<string, Record<DrillDownKind, DrillDown>> {
+  const keys = monthKeysEndingAt(anchorISO, monthsBack);
+  const first = keys[0]!;
+  const last = keys[keys.length - 1]!;
+  const byMonth = new Map<string, Transaction[]>();
+  for (const t of allTx) {
+    const k = monthKey(t.date);
+    if (k < first || k > last) continue;
+    const bucket = byMonth.get(k);
+    if (bucket) bucket.push(t);
+    else byMonth.set(k, [t]);
+  }
+  const out: Record<string, Record<DrillDownKind, DrillDown>> = {};
+  for (const month of keys) {
+    const txs = byMonth.get(month) ?? [];
+    out[month] = {
+      expense: computeDrillDown(txs, ctx, 'expense'),
+      income: computeDrillDown(txs, ctx, 'income'),
+    };
+  }
+  return out;
+}
+
 // Reordena un desglose ya recalculado segun el orden de ids que tenia al abrirse el panel,
 // para que editar un movimiento no lo mueva de sitio mientras se revisa la lista. Los
 // importes, categorias y el total son siempre los del desglose recalculado: solo cambia el
@@ -1408,6 +1440,9 @@ export interface DashboardData {
   summary: IncomeExpenseSummary;
   byCategory: CategorySpend[]; // SIEMPRE completo (control del filtro), no acotado por filter
   monthly: MonthPoint[];
+  // Movimientos de Ingresos y Gasto neto de cada mes de la evolucion (mismo filtro cruzado
+  // que monthly). Clave YYYY-MM.
+  monthlyDrillDown: Record<string, Record<DrillDownKind, DrillDown>>;
   topExpenses: TopExpense[];
   // Movimientos que componen las tarjetas de Gastos e Ingresos (periodo + filtro cruzado).
   drillDown: Record<DrillDownKind, DrillDown>;
@@ -1481,6 +1516,7 @@ export function computeDashboard(
     summary,
     byCategory,
     monthly: computeMonthlyEvolution(allTxFiltered, anchorISO, monthsBack, ctx),
+    monthlyDrillDown: computeMonthlyDrillDowns(allTxFiltered, anchorISO, monthsBack, ctx),
     topExpenses: computeTopExpenses(inPeriodFiltered, ctx, topLimit),
     drillDown: {
       expense: computeDrillDown(inPeriodFiltered, ctx, 'expense'),
