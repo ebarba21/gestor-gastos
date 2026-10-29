@@ -1,8 +1,8 @@
 // Acumulado de lo aportado a ahorro e inversion dentro de la ventana analizada: areas
 // apiladas (la altura total es todo lo apartado hasta ese mes). Mismo lenguaje visual que
 // la evolucion mensual (degradado bajo cada area, rejilla recesiva, un unico eje Y).
-// Puede descender si un mes hay retirada neta. Pulsar un mes abre los movimientos
-// acumulados hasta el; al cerrarlo, el dashboard pasa a ese mes.
+// Puede descender si un mes hay retirada neta. Pulsar un mes muestra su resumen en el
+// tooltip (onOpenMonth es opcional y hoy no se usa).
 import {
   Area,
   AreaChart,

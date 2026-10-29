@@ -1,13 +1,13 @@
 // Seccion Dashboard: selector de periodo y todas las metricas del perfil activo. Toda la
 // agregacion vive en statsService (via useDashboard); aqui solo hay presentacion y layout
 // responsive. Estados cuidados: cargando, rango invalido, periodo sin datos.
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useDashboard } from '../../hooks/useDashboard';
 import { useForecastRange } from '../../hooks/useForecastRange';
 import { useRecurringSeries } from '../../hooks/useRecurringSeries';
 import { useMovementEditor } from '../../hooks/useMovementEditor';
 import { useToast } from '../../context/ToastContext';
-import { selectSavingsContributions, type DrillDownKind } from '../../services/statsService';
+import type { DrillDownKind } from '../../services/statsService';
 import { useFrozenDrillDown } from '../../hooks/useFrozenDrillDown';
 import { TransactionFormModal } from '../transactions/TransactionFormModal';
 import { EmptyState } from '../common';
@@ -16,7 +16,6 @@ import { StatTiles } from './StatTiles';
 import { ComparisonForecast } from './ComparisonForecast';
 import { ForecastRangeCard } from './ForecastRangeCard';
 import { MonthlyEvolutionChart } from './MonthlyEvolutionChart';
-import { MonthMovementsModal } from './MonthMovementsModal';
 import { CategorySpendChart } from './CategorySpendChart';
 import { IncomeExpenseChart } from './IncomeExpenseChart';
 import { TopExpensesCard } from './TopExpensesCard';
@@ -24,8 +23,6 @@ import { UpcomingChargesCard } from './UpcomingChargesCard';
 import { MerchantSpendCard } from './MerchantSpendCard';
 import { SavingsInvestmentSection } from './SavingsInvestmentSection';
 import { MovementsDrillDownModal } from './MovementsDrillDownModal';
-import { SavingsContributionsModal } from './SavingsContributionsModal';
-import { longMonthLabel } from './chartTheme';
 
 // Tarjeta con titulo para envolver un grafico o lista.
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
@@ -48,7 +45,6 @@ export function DashboardSection() {
     referenceISO,
     setReferenceMonths,
     resetReference,
-    selectMonth,
     customFrom,
     customTo,
     setCustomFrom,
@@ -78,37 +74,8 @@ export function DashboardSection() {
   const [drillKind, setDrillKind] = useState<DrillDownKind | null>(null);
   // Orden congelado al abrir el panel: editar un movimiento no lo mueve de sitio.
   const drillDown = useFrozenDrillDown(drillKind, data?.drillDown ?? null);
-  // Desglose de los graficos de ahorro e inversion: mes pulsado y si es la barra del mes o
-  // el acumulado hasta el. Se recalcula con los datos vivos (editar un movimiento lo refleja).
-  // Al cerrarlo, el dashboard pasa a ese mes (ver closeMonthDetail).
-  const [savingsPick, setSavingsPick] = useState<{ mode: 'month' | 'cumulative'; month: string } | null>(null);
-  const savingsSelection = useMemo(() => {
-    if (savingsPick === null || !data) return null;
-    const analysis = data.savingsInvestment;
-    const from = savingsPick.mode === 'month' ? savingsPick.month : analysis.months[0]?.month ?? savingsPick.month;
-    return selectSavingsContributions(analysis.contributions, from, savingsPick.month);
-  }, [savingsPick, data]);
-  const openSavingsMonth = useCallback(
-    (mode: 'month' | 'cumulative', month: string) => setSavingsPick({ mode, month }),
-    [],
-  );
-  // Mes pulsado en la evolucion mensual: abre su detalle (totales y movimientos).
-  const [evolutionMonth, setEvolutionMonth] = useState<string | null>(null);
-  // Al cerrar el detalle de un mes de cualquier grafico mensual, todo el dashboard pasa a ese
-  // mes como periodo (se conserva el filtro de categoria). La ventana de los graficos no se
-  // mueve: solo cambia el mes marcado. Abrir la ficha de un movimiento oculta el detalle sin
-  // cerrarlo, asi que eso no filtra; solo lo hace cerrarlo de verdad.
-  const closeMonthDetail = useCallback(
-    (month: string | null) => {
-      if (month !== null) selectMonth(month);
-    },
-    [selectMonth],
-  );
-  // Aviso en el detalle: que mes quedara como periodo al cerrarlo (nada si ya lo es).
-  const closeHintFor = (month: string | null): string | null =>
-    month === null || (mode === 'month' && data?.anchorMonth === month)
-      ? null
-      : `Al cerrar, el dashboard se filtrará por ${longMonthLabel(month)}.`;
+  // Los graficos mensuales (evolucion, aportaciones y acumulado) solo muestran su tooltip
+  // resumen al pulsar un mes: no abren ningun desplegable ni cambian el periodo del dashboard.
   const openEditor = editor.open;
   const openMovement = useCallback((id: string) => void openEditor(id), [openEditor]);
 
@@ -127,7 +94,7 @@ export function DashboardSection() {
         Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
         cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa Ingresos o Gastos para ver
         sus movimientos, una categoria para filtrar el resto, y un mes en los graficos para ver su
-        detalle (al cerrarlo, todo el dashboard se filtra por ese mes).
+        resumen.
       </p>
 
       <div className="mt-4">
@@ -208,12 +175,11 @@ export function DashboardSection() {
 
           <Card
             title="Evolucion mensual"
-            subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para ver su detalle; al cerrarlo, el dashboard se filtra por ese mes"
+            subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para ver su resumen"
           >
             <MonthlyEvolutionChart
               monthly={data.monthly}
               activeMonth={data.anchorMonth}
-              onOpenMonth={setEvolutionMonth}
             />
           </Card>
 
@@ -253,12 +219,8 @@ export function DashboardSection() {
 
           {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolucion completa,
               sin filtro cruzado (ver DashboardData.savingsInvestment). Pulsar sus graficos
-              abre el desglose del mes; al cerrarlo, el dashboard pasa a ese mes. */}
-          <SavingsInvestmentSection
-            analysis={data.savingsInvestment}
-            activeMonth={data.anchorMonth}
-            onOpenMonth={openSavingsMonth}
-          />
+              solo muestra el resumen del mes. */}
+          <SavingsInvestmentSection analysis={data.savingsInvestment} activeMonth={data.anchorMonth} />
         </div>
       )}
 
@@ -271,44 +233,6 @@ export function DashboardSection() {
         categoryNames={categoryNames}
         accountNames={accountNames}
         onSelectMovement={openMovement}
-      />
-      <MonthMovementsModal
-        open={evolutionMonth !== null && editor.editing === null}
-        onClose={() => {
-          closeMonthDetail(evolutionMonth);
-          setEvolutionMonth(null);
-        }}
-        monthLabel={evolutionMonth === null ? '' : longMonthLabel(evolutionMonth)}
-        drillDown={evolutionMonth !== null ? data?.monthlyDrillDown[evolutionMonth] ?? null : null}
-        filterName={activeFilterName}
-        categoryNames={categoryNames}
-        accountNames={accountNames}
-        onSelectMovement={openMovement}
-        closeHint={closeHintFor(evolutionMonth)}
-      />
-      <SavingsContributionsModal
-        open={savingsPick !== null && editor.editing === null}
-        onClose={() => {
-          closeMonthDetail(savingsPick?.month ?? null);
-          setSavingsPick(null);
-        }}
-        title={
-          savingsPick === null
-            ? ''
-            : savingsPick.mode === 'month'
-              ? `Aportaciones de ${longMonthLabel(savingsPick.month)}`
-              : `Acumulado hasta ${longMonthLabel(savingsPick.month)}`
-        }
-        subtitle={
-          savingsPick?.mode === 'cumulative' && data
-            ? `Desde ${longMonthLabel(data.savingsInvestment.months[0]?.month ?? savingsPick.month)}`
-            : 'Ahorro e inversión del mes'
-        }
-        selection={savingsSelection}
-        categoryNames={categoryNames}
-        accountNames={accountNames}
-        onSelectMovement={openMovement}
-        closeHint={closeHintFor(savingsPick?.month ?? null)}
       />
       <TransactionFormModal
         open={editor.editing !== null}

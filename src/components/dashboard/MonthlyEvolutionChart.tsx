@@ -3,8 +3,8 @@
 // signo; tres series -> leyenda siempre presente (la identidad no es solo color). Un unico eje
 // Y (nunca dos escalas). Superficie/rejilla recesivas.
 //
-// Pulsar un mes abre su detalle; al cerrarlo, el dashboard pasa a ese mes (la ventana no se
-// desplaza). El mes activo (el del periodo) se marca con una linea de referencia.
+// Pulsar un mes muestra su resumen en el tooltip (onOpenMonth es opcional y hoy no se usa).
+// El mes activo (el del periodo) se marca con una linea de referencia.
 import {
   Area,
   AreaChart,

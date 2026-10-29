@@ -105,27 +105,3 @@ describe('TopExpensesCard', () => {
     expect(onSelectMovement).toHaveBeenCalledWith('g1');
   });
 });
-
-describe('detalle de un mes de los graficos mensuales', () => {
-  it('muestra los totales del mes y el aviso de filtro, y cerrar llama a onClose', async () => {
-    const { MonthMovementsModal } = await import('./MonthMovementsModal');
-    const onClose = vi.fn();
-    render(
-      <MonthMovementsModal
-        open
-        onClose={onClose}
-        monthLabel="junio de 2026"
-        drillDown={{ income: { items: [], totalCents: 200000 }, expense: { items: [], totalCents: 45000 } }}
-        filterName={null}
-        categoryNames={categoryNames}
-        accountNames={accountNames}
-        onSelectMovement={vi.fn()}
-        closeHint="Al cerrar, el dashboard se filtrará por junio de 2026."
-      />,
-    );
-    expect(screen.getByText(/se filtrará por junio de 2026/i)).toBeInTheDocument();
-    expect(screen.getByText(/1550,00/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-});

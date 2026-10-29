@@ -15,9 +15,8 @@ import { SavingsCumulativeChart } from './SavingsCumulativeChart';
 
 interface SavingsInvestmentSectionProps {
   analysis: SavingsInvestmentAnalysis;
-  // Pulsar un mes abre el desglose de movimientos: 'month' = solo ese mes (barras),
-  // 'cumulative' = desde el inicio de la ventana hasta ese mes (acumulado). No cambia el
-  // periodo ni los filtros del dashboard.
+  // Opcional: accion al pulsar un mes ('month' = barras, 'cumulative' = acumulado). Hoy el
+  // dashboard no la pasa: pulsar solo muestra el tooltip resumen del grafico.
   onOpenMonth?: (mode: 'month' | 'cumulative', monthKey: string) => void;
   // Mes del periodo activo (YYYY-MM), marcado en los graficos con una linea de referencia.
   activeMonth?: string;
@@ -193,7 +192,7 @@ export function SavingsInvestmentSection({ analysis, onOpenMonth, activeMonth }:
       <div className="grid gap-6 lg:grid-cols-2">
         <Card
           title="Aportaciones por mes"
-          subtitle="Traspasos netos a ahorro e inversión. Pulsa un mes para ver su detalle; al cerrarlo, el dashboard se filtra por ese mes"
+          subtitle="Traspasos netos a ahorro e inversión. Pulsa un mes para ver su resumen"
         >
           <SavingsContributionsChart
             months={analysis.months}
@@ -203,7 +202,7 @@ export function SavingsInvestmentSection({ analysis, onOpenMonth, activeMonth }:
         </Card>
         <Card
           title="Acumulado de la ventana"
-          subtitle="Aportado neto hasta cada mes (ahorro e inversión apilados). Pulsa un mes para ver su detalle; al cerrarlo, el dashboard se filtra por ese mes"
+          subtitle="Aportado neto hasta cada mes (ahorro e inversión apilados). Pulsa un mes para ver su resumen"
         >
           <SavingsCumulativeChart
             months={analysis.months}

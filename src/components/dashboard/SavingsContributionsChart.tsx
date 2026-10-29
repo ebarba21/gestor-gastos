@@ -1,7 +1,7 @@
 // Aportaciones mensuales a ahorro e inversion: barras apiladas por mes (dos series ->
 // leyenda siempre presente; la identidad nunca es solo color). Un unico eje Y. Una
 // aportacion negativa (retirada neta del mes) se apila hacia abajo y se lee tal cual.
-// Pulsar un mes abre su detalle; al cerrarlo, el dashboard pasa a ese mes.
+// Pulsar un mes muestra su resumen en el tooltip (onOpenMonth es opcional y hoy no se usa).
 import {
   Bar,
   BarChart,
