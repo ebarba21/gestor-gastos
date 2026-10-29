@@ -1413,14 +1413,20 @@ export function computeSavingsInvestment(
 // es la categoria raiz (categoryId = null representa el bucket "sin categoria"). El grafico de
 // gasto por categoria actua de control (se muestra siempre completo, resaltando el activo);
 // el resto de metricas se filtran. La navegacion por mes NO usa este filtro: pulsar un mes en
-// la evolucion cambia el periodo de referencia (mismo mecanismo que el selector de periodo).
+// un grafico mensual cambia el periodo (mismo mecanismo que el selector de periodo), y la
+// ventana de los graficos se queda quieta gracias a `windowAnchorISO`.
 export interface DashboardFilter {
   categoryId: string | null; // categoria raiz seleccionada; null = "sin categoria"
 }
 
 export interface DashboardParams {
   range: DateRange; // periodo seleccionado (mes en curso por defecto o rango personalizado)
-  anchorISO: string; // fecha ancla del mes de referencia (evolucion, comparativa, forecast)
+  anchorISO: string; // fecha ancla del mes de referencia (comparativa, forecast y, por defecto, ventana)
+  // Fecha ancla de la ventana de los graficos mensuales (evolucion y ahorro/inversion). Si se
+  // omite es anchorISO. Permite fijar un mes como periodo sin que la ventana se desplace: el
+  // grafico sigue mostrando los mismos meses y solo cambia el mes marcado. Si el mes de
+  // anchorISO cae fuera de la ventana resultante se ignora y se usa anchorISO.
+  windowAnchorISO?: string;
   today?: string; // hoy (inyectable en tests); por defecto el reloj local
   filter?: DashboardFilter; // filtro cruzado activo (sin filtro si se omite)
   monthsBack?: number; // meses de la serie de evolucion (por defecto 12)
@@ -1435,6 +1441,7 @@ export interface DashboardParams {
 export interface DashboardData {
   range: DateRange;
   anchorMonth: string; // YYYY-MM
+  windowEndMonth: string; // YYYY-MM, ultimo mes de la ventana de los graficos mensuales
   hasData: boolean; // hay algun movimiento que cuente en el periodo seleccionado (sin filtro)
   filter: DashboardFilter | null; // filtro cruzado aplicado (null si ninguno)
   summary: IncomeExpenseSummary;
@@ -1466,6 +1473,16 @@ function filterRootCategoryId(t: Transaction, ctx: StatsContext): string | null 
   return rootCategoryIdOf(t.categoryId, t.subcategoryId, ctx.parentOf);
 }
 
+// Ancla efectiva de la ventana de graficos: la pedida si el mes del periodo cae dentro de los
+// `monthsBack` meses que acaban en ella; si no (o si no se pidio), el ancla del periodo.
+export function resolveWindowAnchor(anchorISO: string, windowAnchorISO: string | undefined, monthsBack: number): string {
+  if (windowAnchorISO === undefined) return anchorISO;
+  const anchor = monthKey(anchorISO);
+  const end = monthKey(windowAnchorISO);
+  const start = monthKey(shiftMonths(windowAnchorISO, -(monthsBack - 1)));
+  return anchor >= start && anchor <= end ? windowAnchorISO : anchorISO;
+}
+
 // Calcula TODAS las metricas del dashboard a partir de los movimientos y categorias
 // ya cargados del perfil. Puro y determinista (con `today` inyectable). Cada metrica
 // recorre los datos una vez; nada se calcula en el render.
@@ -1488,6 +1505,7 @@ export function computeDashboard(
     comparisonMonthsBack = 3,
     merchantLimit = 5,
   } = params;
+  const windowAnchor = resolveWindowAnchor(anchorISO, params.windowAnchorISO, monthsBack);
 
   // Acotar una sola vez el conjunto del periodo seleccionado (sin filtro cruzado).
   const inPeriod = allTx.filter((t) => isWithinRange(t.date, range));
@@ -1511,12 +1529,13 @@ export function computeDashboard(
   return {
     range,
     anchorMonth: monthKey(anchorISO),
+    windowEndMonth: monthKey(windowAnchor),
     hasData,
     filter: filter ?? null,
     summary,
     byCategory,
-    monthly: computeMonthlyEvolution(allTxFiltered, anchorISO, monthsBack, ctx),
-    monthlyDrillDown: computeMonthlyDrillDowns(allTxFiltered, anchorISO, monthsBack, ctx),
+    monthly: computeMonthlyEvolution(allTxFiltered, windowAnchor, monthsBack, ctx),
+    monthlyDrillDown: computeMonthlyDrillDowns(allTxFiltered, windowAnchor, monthsBack, ctx),
     topExpenses: computeTopExpenses(inPeriodFiltered, ctx, topLimit),
     drillDown: {
       expense: computeDrillDown(inPeriodFiltered, ctx, 'expense'),
@@ -1534,7 +1553,7 @@ export function computeDashboard(
     comparison: computeComparison(allTxFiltered, anchorISO, comparisonMonthsBack, ctx, today),
     forecast: computeForecast(allTxFiltered, anchorISO, ctx, today),
     // Sin filtro cruzado a proposito (ver DashboardData.savingsInvestment).
-    savingsInvestment: computeSavingsInvestment(allTx, anchorISO, monthsBack, ctx),
+    savingsInvestment: computeSavingsInvestment(allTx, windowAnchor, monthsBack, ctx),
   };
 }
 

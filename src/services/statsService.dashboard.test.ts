@@ -28,6 +28,7 @@ import {
   isSavingsMovement,
   monthKey,
   monthKeysEndingAt,
+  resolveWindowAnchor,
   rootCategoryIdOf,
   savingsRatePerMille,
   selectSavingsContributions,
@@ -1227,5 +1228,50 @@ describe('computeDrillDown (desglose de las tarjetas Gastos e Ingresos)', () => 
 
   it('sin movimientos devuelve lista vacia y total cero', () => {
     expect(computeDrillDown([], ctxFor([]), 'expense')).toEqual({ items: [], totalCents: 0 });
+  });
+});
+
+describe('ventana fijada de los graficos mensuales (windowAnchorISO)', () => {
+  const txs = [
+    tx({ id: 'nom-may', date: '2026-05-28', type: 'income', amountCents: 200000, categoryId: 'cat-nomina' }),
+    tx({ id: 'super-may', date: '2026-05-10', type: 'expense', amountCents: -3000, categoryId: 'cat-food' }),
+    tx({ id: 'super-jul', date: '2026-07-10', type: 'expense', amountCents: -4500, categoryId: 'cat-food' }),
+  ];
+  const base = { today: '2026-07-20', monthsBack: 3 } as const;
+
+  it('resolveWindowAnchor usa el ancla pedida solo si el mes del periodo cae dentro', () => {
+    expect(resolveWindowAnchor('2026-05-15', undefined, 3)).toBe('2026-05-15');
+    expect(resolveWindowAnchor('2026-05-15', '2026-07-20', 3)).toBe('2026-07-20');
+    expect(resolveWindowAnchor('2026-07-15', '2026-07-20', 3)).toBe('2026-07-20');
+    // Fuera de la ventana (antes del inicio o despues del final): se ignora.
+    expect(resolveWindowAnchor('2026-04-15', '2026-07-20', 3)).toBe('2026-04-15');
+    expect(resolveWindowAnchor('2026-08-15', '2026-07-20', 3)).toBe('2026-08-15');
+  });
+
+  it('elegir un mes con la ventana fijada no desplaza los graficos y filtra el periodo', () => {
+    const data = computeDashboard(txs, CATEGORIES, {
+      ...base,
+      range: { from: '2026-05-01', to: '2026-05-31' },
+      anchorISO: '2026-05-15',
+      windowAnchorISO: '2026-07-20',
+    });
+    expect(data.anchorMonth).toBe('2026-05');
+    expect(data.windowEndMonth).toBe('2026-07');
+    expect(data.monthly.map((m) => m.month)).toEqual(['2026-05', '2026-06', '2026-07']);
+    expect(data.savingsInvestment.months.map((m) => m.month)).toEqual(['2026-05', '2026-06', '2026-07']);
+    expect(Object.keys(data.monthlyDrillDown).sort()).toEqual(['2026-05', '2026-06', '2026-07']);
+    // El resto del dashboard es el del mes elegido.
+    expect(data.drillDown.expense.items.map((i) => i.id)).toEqual(['super-may']);
+    expect(data.summary.expenseNetCents).toBe(3000);
+  });
+
+  it('sin ventana fijada, la ventana acaba en el mes del periodo (comportamiento de siempre)', () => {
+    const data = computeDashboard(txs, CATEGORIES, {
+      ...base,
+      range: { from: '2026-05-01', to: '2026-05-31' },
+      anchorISO: '2026-05-15',
+    });
+    expect(data.windowEndMonth).toBe('2026-05');
+    expect(data.monthly.map((m) => m.month)).toEqual(['2026-03', '2026-04', '2026-05']);
   });
 });

@@ -48,6 +48,7 @@ export function DashboardSection() {
     referenceISO,
     setReferenceMonths,
     resetReference,
+    selectMonth,
     customFrom,
     customTo,
     setCustomFrom,
@@ -78,8 +79,8 @@ export function DashboardSection() {
   // Orden congelado al abrir el panel: editar un movimiento no lo mueve de sitio.
   const drillDown = useFrozenDrillDown(drillKind, data?.drillDown ?? null);
   // Desglose de los graficos de ahorro e inversion: mes pulsado y si es la barra del mes o
-  // el acumulado hasta el. Se recalcula con los datos vivos (editar un movimiento lo refleja)
-  // y nunca toca el periodo ni el filtro del dashboard.
+  // el acumulado hasta el. Se recalcula con los datos vivos (editar un movimiento lo refleja).
+  // Al cerrarlo, el dashboard pasa a ese mes (ver closeMonthDetail).
   const [savingsPick, setSavingsPick] = useState<{ mode: 'month' | 'cumulative'; month: string } | null>(null);
   const savingsSelection = useMemo(() => {
     if (savingsPick === null || !data) return null;
@@ -91,8 +92,23 @@ export function DashboardSection() {
     (mode: 'month' | 'cumulative', month: string) => setSavingsPick({ mode, month }),
     [],
   );
-  // Mes pulsado en la evolucion mensual: abre sus movimientos sin cambiar el periodo.
+  // Mes pulsado en la evolucion mensual: abre su detalle (totales y movimientos).
   const [evolutionMonth, setEvolutionMonth] = useState<string | null>(null);
+  // Al cerrar el detalle de un mes de cualquier grafico mensual, todo el dashboard pasa a ese
+  // mes como periodo (se conserva el filtro de categoria). La ventana de los graficos no se
+  // mueve: solo cambia el mes marcado. Abrir la ficha de un movimiento oculta el detalle sin
+  // cerrarlo, asi que eso no filtra; solo lo hace cerrarlo de verdad.
+  const closeMonthDetail = useCallback(
+    (month: string | null) => {
+      if (month !== null) selectMonth(month);
+    },
+    [selectMonth],
+  );
+  // Aviso en el detalle: que mes quedara como periodo al cerrarlo (nada si ya lo es).
+  const closeHintFor = (month: string | null): string | null =>
+    month === null || (mode === 'month' && data?.anchorMonth === month)
+      ? null
+      : `Al cerrar, el dashboard se filtrará por ${longMonthLabel(month)}.`;
   const openEditor = editor.open;
   const openMovement = useCallback((id: string) => void openEditor(id), [openEditor]);
 
@@ -110,8 +126,8 @@ export function DashboardSection() {
       <p className="mt-1 text-sm text-slate-400">
         Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
         cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa Ingresos o Gastos para ver
-        sus movimientos, una categoria para filtrar el resto, y un mes en los graficos para ver sus
-        movimientos.
+        sus movimientos, una categoria para filtrar el resto, y un mes en los graficos para ver su
+        detalle (al cerrarlo, todo el dashboard se filtra por ese mes).
       </p>
 
       <div className="mt-4">
@@ -190,7 +206,10 @@ export function DashboardSection() {
             <ForecastRangeCard forecast={forecast} loading={forecastLoading} error={forecastError} />
           </div>
 
-          <Card title="Evolucion mensual" subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para ver sus movimientos">
+          <Card
+            title="Evolucion mensual"
+            subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para ver su detalle; al cerrarlo, el dashboard se filtra por ese mes"
+          >
             <MonthlyEvolutionChart
               monthly={data.monthly}
               activeMonth={data.anchorMonth}
@@ -234,8 +253,12 @@ export function DashboardSection() {
 
           {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolucion completa,
               sin filtro cruzado (ver DashboardData.savingsInvestment). Pulsar sus graficos
-              abre el desglose de movimientos, sin cambiar periodo ni filtros. */}
-          <SavingsInvestmentSection analysis={data.savingsInvestment} onOpenMonth={openSavingsMonth} />
+              abre el desglose del mes; al cerrarlo, el dashboard pasa a ese mes. */}
+          <SavingsInvestmentSection
+            analysis={data.savingsInvestment}
+            activeMonth={data.anchorMonth}
+            onOpenMonth={openSavingsMonth}
+          />
         </div>
       )}
 
@@ -251,17 +274,24 @@ export function DashboardSection() {
       />
       <MonthMovementsModal
         open={evolutionMonth !== null && editor.editing === null}
-        onClose={() => setEvolutionMonth(null)}
+        onClose={() => {
+          closeMonthDetail(evolutionMonth);
+          setEvolutionMonth(null);
+        }}
         monthLabel={evolutionMonth === null ? '' : longMonthLabel(evolutionMonth)}
         drillDown={evolutionMonth !== null ? data?.monthlyDrillDown[evolutionMonth] ?? null : null}
         filterName={activeFilterName}
         categoryNames={categoryNames}
         accountNames={accountNames}
         onSelectMovement={openMovement}
+        closeHint={closeHintFor(evolutionMonth)}
       />
       <SavingsContributionsModal
         open={savingsPick !== null && editor.editing === null}
-        onClose={() => setSavingsPick(null)}
+        onClose={() => {
+          closeMonthDetail(savingsPick?.month ?? null);
+          setSavingsPick(null);
+        }}
         title={
           savingsPick === null
             ? ''
@@ -278,6 +308,7 @@ export function DashboardSection() {
         categoryNames={categoryNames}
         accountNames={accountNames}
         onSelectMovement={openMovement}
+        closeHint={closeHintFor(savingsPick?.month ?? null)}
       />
       <TransactionFormModal
         open={editor.editing !== null}

@@ -1,12 +1,13 @@
 // Aportaciones mensuales a ahorro e inversion: barras apiladas por mes (dos series ->
 // leyenda siempre presente; la identidad nunca es solo color). Un unico eje Y. Una
 // aportacion negativa (retirada neta del mes) se apila hacia abajo y se lee tal cual.
-// Pulsar un mes abre el desglose de sus movimientos; no cambia el periodo ni los filtros.
+// Pulsar un mes abre su detalle; al cerrarlo, el dashboard pasa a ese mes.
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Legend,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,6 +21,8 @@ import { MoneyTooltip } from './MoneyTooltip';
 interface SavingsContributionsChartProps {
   months: SavingsInvestmentMonthPoint[];
   onOpenMonth?: (monthKey: string) => void;
+  // Mes del periodo activo (YYYY-MM), marcado con una linea de referencia.
+  activeMonth?: string;
 }
 
 interface Datum {
@@ -28,7 +31,7 @@ interface Datum {
   Inversion: number;
 }
 
-export function SavingsContributionsChart({ months, onOpenMonth }: SavingsContributionsChartProps) {
+export function SavingsContributionsChart({ months, onOpenMonth, activeMonth }: SavingsContributionsChartProps) {
   const colors = useChartColors();
   const data: Datum[] = months.map((m) => ({
     month: m.month,
@@ -67,6 +70,7 @@ export function SavingsContributionsChart({ months, onOpenMonth }: SavingsContri
         />
         <Tooltip content={<MoneyTooltip labelFormatter={shortMonthLabel} />} cursor={{ fill: colors.grid, opacity: 0.4 }} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
+        {activeMonth && <ReferenceLine x={activeMonth} stroke={colors.axis} strokeDasharray="3 3" />}
         {/* Separador de 2px entre segmentos apilados: trazo del color de superficie. */}
         <Bar dataKey="Ahorro" stackId="contrib" fill={colors.saved} stroke={colors.tooltipBg} strokeWidth={1} maxBarSize={28} />
         <Bar dataKey="Inversion" name="Inversión" stackId="contrib" fill={colors.invested} stroke={colors.tooltipBg} strokeWidth={1} maxBarSize={28} />

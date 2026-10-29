@@ -19,6 +19,8 @@ interface SavingsInvestmentSectionProps {
   // 'cumulative' = desde el inicio de la ventana hasta ese mes (acumulado). No cambia el
   // periodo ni los filtros del dashboard.
   onOpenMonth?: (mode: 'month' | 'cumulative', monthKey: string) => void;
+  // Mes del periodo activo (YYYY-MM), marcado en los graficos con una linea de referencia.
+  activeMonth?: string;
 }
 
 // Tarjeta KPI local, mismo lenguaje visual que StatTiles.
@@ -76,7 +78,7 @@ function monthsLabel(n: number): string {
   return n === 1 ? '1 mes' : `${n} meses`;
 }
 
-export function SavingsInvestmentSection({ analysis, onOpenMonth }: SavingsInvestmentSectionProps) {
+export function SavingsInvestmentSection({ analysis, onOpenMonth, activeMonth }: SavingsInvestmentSectionProps) {
   const windowMonths = analysis.months.length;
 
   return (
@@ -191,19 +193,21 @@ export function SavingsInvestmentSection({ analysis, onOpenMonth }: SavingsInves
       <div className="grid gap-6 lg:grid-cols-2">
         <Card
           title="Aportaciones por mes"
-          subtitle="Traspasos netos a ahorro e inversión. Pulsa un mes para ver sus movimientos"
+          subtitle="Traspasos netos a ahorro e inversión. Pulsa un mes para ver su detalle; al cerrarlo, el dashboard se filtra por ese mes"
         >
           <SavingsContributionsChart
             months={analysis.months}
+            activeMonth={activeMonth}
             onOpenMonth={onOpenMonth ? (m) => onOpenMonth('month', m) : undefined}
           />
         </Card>
         <Card
           title="Acumulado de la ventana"
-          subtitle="Aportado neto hasta cada mes (ahorro e inversión apilados). Pulsa un mes para ver los movimientos"
+          subtitle="Aportado neto hasta cada mes (ahorro e inversión apilados). Pulsa un mes para ver su detalle; al cerrarlo, el dashboard se filtra por ese mes"
         >
           <SavingsCumulativeChart
             months={analysis.months}
+            activeMonth={activeMonth}
             onOpenMonth={onOpenMonth ? (m) => onOpenMonth('cumulative', m) : undefined}
           />
         </Card>

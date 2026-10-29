@@ -2,12 +2,13 @@
 // apiladas (la altura total es todo lo apartado hasta ese mes). Mismo lenguaje visual que
 // la evolucion mensual (degradado bajo cada area, rejilla recesiva, un unico eje Y).
 // Puede descender si un mes hay retirada neta. Pulsar un mes abre los movimientos
-// acumulados hasta el; no cambia el periodo ni los filtros.
+// acumulados hasta el; al cerrarlo, el dashboard pasa a ese mes.
 import {
   Area,
   AreaChart,
   CartesianGrid,
   Legend,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -21,6 +22,8 @@ import { MoneyTooltip } from './MoneyTooltip';
 interface SavingsCumulativeChartProps {
   months: SavingsInvestmentMonthPoint[];
   onOpenMonth?: (monthKey: string) => void;
+  // Mes del periodo activo (YYYY-MM), marcado con una linea de referencia.
+  activeMonth?: string;
 }
 
 interface Datum {
@@ -29,7 +32,7 @@ interface Datum {
   Inversion: number;
 }
 
-export function SavingsCumulativeChart({ months, onOpenMonth }: SavingsCumulativeChartProps) {
+export function SavingsCumulativeChart({ months, onOpenMonth, activeMonth }: SavingsCumulativeChartProps) {
   const colors = useChartColors();
   const data: Datum[] = months.map((m) => ({
     month: m.month,
@@ -78,6 +81,7 @@ export function SavingsCumulativeChart({ months, onOpenMonth }: SavingsCumulativ
         />
         <Tooltip content={<MoneyTooltip labelFormatter={shortMonthLabel} />} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
+        {activeMonth && <ReferenceLine x={activeMonth} stroke={colors.axis} strokeDasharray="3 3" />}
         <Area
           type="monotone"
           dataKey="Ahorro"

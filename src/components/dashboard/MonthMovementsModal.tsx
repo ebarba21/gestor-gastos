@@ -1,7 +1,7 @@
 // Desglose de un mes de la evolucion mensual: los movimientos que componen sus Ingresos y su
 // Gasto neto, con los tres totales del grafico (ingresos, gastos y ahorro neto). Solo
-// presentacion: todo sale de statsService y cuadra con el punto pulsado. No toca el periodo
-// ni los filtros del dashboard.
+// presentacion: todo sale de statsService y cuadra con el punto pulsado. Al cerrarlo, el
+// dashboard pasa a ese mes (lo decide DashboardSection).
 import type { DrillDown, DrillDownItem, DrillDownKind, DrillDownRole } from '../../services/statsService';
 import { formatCents } from '../../lib/money';
 import { Modal } from '../common';
@@ -16,6 +16,8 @@ interface MonthMovementsModalProps {
   categoryNames: Map<string, string>;
   accountNames: Map<string, string>;
   onSelectMovement: (id: string) => void;
+  // Aviso de lo que pasa al cerrar (p. ej. que el dashboard se filtra por ese mes). Opcional.
+  closeHint?: string | null;
 }
 
 const ROLE_BADGE: Partial<Record<DrillDownRole, string>> = {
@@ -94,6 +96,7 @@ export function MonthMovementsModal({
   categoryNames,
   accountNames,
   onSelectMovement,
+  closeHint = null,
 }: MonthMovementsModalProps) {
   const income = drillDown?.income ?? { items: [], totalCents: 0 };
   const expense = drillDown?.expense ?? { items: [], totalCents: 0 };
@@ -145,6 +148,7 @@ export function MonthMovementsModal({
         Los traspasos a Ahorro e Inversión no son gasto: se ven en los gráficos de ese apartado.
         Pulsa un movimiento para ver y editar sus detalles.
       </p>
+      {closeHint && <p className="mt-3 text-[11px] text-indigo-300/80">{closeHint}</p>}
       <div className="mt-4 flex justify-end">
         <button
           type="button"

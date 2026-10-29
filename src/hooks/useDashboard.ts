@@ -30,7 +30,8 @@ export interface UseDashboard {
   referenceISO: string;
   setReferenceMonths: (delta: number) => void;
   resetReference: () => void;
-  // Selecciona un mes concreto (YYYY-MM) como periodo, p. ej. al pulsar la evolucion mensual.
+  // Selecciona un mes concreto (YYYY-MM) como periodo, p. ej. al cerrar el detalle de un mes
+  // pulsado en un grafico mensual. La ventana de los graficos no se desplaza.
   selectMonth: (monthKey: string) => void;
   // Modo rango personalizado.
   customFrom: string;
@@ -84,6 +85,10 @@ export function useDashboard(): UseDashboard {
   const [customFrom, setCustomFrom] = useState<string>(() => monthRange(todayISO()).from);
   const [customTo, setCustomTo] = useState<string>(() => todayISO());
   const [filter, setFilter] = useState<DashboardFilter | null>(null);
+  // Ancla fijada de la ventana de los graficos mensuales. Se fija al elegir un mes desde un
+  // grafico (para que los meses visibles no se desplacen) y se suelta en cuanto la persona
+  // cambia el periodo con el selector. null = la ventana sigue al periodo.
+  const [windowPinISO, setWindowPinISO] = useState<string | null>(null);
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -100,6 +105,7 @@ export function useDashboard(): UseDashboard {
   // Al cambiar de perfil se descarta el filtro cruzado: nunca se arrastra entre perfiles.
   useEffect(() => {
     setFilter(null);
+    setWindowPinISO(null);
   }, [profileId]);
 
   // Nombres y colores para la UI. Solo dependen del perfil (no del periodo ni del filtro):
@@ -140,6 +146,7 @@ export function useDashboard(): UseDashboard {
       const dashboard = await statsService.computeDashboard(profileId, {
         range: period.range,
         anchorISO: period.anchorISO,
+        windowAnchorISO: windowPinISO ?? undefined,
         filter: filter ?? undefined,
       });
       setData(dashboard);
@@ -150,23 +157,49 @@ export function useDashboard(): UseDashboard {
     } finally {
       setLoading(false);
     }
-  }, [profileId, period, filter]);
+  }, [profileId, period, filter, windowPinISO]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
+  // Cualquier cambio de periodo hecho con el selector suelta la ventana fijada: a partir de
+  // ahi los graficos vuelven a terminar en el mes del periodo, como siempre.
+  const changeMode = useCallback((next: DashboardPeriodMode) => {
+    setWindowPinISO(null);
+    setMode(next);
+  }, []);
   const setReferenceMonths = useCallback((delta: number) => {
+    setWindowPinISO(null);
     setReferenceISO((prev) => shiftMonths(prev, delta));
   }, []);
-  const resetReference = useCallback(() => setReferenceISO(todayISO()), []);
-
-  // Pulsar un mes en la evolucion mensual: pasa a modo "mes" y fija ese mes como referencia.
-  // El dia 15 siempre existe, evita ajustes de fin de mes; el periodo es el mes natural.
-  const selectMonth = useCallback((monthKey: string) => {
-    setMode('month');
-    setReferenceISO(`${monthKey}-15`);
+  const resetReference = useCallback(() => {
+    setWindowPinISO(null);
+    setReferenceISO(todayISO());
   }, []);
+  const changeCustomFrom = useCallback((iso: string) => {
+    setWindowPinISO(null);
+    setCustomFrom(iso);
+  }, []);
+  const changeCustomTo = useCallback((iso: string) => {
+    setWindowPinISO(null);
+    setCustomTo(iso);
+  }, []);
+
+  // Elegir un mes desde un grafico mensual: pasa a modo "mes" con ese mes como periodo y fija
+  // la ventana donde estaba (si ya estaba fijada, se conserva) para que el grafico no se mueva.
+  // El dia 15 siempre existe, evita ajustes de fin de mes; el periodo es el mes natural.
+  const currentWindowAnchor = windowPinISO ?? period?.anchorISO ?? null;
+  const selectMonth = useCallback(
+    (monthKey: string) => {
+      // Las claves llegan de los propios graficos; una clave mal formada no cambia nada.
+      if (!/^\d{4}-\d{2}$/.test(monthKey)) return;
+      setWindowPinISO(currentWindowAnchor);
+      setMode('month');
+      setReferenceISO(`${monthKey}-15`);
+    },
+    [currentWindowAnchor],
+  );
 
   // Alterna el filtro por categoria: si ya esta esa categoria, lo quita; si no, lo pone.
   const toggleCategoryFilter = useCallback((categoryId: string | null) => {
@@ -188,15 +221,15 @@ export function useDashboard(): UseDashboard {
   return {
     profileId,
     mode,
-    setMode,
+    setMode: changeMode,
     referenceISO,
     setReferenceMonths,
     resetReference,
     selectMonth,
     customFrom,
     customTo,
-    setCustomFrom,
-    setCustomTo,
+    setCustomFrom: changeCustomFrom,
+    setCustomTo: changeCustomTo,
     range: period?.range ?? null,
     filter,
     toggleCategoryFilter,

@@ -1,7 +1,7 @@
 // Desglose de los graficos de ahorro e inversion: lista los movimientos que componen la
 // barra (un mes) o el punto del acumulado (desde el inicio de la ventana hasta ese mes) que
 // se ha pulsado. Solo presentacion: los importes y totales salen de statsService y cuadran
-// con el grafico. No toca el periodo ni los filtros del dashboard.
+// con el grafico. Al cerrarlo, el dashboard pasa a ese mes (lo decide DashboardSection).
 import type { SavingsContributionSelection } from '../../services/statsService';
 import { formatCents } from '../../lib/money';
 import { Modal } from '../common';
@@ -15,6 +15,8 @@ interface SavingsContributionsModalProps {
   categoryNames: Map<string, string>;
   accountNames: Map<string, string>;
   onSelectMovement: (id: string) => void;
+  // Aviso de lo que pasa al cerrar (p. ej. que el dashboard se filtra por ese mes). Opcional.
+  closeHint?: string | null;
 }
 
 export function SavingsContributionsModal({
@@ -26,6 +28,7 @@ export function SavingsContributionsModal({
   categoryNames,
   accountNames,
   onSelectMovement,
+  closeHint = null,
 }: SavingsContributionsModalProps) {
   const items = selection?.items ?? [];
 
@@ -99,6 +102,7 @@ export function SavingsContributionsModal({
       )}
 
       <p className="mt-3 text-[11px] text-slate-500">Pulsa un movimiento para ver y editar sus detalles.</p>
+      {closeHint && <p className="mt-3 text-[11px] text-indigo-300/80">{closeHint}</p>}
       <div className="mt-4 flex justify-end">
         <button
           type="button"
