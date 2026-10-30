@@ -2,7 +2,7 @@
 // apiladas (la altura total es todo lo apartado hasta ese mes). Mismo lenguaje visual que
 // la evolucion mensual (degradado bajo cada area, rejilla recesiva, un unico eje Y).
 // Puede descender si un mes hay retirada neta. Pulsar un mes muestra su resumen en el
-// tooltip (onOpenMonth es opcional y hoy no se usa).
+// tooltip y lo elige como periodo del dashboard.
 import {
   Area,
   AreaChart,
@@ -21,7 +21,7 @@ import { MoneyTooltip } from './MoneyTooltip';
 
 interface SavingsCumulativeChartProps {
   months: SavingsInvestmentMonthPoint[];
-  onOpenMonth?: (monthKey: string) => void;
+  onSelectMonth?: (monthKey: string) => void;
   // Mes del periodo activo (YYYY-MM), marcado con una linea de referencia.
   activeMonth?: string;
 }
@@ -32,7 +32,7 @@ interface Datum {
   Inversion: number;
 }
 
-export function SavingsCumulativeChart({ months, onOpenMonth, activeMonth }: SavingsCumulativeChartProps) {
+export function SavingsCumulativeChart({ months, onSelectMonth, activeMonth }: SavingsCumulativeChartProps) {
   const colors = useChartColors();
   const data: Datum[] = months.map((m) => ({
     month: m.month,
@@ -42,7 +42,7 @@ export function SavingsCumulativeChart({ months, onOpenMonth, activeMonth }: Sav
 
   const handleClick = (state: CategoricalChartState) => {
     const label = state?.activeLabel;
-    if (onOpenMonth && typeof label === 'string') onOpenMonth(label);
+    if (onSelectMonth && typeof label === 'string') onSelectMonth(label);
   };
 
   return (
@@ -50,8 +50,8 @@ export function SavingsCumulativeChart({ months, onOpenMonth, activeMonth }: Sav
       <AreaChart
         data={data}
         margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
-        onClick={onOpenMonth ? handleClick : undefined}
-        style={onOpenMonth ? { cursor: 'pointer' } : undefined}
+        onClick={onSelectMonth ? handleClick : undefined}
+        style={onSelectMonth ? { cursor: 'pointer' } : undefined}
       >
         <defs>
           <linearGradient id="gsi-saved" x1="0" y1="0" x2="0" y2="1">

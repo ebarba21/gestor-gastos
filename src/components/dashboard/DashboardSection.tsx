@@ -45,6 +45,7 @@ export function DashboardSection() {
     referenceISO,
     setReferenceMonths,
     resetReference,
+    selectMonth,
     customFrom,
     customTo,
     setCustomFrom,
@@ -74,8 +75,9 @@ export function DashboardSection() {
   const [drillKind, setDrillKind] = useState<DrillDownKind | null>(null);
   // Orden congelado al abrir el panel: editar un movimiento no lo mueve de sitio.
   const drillDown = useFrozenDrillDown(drillKind, data?.drillDown ?? null);
-  // Los graficos mensuales (evolucion, aportaciones y acumulado) solo muestran su tooltip
-  // resumen al pulsar un mes: no abren ningun desplegable ni cambian el periodo del dashboard.
+  // Pulsar un mes en los graficos mensuales (evolucion, aportaciones y acumulado) muestra su
+  // tooltip resumen y pasa todo el dashboard a ese mes (se conserva el filtro de categoria).
+  // La ventana de los graficos no se mueve: solo cambia el mes marcado. Sin desplegables.
   const openEditor = editor.open;
   const openMovement = useCallback((id: string) => void openEditor(id), [openEditor]);
 
@@ -94,7 +96,7 @@ export function DashboardSection() {
         Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
         cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa Ingresos o Gastos para ver
         sus movimientos, una categoria para filtrar el resto, y un mes en los graficos para ver su
-        resumen.
+        resumen y filtrar el dashboard por ese mes.
       </p>
 
       <div className="mt-4">
@@ -175,11 +177,12 @@ export function DashboardSection() {
 
           <Card
             title="Evolucion mensual"
-            subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para ver su resumen"
+            subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para ver su resumen y filtrar el dashboard por ese mes"
           >
             <MonthlyEvolutionChart
               monthly={data.monthly}
               activeMonth={data.anchorMonth}
+              onSelectMonth={selectMonth}
             />
           </Card>
 
@@ -219,8 +222,12 @@ export function DashboardSection() {
 
           {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolucion completa,
               sin filtro cruzado (ver DashboardData.savingsInvestment). Pulsar sus graficos
-              solo muestra el resumen del mes. */}
-          <SavingsInvestmentSection analysis={data.savingsInvestment} activeMonth={data.anchorMonth} />
+              muestra el resumen del mes y filtra el dashboard por el. */}
+          <SavingsInvestmentSection
+            analysis={data.savingsInvestment}
+            activeMonth={data.anchorMonth}
+            onSelectMonth={selectMonth}
+          />
         </div>
       )}
 

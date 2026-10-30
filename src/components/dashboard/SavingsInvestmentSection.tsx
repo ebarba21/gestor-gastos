@@ -15,9 +15,9 @@ import { SavingsCumulativeChart } from './SavingsCumulativeChart';
 
 interface SavingsInvestmentSectionProps {
   analysis: SavingsInvestmentAnalysis;
-  // Opcional: accion al pulsar un mes ('month' = barras, 'cumulative' = acumulado). Hoy el
-  // dashboard no la pasa: pulsar solo muestra el tooltip resumen del grafico.
-  onOpenMonth?: (mode: 'month' | 'cumulative', monthKey: string) => void;
+  // Pulsar un mes en cualquiera de los dos graficos (ademas de su tooltip resumen) lo elige
+  // como periodo del dashboard.
+  onSelectMonth?: (monthKey: string) => void;
   // Mes del periodo activo (YYYY-MM), marcado en los graficos con una linea de referencia.
   activeMonth?: string;
 }
@@ -77,7 +77,7 @@ function monthsLabel(n: number): string {
   return n === 1 ? '1 mes' : `${n} meses`;
 }
 
-export function SavingsInvestmentSection({ analysis, onOpenMonth, activeMonth }: SavingsInvestmentSectionProps) {
+export function SavingsInvestmentSection({ analysis, onSelectMonth, activeMonth }: SavingsInvestmentSectionProps) {
   const windowMonths = analysis.months.length;
 
   return (
@@ -192,22 +192,22 @@ export function SavingsInvestmentSection({ analysis, onOpenMonth, activeMonth }:
       <div className="grid gap-6 lg:grid-cols-2">
         <Card
           title="Aportaciones por mes"
-          subtitle="Traspasos netos a ahorro e inversión. Pulsa un mes para ver su resumen"
+          subtitle="Traspasos netos a ahorro e inversión. Pulsa un mes para ver su resumen y filtrar el dashboard por ese mes"
         >
           <SavingsContributionsChart
             months={analysis.months}
             activeMonth={activeMonth}
-            onOpenMonth={onOpenMonth ? (m) => onOpenMonth('month', m) : undefined}
+            onSelectMonth={onSelectMonth}
           />
         </Card>
         <Card
           title="Acumulado de la ventana"
-          subtitle="Aportado neto hasta cada mes (ahorro e inversión apilados). Pulsa un mes para ver su resumen"
+          subtitle="Aportado neto hasta cada mes (ahorro e inversión apilados). Pulsa un mes para ver su resumen y filtrar el dashboard por ese mes"
         >
           <SavingsCumulativeChart
             months={analysis.months}
             activeMonth={activeMonth}
-            onOpenMonth={onOpenMonth ? (m) => onOpenMonth('cumulative', m) : undefined}
+            onSelectMonth={onSelectMonth}
           />
         </Card>
       </div>

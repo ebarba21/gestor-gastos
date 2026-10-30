@@ -91,7 +91,7 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 - **Selector de periodo**: mes en curso por defecto, navegacion entre meses y rango personalizado de fechas.
 - **KPIs del periodo**: ingresos (nomina y paro), gasto neto (con desglose bruto, reembolsos y gastos positivos), ahorro neto y tasa de ahorro. Pulsar Ingresos o Gastos abre la lista de movimientos que componen la cifra (respetando periodo y filtro), con un total que cuadra con la tarjeta; pulsar un movimiento abre su ficha para verlo y editarlo. Mientras la lista siga abierta, los movimientos editados se actualizan pero no cambian de posicion: se mantiene el orden que tenia al abrirla.
 - **Reparto del ahorro neto** en "Ahorrado" e "Invertido" cuando hay inversion, con barra proporcional y avisos honestos (por ejemplo si invertiste mas de lo que ahorraste ese mes).
-- **Evolucion mensual**: ingresos, gasto neto y ahorro por mes en areas. Pulsar un mes muestra su resumen (ingresos, gasto neto y ahorro del mes) en el propio grafico, sin abrir ningun desplegable ni cambiar el periodo. El mes del periodo activo se marca con una linea de referencia.
+- **Evolucion mensual**: ingresos, gasto neto y ahorro por mes en areas. Pulsar un mes muestra su resumen (ingresos, gasto neto y ahorro del mes) en el propio grafico, sin desplegables, y pasa todo el dashboard a ese mes (se mantiene el filtro de categoria). Los meses del grafico no se desplazan: solo cambia el mes marcado. Cambiar el periodo con el selector vuelve al comportamiento normal. El mes del periodo activo se marca con una linea de referencia.
 - **Gasto por categoria**: ranking de categorias con colores propios; pulsar una categoria filtra el resto del dashboard (**filtro cruzado**); con el filtro activo, "Ver sus movimientos" lista todos los de esa categoria.
 - **Ingresos vs gastos** del periodo.
 - **Top gastos** individuales del periodo; pulsar uno abre su ficha para verlo y editarlo.
@@ -103,7 +103,7 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
   - Ahorro neto acumulado y tasa de ahorro media del periodo.
   - **Racha actual de meses ahorrando** y mejor racha conseguida.
   - Insights automaticos: tu mejor mes de ahorro neto, el mes que mas invertiste, tu mejor tasa de ahorro y tus medias mensuales.
-  - Grafico de **aportaciones por mes** (ahorro e inversion apilados) y grafico del **acumulado** de la ventana. Pulsar un mes muestra su resumen (ahorro e inversion) en el propio grafico, sin abrir ningun desplegable.
+  - Grafico de **aportaciones por mes** (ahorro e inversion apilados) y grafico del **acumulado** de la ventana. Pulsar un mes muestra su resumen (ahorro e inversion) en el propio grafico y filtra el dashboard por ese mes, igual que en la evolucion mensual.
   - Las retiradas (reembolsos de aportaciones) restan del aportado: los numeros reflejan el neto real.
 - Estados cuidados: cargando, periodo sin datos, rango invalido; todo con mensajes claros.
 

@@ -1,7 +1,7 @@
 // Aportaciones mensuales a ahorro e inversion: barras apiladas por mes (dos series ->
 // leyenda siempre presente; la identidad nunca es solo color). Un unico eje Y. Una
 // aportacion negativa (retirada neta del mes) se apila hacia abajo y se lee tal cual.
-// Pulsar un mes muestra su resumen en el tooltip (onOpenMonth es opcional y hoy no se usa).
+// Pulsar un mes muestra su resumen en el tooltip y lo elige como periodo del dashboard.
 import {
   Bar,
   BarChart,
@@ -20,7 +20,7 @@ import { MoneyTooltip } from './MoneyTooltip';
 
 interface SavingsContributionsChartProps {
   months: SavingsInvestmentMonthPoint[];
-  onOpenMonth?: (monthKey: string) => void;
+  onSelectMonth?: (monthKey: string) => void;
   // Mes del periodo activo (YYYY-MM), marcado con una linea de referencia.
   activeMonth?: string;
 }
@@ -31,7 +31,7 @@ interface Datum {
   Inversion: number;
 }
 
-export function SavingsContributionsChart({ months, onOpenMonth, activeMonth }: SavingsContributionsChartProps) {
+export function SavingsContributionsChart({ months, onSelectMonth, activeMonth }: SavingsContributionsChartProps) {
   const colors = useChartColors();
   const data: Datum[] = months.map((m) => ({
     month: m.month,
@@ -41,7 +41,7 @@ export function SavingsContributionsChart({ months, onOpenMonth, activeMonth }: 
 
   const handleClick = (state: CategoricalChartState) => {
     const label = state?.activeLabel;
-    if (onOpenMonth && typeof label === 'string') onOpenMonth(label);
+    if (onSelectMonth && typeof label === 'string') onSelectMonth(label);
   };
 
   return (
@@ -49,8 +49,8 @@ export function SavingsContributionsChart({ months, onOpenMonth, activeMonth }: 
       <BarChart
         data={data}
         margin={{ top: 8, right: 16, bottom: 4, left: 8 }}
-        onClick={onOpenMonth ? handleClick : undefined}
-        style={onOpenMonth ? { cursor: 'pointer' } : undefined}
+        onClick={onSelectMonth ? handleClick : undefined}
+        style={onSelectMonth ? { cursor: 'pointer' } : undefined}
       >
         <CartesianGrid stroke={colors.grid} vertical={false} />
         <XAxis
