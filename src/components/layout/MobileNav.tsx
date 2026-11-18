@@ -4,6 +4,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { NAV_GROUPS } from './navItems';
+import { lockDocumentScroll } from '../../lib/scrollLock';
 
 interface TabDef {
   to: string;
@@ -67,14 +68,13 @@ export function MobileNav() {
   // Bloquea el scroll del fondo mientras el panel esta abierto.
   useEffect(() => {
     if (!moreOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockDocumentScroll();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMoreOpen(false);
     };
     document.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = prev;
+      unlock();
       document.removeEventListener('keydown', onKey);
     };
   }, [moreOpen]);
