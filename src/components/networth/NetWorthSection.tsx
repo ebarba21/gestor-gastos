@@ -22,7 +22,7 @@ function chipClass(active: boolean): string {
 }
 
 export function NetWorthSection() {
-  const { window, setWindow, data, accounts, loading, error } = useNetWorth('1y');
+  const { netWorthWindow, setNetWorthWindow, data, accounts, loading, error } = useNetWorth('1y');
   const [view, setView] = useState<NetWorthView>('total');
   const isView = (v: NetWorthView) =>
     typeof v === 'string' ? view === v : typeof view === 'object' && view.accountId === v.accountId;
@@ -68,6 +68,12 @@ export function NetWorthSection() {
               <DeltaText cents={data.summary.changeMonthCents} suffix="en 1 mes" />
               <DeltaText cents={data.summary.changeYearCents} suffix="en 12 meses" />
             </div>
+            {data.futureCount > 0 && (
+              <p className="mt-2 text-xs text-slate-500">
+                No incluye {data.futureCount} {data.futureCount === 1 ? 'movimiento' : 'movimientos'} con fecha futura (
+                {formatCents(data.futureCents)}).
+              </p>
+            )}
           </div>
 
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
@@ -93,7 +99,7 @@ export function NetWorthSection() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-xs text-slate-500">Periodo:</span>
               {NET_WORTH_WINDOWS.map((w) => (
-                <button key={w} type="button" className={chipClass(window === w)} onClick={() => setWindow(w)}>
+                <button key={w} type="button" className={chipClass(netWorthWindow === w)} onClick={() => setNetWorthWindow(w)}>
                   {NET_WORTH_WINDOW_LABELS[w]}
                 </button>
               ))}

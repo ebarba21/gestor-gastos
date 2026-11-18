@@ -124,6 +124,34 @@ describe('computeNetWorth', () => {
     expect(r.summary.peakDate).toBe('2026-09-30');
   });
 
+  it('el saldo de hoy no incluye movimientos con fecha futura y los informa aparte', () => {
+    const acc = makeAccount({ id: 'a', openingBalanceCents: 100000 });
+    const txs = [
+      makeTx({ accountId: 'a', date: '2026-11-01', amountCents: -1000 }),
+      makeTx({ accountId: 'a', date: '2026-11-25', amountCents: -50000 }),
+    ];
+    const r = computeNetWorth([acc], txs, { window: '1y', today: '2026-11-18' });
+    expect(r.summary.currentCents).toBe(99000);
+    expect(r.futureCount).toBe(1);
+    expect(r.futureCents).toBe(-50000);
+  });
+
+  it('el maximo se busca dentro de la ventana, no en la base anterior', () => {
+    const acc = makeAccount({ id: 'a', openingBalanceCents: 500000 });
+    const txs = [makeTx({ accountId: 'a', date: '2026-01-10', amountCents: -100000 })];
+    const r = computeNetWorth([acc], txs, { window: '1y', today: '2026-11-18' });
+    // Base = cierre anterior al primer movimiento (500.000), fuera del maximo de la ventana.
+    expect(r.points[0]!.date).toBe('2025-12-31');
+    expect(r.points[0]!.totalCents).toBe(500000);
+    expect(r.summary.peakCents).toBe(400000);
+  });
+
+  it('el reparto por cuenta suma exactamente 1000', () => {
+    const accs = ['x', 'y', 'z'].map((id) => makeAccount({ id, openingBalanceCents: 1000 }));
+    const r = computeNetWorth(accs, [], { window: '6m', today: '2026-11-18' });
+    expect(r.accounts.reduce((s, a) => s + (a.sharePerMille ?? 0), 0)).toBe(1000);
+  });
+
   it('sin cuentas no hay datos y el total es 0', () => {
     const r = computeNetWorth([], [], { window: '1y', today: '2026-11-18' });
     expect(r.hasData).toBe(false);

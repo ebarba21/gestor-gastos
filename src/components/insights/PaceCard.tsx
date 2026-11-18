@@ -46,9 +46,13 @@ export function PaceCard({ pace, health, onOpenWaterfall }: PaceCardProps) {
   } else if (pace.vsPaceCents <= 0) status = `${formatCents(-pace.vsPaceCents)} por debajo del ritmo`;
   else status = `${formatCents(pace.vsPaceCents)} por encima del ritmo`;
 
-  const label = pace.isCurrentMonth
-    ? `Gasto variable restante · día ${pace.daysElapsed} de ${pace.daysInMonth}`
-    : 'Gasto variable del mes frente a tu referencia';
+  const label = !hasBaseline
+    ? pace.isCurrentMonth
+      ? `Gasto variable del mes · día ${pace.daysElapsed} de ${pace.daysInMonth}`
+      : 'Gasto variable del mes'
+    : pace.isCurrentMonth
+      ? `Gasto variable restante · día ${pace.daysElapsed} de ${pace.daysInMonth}`
+      : 'Gasto variable del mes frente a tu referencia';
   const data = pace.days.map((d) => ({ day: d.day, Real: d.actualCents, Ritmo: d.idealCents }));
 
   return (

@@ -222,9 +222,14 @@ function pct(perMilleValue: number): string {
   return `${Math.round(Math.abs(perMilleValue) / 10)} %`;
 }
 
-// Movimiento de gasto fijo: vinculado a una recurrencia, o reembolso de uno vinculado.
+// Movimiento de gasto fijo: vinculado a una recurrencia, linea de un split vinculado, o reembolso
+// de uno vinculado.
 function isFixed(t: Transaction, fixedIds: ReadonlySet<string>): boolean {
-  return fixedIds.has(t.id) || (t.refundOfId !== null && fixedIds.has(t.refundOfId));
+  return (
+    fixedIds.has(t.id) ||
+    (t.parentId !== null && fixedIds.has(t.parentId)) ||
+    (t.refundOfId !== null && fixedIds.has(t.refundOfId))
+  );
 }
 
 function monthBounds(monthKeyValue: string): DateRange {
@@ -243,7 +248,8 @@ interface MonthBuckets {
   variable: number;
   fixed: number;
   byCategory: Map<string | null, number>;
-  // Lo mismo pero solo hasta el dia `cutoffDay` del mes ("a estas alturas").
+  // Lo mismo pero solo hasta la misma FRACCION del mes que el de referencia ("a estas alturas"):
+  // dia 15 de 30 equivale al dia 15,5 de un mes de 31, y un mes cerrado equivale al mes entero.
   byCategoryToDay: Map<string | null, number>;
   variableByDay: number[]; // indice 1..31: gasto variable neto de cada dia
   active: boolean; // hubo algun ingreso o gasto que cuente
@@ -257,7 +263,7 @@ function bucketByMonth(
   fixedIds: ReadonlySet<string>,
   months: ReadonlySet<string>,
   upTo: string | null,
-  cutoffDay: number,
+  cutoff: { elapsed: number; dim: number },
 ): Map<string, MonthBuckets> {
   const out = new Map<string, MonthBuckets>();
   for (const k of months) {
@@ -290,7 +296,9 @@ function bucketByMonth(
       b.variableByDay[day]! += c.cents;
     }
     b.byCategory.set(c.rootCategoryId, (b.byCategory.get(c.rootCategoryId) ?? 0) + c.cents);
-    if (day <= cutoffDay) {
+    const monthDays = parseISO(monthBounds(k).to).d;
+    // day / monthDays <= elapsed / dim, en enteros.
+    if (day * cutoff.dim <= cutoff.elapsed * monthDays) {
       b.byCategoryToDay.set(c.rootCategoryId, (b.byCategoryToDay.get(c.rootCategoryId) ?? 0) + c.cents);
     }
   }
@@ -313,7 +321,9 @@ export function typicalSpendShare(months: { variableByDay: number[]; days: numbe
     for (const m of usable) {
       const total = m.variableByDay.reduce((s, v) => s + v, 0);
       let cum = 0;
-      for (let i = 1; i <= Math.min(d, m.days); i++) cum += m.variableByDay[i]!;
+      // Mismo punto relativo del mes: dia d de `dim` equivale al dia floor(d * m.days / dim).
+      const upToDay = d === dim ? m.days : Math.floor((d * m.days) / dim);
+      for (let i = 1; i <= upToDay; i++) cum += m.variableByDay[i]!;
       sum += Math.min(1, Math.max(0, cum / total));
     }
     share[d] = Math.max(share[d - 1]!, sum / usable.length);
@@ -347,12 +357,27 @@ export function computeInsights(input: InsightsInput): MonthInsights {
 
   const prevKeys = previousMonthKeys(input.anchorISO, Math.max(baselineMonths, heatmapMonths));
   const allKeys = new Set([...prevKeys, month]);
-  const buckets = bucketByMonth(input.transactions, ctx, input.fixedTransactionIds, allKeys, upTo, daysElapsed);
+  const buckets = bucketByMonth(input.transactions, ctx, input.fixedTransactionIds, allKeys, upTo, {
+    elapsed: daysElapsed,
+    dim,
+  });
   const current = buckets.get(month)!;
   const baselineKeys = prevKeys.slice(-baselineMonths).filter((k) => buckets.get(k)!.active);
 
   const inMonthToDate = input.transactions.filter((t) => t.date >= toDate.from && t.date <= toDate.to);
-  const { summary, byCategory } = aggregatePeriod(inMonthToDate, ctx);
+  // Resumen, cascada y flujo: el mes COMPLETO, igual que los KPIs del dashboard (que incluyen los
+  // movimientos con fecha futura ya registrados en el mes), para que las cifras cuadren entre si.
+  // Ritmo, categorias y calendario van hasta hoy ("a estas alturas").
+  const inMonth = input.transactions.filter((t) => t.date >= range.from && t.date <= range.to);
+  const { summary, byCategory } = aggregatePeriod(inMonth, ctx);
+  let fixedFullMonth = 0;
+  let variableFullMonth = 0;
+  for (const t of inMonth) {
+    const c = netExpenseContribution(t, ctx);
+    if (!c) continue;
+    if (isFixed(t, input.fixedTransactionIds)) fixedFullMonth += c.cents;
+    else variableFullMonth += c.cents;
+  }
 
   // 1. Ritmo
   // Referencia: mediana del gasto variable de los meses con actividad. Si es 0 o negativa (todo
@@ -422,7 +447,8 @@ export function computeInsights(input: InsightsInput): MonthInsights {
         : 0;
     if (cur <= 0 && avg <= 0) continue;
     let status: CategoryStatus = 'normal';
-    if (avgToDate <= 0) status = cur > 0 && baselineKeys.length > 0 ? 'new' : 'normal';
+    if (avg <= 0) status = cur > 0 && baselineKeys.length > 0 ? 'new' : 'normal';
+    else if (avgToDate <= 0) status = 'normal'; // cargo habitual que este mes llega antes
     else if (cur * 1000 > avgToDate * OVER_FACTOR_PER_MILLE && cur - avgToDate >= MIN_DELTA_CENTS) status = 'over';
     else if (cur * 1000 < avgToDate * UNDER_FACTOR_PER_MILLE && avgToDate - cur >= MIN_DELTA_CENTS) status = 'under';
     bullets.push({
@@ -476,6 +502,7 @@ export function computeInsights(input: InsightsInput): MonthInsights {
   const baselineSet = new Set(baselineKeys);
   for (const t of input.transactions) {
     if (t.type !== 'expense' || !baselineSet.has(monthKey(t.date))) continue;
+    if (isFixed(t, input.fixedTransactionIds)) continue; // misma vara que el mes actual
     const c = netExpenseContribution(t, ctx);
     if (!c || c.cents <= 0) continue;
     const list = pastByCategory.get(c.rootCategoryId) ?? [];
@@ -530,15 +557,25 @@ export function computeInsights(input: InsightsInput): MonthInsights {
   const severityOrder: Record<InsightSeverity, number> = { critical: 0, action: 1, info: 2 };
   alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // 4. Cascada (mes hasta hoy). fijo + variable = gasto neto (misma semantica).
+  // 4. Cascada (mes completo). fijo + variable = gasto neto (misma semantica que los KPIs).
   const freeCents = summary.netSavingsCents - summary.savingsContribCents - summary.investmentContribCents;
   const waterfall: WaterfallStep[] = [
     { key: 'income', label: 'Ingresos', cents: summary.incomeCents, kind: 'start' },
-    { key: 'fixed', label: 'Gasto fijo', cents: -current.fixed, kind: 'delta' },
-    { key: 'variable', label: 'Gasto variable', cents: -current.variable, kind: 'delta' },
+    { key: 'fixed', label: 'Gasto fijo', cents: -fixedFullMonth, kind: 'delta' },
+    { key: 'variable', label: 'Gasto variable', cents: -variableFullMonth, kind: 'delta' },
     { key: 'netSavings', label: 'Ahorro neto', cents: summary.netSavingsCents, kind: 'total' },
-    { key: 'savings', label: 'Apartado a ahorro', cents: summary.savingsContribCents, kind: 'part' },
-    { key: 'investment', label: 'Invertido', cents: summary.investmentContribCents, kind: 'part' },
+    {
+      key: 'savings',
+      label: summary.savingsContribCents < 0 ? 'Retirado de ahorro' : 'Apartado a ahorro',
+      cents: summary.savingsContribCents,
+      kind: 'part',
+    },
+    {
+      key: 'investment',
+      label: summary.investmentContribCents < 0 ? 'Retirado de inversión' : 'Invertido',
+      cents: summary.investmentContribCents,
+      kind: 'part',
+    },
     { key: 'free', label: 'Queda en cuentas', cents: freeCents, kind: 'part' },
   ];
 
@@ -555,9 +592,13 @@ export function computeInsights(input: InsightsInput): MonthInsights {
   }
   const averageDailyCents = heatDays > 0 ? Math.round(heatTotal / heatDays) : null;
   const dailyAll = new Array<number>(dim + 1).fill(0);
+  const dailyGross = new Array<number>(dim + 1).fill(0);
   for (const t of inMonthToDate) {
     const c = netExpenseContribution(t, ctx);
-    if (c) dailyAll[parseISO(t.date).d]! += c.cents;
+    if (!c) continue;
+    const d = parseISO(t.date).d;
+    dailyAll[d]! += c.cents;
+    if (c.cents > 0) dailyGross[d]! += c.cents;
   }
   const heatmapDays: HeatmapDay[] = [];
   let zeroSpendDays = 0;
@@ -568,9 +609,11 @@ export function computeInsights(input: InsightsInput): MonthInsights {
     const net = future ? null : dailyAll[d]!;
     let level: HeatmapDay['level'] = null;
     if (net !== null) {
+      // Dia sin gasto = ningun gasto bruto (una devolucion no convierte un dia de compras en
+      // un dia sin gasto).
+      if (dailyGross[d] === 0) zeroSpendDays++;
       if (net <= 0) {
         level = 0;
-        zeroSpendDays++;
       } else if (averageDailyCents === null || averageDailyCents <= 0) level = 2;
       else if (net < averageDailyCents * 0.5) level = 1;
       else if (net < averageDailyCents) level = 2;
@@ -628,8 +671,10 @@ export function buildMoneyFlow(
   const rest = positives.slice(maxCategories).reduce((s, c) => s + c.netCents, 0);
   const savings = Math.max(0, summary.savingsContribCents);
   const investment = Math.max(0, summary.investmentContribCents);
+  // Retiradas netas de ahorro o inversion: dinero que entra al mes desde lo apartado.
+  const withdrawals = Math.max(0, -summary.savingsContribCents) + Math.max(0, -summary.investmentContribCents);
   const outflows = positives.reduce((s, c) => s + c.netCents, 0) + savings + investment;
-  const inflows = summary.incomeCents + negatives;
+  const inflows = summary.incomeCents + negatives + withdrawals;
   const free = inflows - outflows;
 
   const nodes: SankeyNode[] = [];
@@ -637,6 +682,7 @@ export function buildMoneyFlow(
   const sources: { name: string; value: number }[] = [];
   if (summary.incomeCents > 0) sources.push({ name: 'Ingresos', value: summary.incomeCents });
   if (negatives > 0) sources.push({ name: 'Devoluciones y Bizums', value: negatives });
+  if (withdrawals > 0) sources.push({ name: 'Desde ahorro e inversión', value: withdrawals });
   if (free < 0) sources.push({ name: 'De tus ahorros', value: -free });
   const targets: { node: SankeyNode; value: number }[] = [];
   for (const c of shown) {

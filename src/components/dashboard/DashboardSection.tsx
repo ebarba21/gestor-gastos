@@ -78,9 +78,9 @@ export function DashboardSection() {
     reload,
   } = useDashboard();
   const { forecast, loading: forecastLoading, error: forecastError } = useForecastRange(range);
-  // Insights del mes de referencia: el mes seleccionado, o el mes en que acaba el rango
-  // personalizado. Se calculan sobre el mes entero, sin filtro cruzado.
-  const insightsAnchor = mode === 'month' ? referenceISO : (range?.to ?? null);
+  // Insights del mes seleccionado (sobre el mes entero, sin filtro cruzado). En modo rango no se
+  // muestran: serian de un mes y los KPIs del rango, y las cifras no cuadrarian entre si.
+  const insightsAnchor = mode === 'month' ? referenceISO : null;
   const { insights, netWorth, error: insightsError, reload: reloadInsights } = useInsights(insightsAnchor);
   const isMobile = useMediaQuery(MOBILE_QUERY);
   const reloadAll = useCallback(async () => {

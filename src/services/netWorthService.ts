@@ -1,8 +1,9 @@
 // Patrimonio: evolucion del dinero total del perfil, en todas sus cuentas o en cada una.
 //
-// Semantica de saldo (la misma que exportService.computeAccountBalances, la funcion canonica):
-// saldo de una cuenta en una fecha = saldo inicial + suma de amountCents de sus movimientos con
-// fecha <= esa fecha. INCLUYE transferencias y movimientos excluidos de estadisticas (el saldo no
+// Semantica de saldo (la de exportService.computeAccountBalances, la funcion canonica, pero A UNA
+// FECHA): saldo de una cuenta en una fecha = saldo inicial + suma de amountCents de sus movimientos
+// con fecha <= esa fecha. El patrimonio "de hoy" no incluye movimientos con fecha futura ya
+// registrados; se informan aparte (futureCount/futureCents) para que cuadre con el saldo exportado. INCLUYE transferencias y movimientos excluidos de estadisticas (el saldo no
 // es lo mismo que las estadisticas) y EXCLUYE las lineas hijas de un split (el cargo real lo
 // aporta el movimiento padre). Patrimonio total = suma de los saldos de todas las cuentas,
 // archivadas incluidas (si una cuenta archivada aun tiene saldo, ese dinero sigue siendo tuyo).
@@ -81,6 +82,9 @@ export interface NetWorthResult {
   summary: NetWorthSummary;
   firstMovementDate: string | null;
   hasData: boolean; // hay al menos una cuenta
+  // Movimientos con fecha posterior a hoy (ya registrados): no entran en el saldo de hoy.
+  futureCount: number;
+  futureCents: number;
 }
 
 export interface NetWorthParams {
@@ -202,8 +206,11 @@ export function computeNetWorth(
   const changeMonthCents = reaches(monthAgo) ? last.totalCents - totalAt(accounts, transactions, monthAgo) : null;
   const changeYearCents = reaches(yearAgo) ? last.totalCents - totalAt(accounts, transactions, yearAgo) : null;
 
-  let peak = points[0]!;
-  for (const p of points) if (p.totalCents > peak.totalCents) peak = p;
+  // El primer punto es la base (cierre anterior a la ventana): sirve para la variacion del
+  // periodo, pero el maximo se busca solo dentro de la ventana.
+  const inWindow = points.length > 1 ? points.slice(1) : points;
+  let peak = inWindow[0]!;
+  for (const p of inWindow) if (p.totalCents > peak.totalCents) peak = p;
 
   const positiveTotal = accounts.reduce((s, a) => s + Math.max(0, last.byAccount[a.id] ?? 0), 0);
   const accountSummaries: AccountBalanceSummary[] = accounts
@@ -218,6 +225,13 @@ export function computeNetWorth(
       };
     })
     .sort((a, b) => b.balanceCents - a.balanceCents);
+  // El reparto suma exactamente 1000: el residuo del redondeo va a la cuenta de mayor saldo.
+  const shares = accountSummaries.filter((a) => a.sharePerMille !== null);
+  if (shares.length > 0) {
+    const residue = 1000 - shares.reduce((sum, a) => sum + a.sharePerMille!, 0);
+    shares[0]!.sharePerMille = shares[0]!.sharePerMille! + residue;
+  }
+  const future = movements.filter((t) => t.date > today);
 
   return {
     window: params.window,
@@ -234,6 +248,8 @@ export function computeNetWorth(
     },
     firstMovementDate,
     hasData: accounts.length > 0,
+    futureCount: future.length,
+    futureCents: future.reduce((sum, t) => sum + t.amountCents, 0),
   };
 }
 

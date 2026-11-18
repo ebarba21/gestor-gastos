@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Transaction } from '../db/schema';
 import { buildMoneyFlow, computeInsights, daysBetween, typicalSpendShare, type InsightsInput } from './insightsService';
-import { aggregatePeriod, buildStatsContext, netExpenseContribution } from './statsService';
+import { aggregatePeriod, buildStatsContext, computeDashboard, netExpenseContribution } from './statsService';
 import { makeAccount, makeCategory, makeTx } from '../test/txFixtures';
 
 const CATS = [
@@ -313,6 +313,72 @@ describe('comparaciones "a estas alturas"', () => {
     expect(share[30]).toBe(1);
     const linear = typicalSpendShare([], 30);
     expect(linear[15]).toBe(0.5);
+  });
+});
+
+describe('regresiones de la auditoria financiera', () => {
+  it('en un mes cerrado mas corto, un cargo de fin de mes no sale por encima de la media', () => {
+    const txs: Transaction[] = [];
+    // Cargo el ultimo dia de cada mes (mayo 31, junio 30, julio 31, agosto 31, sept 30, oct 31).
+    for (const [m, d] of [['05', 31], ['06', 30], ['07', 31], ['08', 31], ['09', 30], ['10', 31]] as const) {
+      txs.push(expense(`2026-${m}-${d}`, 300, 'ocio'));
+    }
+    txs.push(expense('2026-11-30', 300, 'ocio'));
+    const r = computeInsights(input(txs, new Set(), { anchorISO: '2026-11-15', today: '2026-12-05' }));
+    const ocio = r.categories.find((c) => c.categoryId === 'ocio')!;
+    expect(ocio.averageToDateCents).toBe(30000);
+    expect(ocio.status).toBe('normal');
+    expect(r.alerts.some((a) => a.categoryId === 'ocio')).toBe(false);
+  });
+
+  it('un cargo habitual que llega antes de lo normal no es "nuevo"', () => {
+    const txs: Transaction[] = [];
+    for (const m of ['05', '06', '07', '08', '09', '10']) txs.push(expense(`2026-${m}-20`, 40, 'ocio'));
+    txs.push(expense('2026-11-05', 40, 'ocio'));
+    const r = computeInsights(input(txs, new Set(), { today: '2026-11-10', anchorISO: '2026-11-10' }));
+    expect(r.categories.find((c) => c.categoryId === 'ocio')!.status).toBe('normal');
+  });
+
+  it('la cascada cuadra con los KPIs del dashboard aunque haya movimientos con fecha futura', () => {
+    const txs = [income('2026-11-01', 2000), expense('2026-11-03', 500, 'super'), expense('2026-11-28', 800, 'ocio')];
+    const r = computeInsights(input(txs, new Set(), { today: '2026-11-18', anchorISO: '2026-11-18' }));
+    const dash = computeDashboard(txs, CATS, {
+      range: { from: '2026-11-01', to: '2026-11-30' },
+      anchorISO: '2026-11-18',
+      today: '2026-11-18',
+    });
+    const net = r.waterfall.find((s) => s.key === 'netSavings')!.cents;
+    expect(net).toBe(dash.summary.netSavingsCents);
+    expect(net).toBe(70000);
+    // El ritmo sigue yendo hasta hoy: el cargo del 28 aun no cuenta.
+    expect(r.pace.variableSpentCents).toBe(50000);
+  });
+
+  it('el Sankey cuadra con la cascada cuando hay retirada de ahorro', () => {
+    const txs = [income('2026-11-01', 2000), expense('2026-11-03', 500, 'super'), income('2026-11-04', 300, 'ahorro')];
+    const r = computeInsights(input(txs, new Set()));
+    const free = r.waterfall.find((s) => s.key === 'free')!.cents;
+    const freeNode = r.flow.nodes.findIndex((n) => n.kind === 'free');
+    expect(r.flow.links.find((l) => l.target === freeNode)!.value).toBe(free);
+    expect(free).toBe(180000);
+    expect(r.flow.nodes.some((n) => n.name === 'Desde ahorro e inversión')).toBe(true);
+    expect(r.waterfall.find((s) => s.key === 'savings')!.label).toBe('Retirado de ahorro');
+  });
+
+  it('un dia con compras y una devolucion mayor no cuenta como dia sin gasto', () => {
+    const txs = [expense('2026-11-02', 20, 'super'), income('2026-11-02', 100, 'super')];
+    const r = computeInsights(input(txs, new Set()));
+    expect(r.heatmap.days[1]!.level).toBe(0);
+    expect(r.heatmap.zeroSpendDays).toBe(14);
+  });
+
+  it('las lineas de un split vinculado a una recurrencia cuentan como gasto fijo', () => {
+    const parent = expense('2026-11-03', 60, 'subs', { isSplitParent: true, excludedFromStats: true });
+    const a = expense('2026-11-03', 40, 'subs', { parentId: parent.id });
+    const b = expense('2026-11-03', 20, 'ocio', { parentId: parent.id });
+    const r = computeInsights(input([parent, a, b], new Set([parent.id])));
+    expect(r.pace.fixedSpentCents).toBe(6000);
+    expect(r.pace.variableSpentCents).toBe(0);
   });
 });
 
