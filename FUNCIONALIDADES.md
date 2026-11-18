@@ -89,6 +89,17 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 ## 8. Dashboard (analisis del perfil activo)
 
 - **Selector de periodo**: mes en curso por defecto, navegacion entre meses y rango personalizado de fechas.
+- **Portada de decision (arriba del todo)**, calculada sobre el mes de referencia completo:
+  - **Gasto variable restante**: cuanto te queda de tu referencia de gasto variable (mediana de los 6 meses anteriores con actividad), a cuanto por dia, y si vas por encima o por debajo del ritmo. La curva acumulada se compara con tu **ritmo habitual** (lo que solias llevar gastado a cada dia del mes), no con un reparto lineal. Los gastos fijos (movimientos vinculados a recurrencias de gasto confirmadas, salvo las semanales) quedan fuera.
+  - **Estado de los datos** en la misma tarjeta: ultimo movimiento, cuentas sin movimientos desde hace mas de 14 dias y tareas abiertas en la bandeja.
+  - **Patrimonio total** con su variacion a un mes, tendencia de 12 meses y saldo por cuenta (lleva a la pagina Patrimonio).
+  - **Lo que ha cambiado**: avisos con las cifras que los originan (posibles duplicados, avisos de recurrencias, categorias mas de un 15 % por encima de lo que solias llevar a estas alturas, gastos inusuales de 3 veces la mediana de su categoria y al menos 100 EUR, transferencias o reembolsos por enlazar, movimientos sin categoria segura). Cada aviso lleva a donde se resuelve.
+  - **Categorias frente a tu media**: barra con lo gastado y raya con tu media mensual; en naranja y con el porcentaje escrito las que van por encima. Pulsar una filtra el dashboard.
+  - **Resumen del mes** redactado en frases a partir de las mismas cifras.
+- **Del ingreso al ahorro** (cascada): ingresos, gasto fijo, gasto variable, ahorro neto y su reparto (apartado a ahorro, invertido, queda en cuentas). Cuadra al centimo con los KPIs.
+- **Calendario de gasto**: cada dia del mes coloreado frente a tu media diaria de los 3 meses anteriores, dias sin gasto y dia de mas gasto.
+- **Flujo del dinero** (Sankey, solo en pantallas anchas): de donde viene el dinero del mes (ingresos, devoluciones y Bizums, ahorros previos si gastas de mas) y a donde va (categorias, ahorro, inversion, sin gastar).
+- **Salud de tus datos** (al final): ultima importacion, movimientos sin categoria de los ultimos 90 dias y porcentaje categorizado por regla o a mano, bandeja, y por cuenta su ultimo movimiento y su ultima conciliacion.
 - **KPIs del periodo**: ingresos (nomina y paro), gasto neto (con desglose bruto, reembolsos y gastos positivos), ahorro neto y tasa de ahorro. Pulsar Ingresos o Gastos abre la lista de movimientos que componen la cifra (respetando periodo y filtro), con un total que cuadra con la tarjeta; pulsar un movimiento abre su ficha para verlo y editarlo. Mientras la lista siga abierta, los movimientos editados se actualizan pero no cambian de posicion: se mantiene el orden que tenia al abrirla.
 - **Reparto del ahorro neto** en "Ahorrado" e "Invertido" cuando hay inversion, con barra proporcional y avisos honestos (por ejemplo si invertiste mas de lo que ahorraste ese mes).
 - **Evolucion mensual**: ingresos, gasto neto y ahorro por mes en areas. Pulsar un mes muestra su resumen (ingresos, gasto neto y ahorro del mes) en el propio grafico, sin desplegables, y pasa todo el dashboard a ese mes (se mantiene el filtro de categoria). Los meses del grafico no se desplazan: solo cambia el mes marcado. Cambiar el periodo con el selector vuelve al comportamiento normal. El mes del periodo activo se marca con una linea de referencia.
@@ -108,6 +119,15 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 - Estados cuidados: cargando, periodo sin datos, rango invalido; todo con mensajes claros.
 
 **Beneficio**: entender de un vistazo en que se va el dinero, si vas mejor o peor que tu propio historico, cuanto estas apartando de verdad para el futuro y que habitos de ahorro estas construyendo.
+
+## 8 bis. Patrimonio
+
+- **Patrimonio total hoy**: suma del saldo de todas tus cuentas (saldo inicial mas todos sus movimientos, incluidas transferencias y excluidos de estadisticas; las lineas de un split no se cuentan dos veces). Las cuentas archivadas con saldo siguen sumando. Las deudas no se restan.
+- Variacion frente a hace 1 mes y 12 meses (solo si tu historico llega tan atras).
+- **Grafico de area o linea** con tres vistas: total, una linea por cuenta, o una cuenta concreta. Periodos de 1 mes a todo el historico (diario hasta 3 meses, por cierres de mes a partir de ahi). Maximo del periodo y variacion del periodo.
+- **Saldo por cuenta** con su peso sobre el total y su variacion; pulsar una cuenta muestra solo su evolucion.
+
+**Beneficio**: ver cuanto dinero tienes de verdad y como evoluciona, no solo cuanto gastas.
 
 ## 9. Presupuestos y metas
 

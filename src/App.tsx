@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
 import DashboardPage from './pages/DashboardPage';
+import NetWorthPage from './pages/NetWorthPage';
 import TransactionsPage from './pages/TransactionsPage';
 import ImportPage from './pages/ImportPage';
 import RulesPage from './pages/RulesPage';
@@ -23,6 +24,7 @@ import { ReviewBadge } from './components/review';
 import { LockGate } from './components/security';
 import { MobileNav, NAV_ITEMS } from './components/layout';
 import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
+import { useActiveProfileId } from './hooks/useProfiles';
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return [
@@ -77,6 +79,7 @@ function AppLayout() {
       >
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/patrimonio" element={<NetWorthPage />} />
           <Route path="/movimientos" element={<TransactionsPage />} />
           <Route path="/importar" element={<ImportPage />} />
           <Route path="/reglas" element={<RulesPage />} />
@@ -100,6 +103,13 @@ function AppLayout() {
   );
 }
 
+// Al cambiar de perfil se monta de nuevo todo el layout: ningun estado (dashboard, patrimonio,
+// insights) del perfil anterior puede quedar visible mientras carga el nuevo (invariante 4).
+function ProfileScopedLayout() {
+  const profileId = useActiveProfileId();
+  return <AppLayout key={profileId} />;
+}
+
 export default function App() {
   // LockGate va POR FUERA de ProfileGate: mientras la app esta bloqueada por PIN, ni siquiera el
   // selector de perfil es visible (CLOUD_SYNC_SECURITY seccion 4, ARCHITECTURE seccion 4). El
@@ -108,7 +118,7 @@ export default function App() {
   return (
     <LockGate>
       <ProfileGate>
-        <AppLayout />
+        <ProfileScopedLayout />
       </ProfileGate>
     </LockGate>
   );

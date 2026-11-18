@@ -23,6 +23,18 @@ import { UpcomingChargesCard } from './UpcomingChargesCard';
 import { MerchantSpendCard } from './MerchantSpendCard';
 import { SavingsInvestmentSection } from './SavingsInvestmentSection';
 import { MovementsDrillDownModal } from './MovementsDrillDownModal';
+import { useInsights } from '../../hooks/useInsights';
+import { MOBILE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
+import {
+  AlertsCard,
+  CategoryBulletsCard,
+  DataHealthCard,
+  HeatmapCard,
+  MoneyFlowCard,
+  NetWorthMiniCard,
+  PaceCard,
+  WaterfallCard,
+} from '../insights';
 
 // Tarjeta con titulo para envolver un grafico o lista.
 function Card({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
@@ -66,6 +78,17 @@ export function DashboardSection() {
     reload,
   } = useDashboard();
   const { forecast, loading: forecastLoading, error: forecastError } = useForecastRange(range);
+  // Insights del mes seleccionado (sobre el mes entero, sin filtro cruzado). En modo rango no se
+  // muestran: serian de un mes y los KPIs del rango, y las cifras no cuadrarian entre si.
+  const insightsAnchor = mode === 'month' ? referenceISO : null;
+  const { insights, netWorth, error: insightsError, reload: reloadInsights } = useInsights(insightsAnchor);
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const reloadAll = useCallback(async () => {
+    await Promise.all([reload(), reloadInsights()]);
+  }, [reload, reloadInsights]);
+  const scrollToWaterfall = useCallback(() => {
+    document.getElementById('cascada-del-mes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
   const { upcomingCharges, loading: recurringLoading } = useRecurringSeries();
   const { showToast } = useToast();
   const onEditorError = useCallback((message: string) => showToast(message, 'error'), [showToast]);
@@ -165,6 +188,45 @@ export function DashboardSection() {
         </div>
       ) : (
         <div className="mt-6 space-y-6">
+          {insightsError && (
+            <p className="rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+              {insightsError}
+            </p>
+          )}
+          {insights && (
+            <>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <PaceCard pace={insights.pace} health={insights.health} onOpenWaterfall={scrollToWaterfall} />
+                </div>
+                {netWorth && netWorth.hasData && <NetWorthMiniCard netWorth={netWorth} accounts={accounts} />}
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card title="Lo que ha cambiado" subtitle="Avisos del mes, con lo que los origina">
+                  <AlertsCard
+                    alerts={insights.alerts}
+                    onSelectCategory={toggleCategoryFilter}
+                    onSelectMovement={openMovement}
+                  />
+                </Card>
+                <Card title="Categorías frente a tu media" subtitle="Pulsa una para filtrar el dashboard">
+                  <CategoryBulletsCard
+                    bullets={insights.categories}
+                    categoryNames={categoryNames}
+                    activeCategoryId={filter?.categoryId}
+                    onSelectCategory={toggleCategoryFilter}
+                  />
+                </Card>
+              </div>
+              <Card title="Resumen del mes">
+                <ul className="space-y-1.5 text-sm text-slate-300">
+                  {insights.narrative.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </Card>
+            </>
+          )}
           <StatTiles
             summary={data.summary}
             onOpenIncome={() => setDrillKind('income')}
@@ -216,6 +278,24 @@ export function DashboardSection() {
             </Card>
           </div>
 
+          {insights && (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div id="cascada-del-mes" className="scroll-mt-4">
+                <Card title="Del ingreso al ahorro" subtitle="Cómo se llega a tu ahorro neto del mes y en qué queda">
+                  <WaterfallCard steps={insights.waterfall} />
+                </Card>
+              </div>
+              <Card title="Calendario de gasto" subtitle="Cada día frente a tu media diaria de los 3 meses anteriores">
+                <HeatmapCard heatmap={insights.heatmap} />
+              </Card>
+            </div>
+          )}
+          {insights && !isMobile && (
+            <Card title="Flujo del dinero" subtitle="De dónde viene y a dónde va el dinero del mes">
+              <MoneyFlowCard flow={insights.flow} categoryColors={categoryColors} />
+            </Card>
+          )}
+
           <Card title="Gasto por comercio" subtitle="Ranking de gasto del periodo por comercio asociado">
             <MerchantSpendCard merchantSpend={data.merchantSpend} merchantNames={merchantNames} />
           </Card>
@@ -228,6 +308,12 @@ export function DashboardSection() {
             activeMonth={data.anchorMonth}
             onSelectMonth={selectMonth}
           />
+
+          {insights && (
+            <Card title="Salud de tus datos" subtitle="Si las cifras de arriba son de fiar">
+              <DataHealthCard health={insights.health} accounts={accounts} />
+            </Card>
+          )}
         </div>
       )}
 
@@ -248,7 +334,7 @@ export function DashboardSection() {
         accounts={accounts}
         categories={categories}
         tags={editor.tags}
-        onSaved={reload}
+        onSaved={reloadAll}
         tx={editor.editing}
       />
     </section>
