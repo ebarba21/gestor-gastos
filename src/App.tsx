@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
 import DashboardPage from './pages/DashboardPage';
+import NetWorthPage from './pages/NetWorthPage';
 import TransactionsPage from './pages/TransactionsPage';
 import ImportPage from './pages/ImportPage';
 import RulesPage from './pages/RulesPage';
@@ -77,6 +78,7 @@ function AppLayout() {
       >
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/patrimonio" element={<NetWorthPage />} />
           <Route path="/movimientos" element={<TransactionsPage />} />
           <Route path="/importar" element={<ImportPage />} />
           <Route path="/reglas" element={<RulesPage />} />

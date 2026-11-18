@@ -15,6 +15,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Dia a dia',
     items: [
       { to: '/', label: 'Dashboard', end: true },
+      { to: '/patrimonio', label: 'Patrimonio' },
       { to: '/movimientos', label: 'Movimientos' },
       { to: '/importar', label: 'Importar' },
       { to: '/bandeja', label: 'Bandeja de revision' },
@@ -53,6 +54,7 @@ export const NAV_GROUPS: NavGroup[] = [
 // Lista plana en el orden historico de la barra lateral de PC.
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', end: true },
+  { to: '/patrimonio', label: 'Patrimonio' },
   { to: '/movimientos', label: 'Movimientos' },
   { to: '/importar', label: 'Importar' },
   { to: '/reglas', label: 'Reglas' },

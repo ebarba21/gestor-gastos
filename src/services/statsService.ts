@@ -602,6 +602,44 @@ export function aggregatePeriod(txsInPeriod: Transaction[], ctx: StatsContext): 
   return { summary, byCategory };
 }
 
+// --- Aportacion de un movimiento al gasto neto ---
+
+// Aportacion (con signo) de un movimiento al gasto NETO y categoria raiz a la que se atribuye.
+// Misma semantica que aggregatePeriod/computeMonthlyEvolution: un gasto suma su magnitud; un
+// reembolso o gasto positivo resta (atribuido a la categoria del gasto original si es un
+// reembolso); ingresos reales, excluidos y aportaciones a ahorro o inversion (y sus retiradas)
+// no aportan (null). Base de los insights (ritmo, calendario, desglose) para que cuadren al
+// centimo con el resumen del dashboard.
+export interface NetExpenseContribution {
+  cents: number; // > 0 gasto, < 0 reduccion de gasto
+  rootCategoryId: string | null;
+}
+
+export function netExpenseContribution(t: Transaction, ctx: StatsContext): NetExpenseContribution | null {
+  if (!countsInStats(t)) return null;
+  if (t.type === 'expense') {
+    if (isApartFromExpense(t, ctx)) return null;
+    return {
+      cents: expenseMagnitude(t),
+      rootCategoryId: rootCategoryIdOf(t.categoryId, t.subcategoryId, ctx.parentOf),
+    };
+  }
+  if (isExpenseReduction(t, ctx)) {
+    const refs = attributeRefundRefs(t, ctx);
+    if (
+      refsAreSavings(refs.categoryId, refs.subcategoryId, ctx) ||
+      refsAreInvestment(refs.categoryId, refs.subcategoryId, ctx)
+    ) {
+      return null;
+    }
+    return {
+      cents: -Math.abs(t.amountCents),
+      rootCategoryId: rootCategoryIdOf(refs.categoryId, refs.subcategoryId, ctx.parentOf),
+    };
+  }
+  return null;
+}
+
 // --- Evolucion mensual ---
 
 export interface MonthPoint {
