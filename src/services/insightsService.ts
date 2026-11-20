@@ -31,6 +31,7 @@ import { reviewItemsRepo } from '../db/reviewItemsRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
 import { daysInMonth, parseISO, shiftDays, shiftMonths, todayISO, toISO, type DateRange } from '../lib/dates';
 import { formatCents } from '../lib/money';
+import { fixedTransactionIdsFrom, isFixedSeries, isFixedTransaction } from './fixedSpend';
 import { medianCents } from '../lib/statistics';
 import { requireProfileId } from '../lib/validation';
 import {
@@ -222,15 +223,8 @@ function pct(perMilleValue: number): string {
   return `${Math.round(Math.abs(perMilleValue) / 10)} %`;
 }
 
-// Movimiento de gasto fijo: vinculado a una recurrencia, linea de un split vinculado, o reembolso
-// de uno vinculado.
-function isFixed(t: Transaction, fixedIds: ReadonlySet<string>): boolean {
-  return (
-    fixedIds.has(t.id) ||
-    (t.parentId !== null && fixedIds.has(t.parentId)) ||
-    (t.refundOfId !== null && fixedIds.has(t.refundOfId))
-  );
-}
+// Movimiento de gasto fijo (fuente unica en fixedSpend.ts).
+const isFixed = isFixedTransaction;
 
 function monthBounds(monthKeyValue: string): DateRange {
   const [y, m] = monthKeyValue.split('-').map(Number) as [number, number];
@@ -887,16 +881,9 @@ export const insightsService = {
       reviewItemsRepo.countOpenByType(profileId),
       importBatchesRepo.listRecent(profileId),
     ]);
-    // Gasto fijo: movimientos vinculados a recurrencias de gasto confirmadas (no candidatas).
-    // Las semanales (la compra de cada sabado) no son un recibo fijo: se quedan en variable.
-    const fixedSeries = new Set(
-      series
-        .filter((s) => s.direction === 'expense' && s.status !== 'candidate' && s.frequency !== 'weekly')
-        .map((s) => s.id),
-    );
-    const fixedTransactionIds = new Set(
-      matched.filter((o) => o.transactionId !== null && fixedSeries.has(o.seriesId)).map((o) => o.transactionId!),
-    );
+    // Gasto fijo: movimientos vinculados a recurrencias de gasto confirmadas (fixedSpend.ts).
+    const fixedTransactionIds = fixedTransactionIdsFrom(series, matched);
+    const hasFixedSeries = series.some(isFixedSeries);
     const latestReconciliationByAccount = new Map<string, { statementDate: string; status: ReconciliationStatus }>();
     await Promise.all(
       accounts.map(async (a) => {
@@ -910,7 +897,7 @@ export const insightsService = {
       categories,
       accounts,
       fixedTransactionIds,
-      hasFixedSeries: fixedSeries.size > 0,
+      hasFixedSeries,
       openReviewCounts,
       lastImportAt: committed.length > 0 ? committed[0]!.importedAt : null,
       latestReconciliationByAccount,

@@ -246,6 +246,9 @@ describe('buildBudgetsSheet', () => {
       remainingCents: 18000,
       percent: 40,
       status: 'ok',
+      kind: 'limit',
+      carryCents: 0,
+      effectiveLimitCents: 30000,
     };
     const sheet = buildBudgetsSheet([evaluation], () => 'Alimentacion');
     const row = sheet.rows[1]!;

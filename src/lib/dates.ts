@@ -113,3 +113,52 @@ export function shiftYears(refISO: string, delta: number): string {
   const nd = Math.min(d, daysInMonth(ny, m));
   return toISO(ny, m, nd);
 }
+
+// --- Ciclo de nomina (noviembre 2026) ---
+
+// Fecha de cobro del mes (y, m) para un dia de cobro: si el mes no tiene ese dia (p. ej. 31 en
+// abril) se usa el ultimo dia del mes.
+export function payDateInMonth(y: number, m: number, payDay: number): string {
+  return toISO(y, m, Math.min(payDay, daysInMonth(y, m)));
+}
+
+// Ciclo "de nomina a nomina" que contiene la referencia: desde el ultimo dia de cobro <= ref
+// hasta el dia anterior al siguiente cobro.
+export function payCycleRange(refISO: string, payDay: number): DateRange {
+  if (!Number.isInteger(payDay) || payDay < 1 || payDay > 31) {
+    throw new Error(`Dia de cobro invalido: ${payDay}.`);
+  }
+  const { y, m } = parseISO(refISO);
+  const thisMonthPay = payDateInMonth(y, m, payDay);
+  let start: string;
+  if (thisMonthPay <= refISO) {
+    start = thisMonthPay;
+  } else {
+    const prev = parseISO(shiftMonths(toISO(y, m, 1), -1));
+    start = payDateInMonth(prev.y, prev.m, payDay);
+  }
+  const s = parseISO(start);
+  const next = parseISO(shiftMonths(toISO(s.y, s.m, 1), 1));
+  const nextPay = payDateInMonth(next.y, next.m, payDay);
+  return { from: start, to: shiftDays(nextPay, -1) };
+}
+
+// Siguiente fecha de cobro estrictamente posterior a la referencia.
+export function nextPayDate(refISO: string, payDay: number): string {
+  return shiftDays(payCycleRange(refISO, payDay).to, 1);
+}
+
+// Dias entre dos fechas contables (b - a). Negativo si b es anterior.
+export function daysBetweenISO(a: string, b: string): number {
+  const pa = parseISO(a);
+  const pb = parseISO(b);
+  return Math.round((Date.UTC(pb.y, pb.m - 1, pb.d) - Date.UTC(pa.y, pa.m - 1, pa.d)) / 86_400_000);
+}
+
+// Meses naturales entre dos fechas contando parciales: del 15-ene al 10-mar son 3 (ene, feb y
+// mar). Siempre >= 1 si a <= b.
+export function monthsSpanned(a: string, b: string): number {
+  const pa = parseISO(a);
+  const pb = parseISO(b);
+  return (pb.y - pa.y) * 12 + (pb.m - pa.m) + 1;
+}
