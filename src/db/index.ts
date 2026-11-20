@@ -30,6 +30,7 @@ import type {
   ProfileMigration,
   SyncState,
   DeviceSecurity,
+  InsightFeedback,
   EncryptedSessionRow,
   WebAuthnCredentialRef,
 } from './schema';
@@ -73,6 +74,7 @@ export class GestorGastosDB extends Dexie {
   syncState!: Table<SyncState, [string, string]>;
   // Tablas device-local de la ampliacion (fase 3). NO se sincronizan ni entran en backups.
   deviceSecurity!: Table<DeviceSecurity, string>;
+  insightFeedback!: Table<InsightFeedback, string>;
   encryptedSession!: Table<EncryptedSessionRow, string>;
   webauthnCredentials!: Table<WebAuthnCredentialRef, string>;
 
@@ -428,13 +430,61 @@ export class GestorGastosDB extends Dexie {
         'id, profileId, [profileId+debtId], [profileId+date], [profileId+syncStatus]',
       debtScenarios: 'id, profileId, [profileId+strategy], [profileId+syncStatus]',
     });
+
+    // Version 10 (noviembre 2026): planificacion y tipos de presupuesto. Sin indices nuevos.
+    // Rellena los campos anadidos con sus valores por defecto en las filas existentes para que
+    // el modelo quede completo (el mapper de sync tambien los rellena si faltaran):
+    //  - budgets.kind = 'limit' (comportamiento previo);
+    //  - settings: sin dia de cobro, sin colchon, mes natural, sin pagas extra, apartar extras;
+    //  - categories.statsRole = null (automatico por nombre, comportamiento previo);
+    //  - transactions.reimbursableCents = null.
+    // No cambia ninguna cifra: con estos valores el calculo es identico al de la version 9.
+    this.version(10)
+      .stores({})
+      .upgrade(async (tx) => {
+        await tx
+          .table('budgets')
+          .toCollection()
+          .modify((b: Record<string, unknown>) => {
+            if (b.kind === undefined) b.kind = 'limit';
+          });
+        await tx
+          .table('settings')
+          .toCollection()
+          .modify((st: Record<string, unknown>) => {
+            if (st.payDay === undefined) st.payDay = null;
+            if (st.safetyBufferCents === undefined) st.safetyBufferCents = 0;
+            if (st.budgetCycle === undefined) st.budgetCycle = 'calendar';
+            if (st.extraPayMonths === undefined) st.extraPayMonths = [];
+            if (st.reserveExtraPay === undefined) st.reserveExtraPay = true;
+          });
+        await tx
+          .table('categories')
+          .toCollection()
+          .modify((c: Record<string, unknown>) => {
+            if (c.statsRole === undefined) c.statsRole = null;
+          });
+        await tx
+          .table('transactions')
+          .toCollection()
+          .modify((t: Record<string, unknown>) => {
+            if (t.reimbursableCents === undefined) t.reimbursableCents = null;
+          });
+      });
+
+    // Version 11 (noviembre 2026): opiniones sobre avisos de la portada. Tabla LOCAL del
+    // dispositivo (no se sincroniza ni entra en backups, como deviceSecurity): guarda si un aviso
+    // fue util, o hasta cuando se pospone. Clave = profileId + id del aviso.
+    this.version(11).stores({
+      insightFeedback: 'id, profileId',
+    });
   }
 }
 
 // Version del esquema de datos (Dexie). Fuente unica: la usan los backups para saber con
 // que version se generaron y decidir si son restaurables (DATA_MODEL seccion 7). Debe
 // coincidir con la ultima db.version(n) declarada arriba.
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 11;
 
 // Singleton de la base de datos usado por todos los repositorios.
 export const db = new GestorGastosDB();

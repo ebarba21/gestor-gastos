@@ -63,6 +63,18 @@ export type RuleConditionOperator =
 export type BudgetScope = 'category' | 'subcategory' | 'account' | 'overall';
 export type BudgetDirection = 'expense' | 'income';
 export type BudgetPeriod = 'monthly' | 'quarterly' | 'yearly' | 'custom';
+// Tipo de presupuesto (noviembre 2026). Opcional en el tipo para que filas antiguas (backups,
+// remotos previos a la migracion) sigan siendo validas: ausente equivale a 'limit'.
+//  - limit: limite de gasto u objetivo de ingreso por ambito (comportamiento previo).
+//  - flex: limite del gasto variable (sin recibos fijos de recurrencias confirmadas).
+//  - goal: objetivo de ahorro con fecha (periodo custom: inicio y fecha objetivo).
+//  - fund: fondo para un gasto no mensual (periodo custom: inicio y vencimiento; se repite cada
+//    ano en la misma fecha).
+export type BudgetKind = 'limit' | 'flex' | 'goal' | 'fund';
+// Papel de una categoria en estadisticas. null/ausente = automatico por nombre.
+export type CategoryStatsRole = 'savings' | 'investment' | 'none';
+// Periodo de los presupuestos mensuales: mes natural o de nomina a nomina.
+export type BudgetCycle = 'calendar' | 'payday';
 
 export type SourceFormat = 'csv' | 'xlsx';
 export type AmountStrategy = 'signed' | 'debitCredit';
@@ -113,6 +125,18 @@ export interface Setting extends SyncMeta {
   defaultAccountId: string | null;
   // Reservado fase 2 (Web Crypto). En el MVP siempre false.
   encryptionEnabled: boolean;
+  // --- Planificacion (noviembre 2026). Opcionales: ausentes valen sus defaults
+  // (src/services/planningSettings.ts). ---
+  // Dia habitual de cobro de la nomina (1..31) o null si no se ha indicado.
+  payDay?: number | null;
+  // Colchon minimo (centimos) que el disponible seguro nunca reparte.
+  safetyBufferCents?: number;
+  // Periodo de los presupuestos mensuales.
+  budgetCycle?: BudgetCycle;
+  // Meses (1..12) en los que se cobra paga extra.
+  extraPayMonths?: number[];
+  // Si una paga extra se aparta del disponible hasta el siguiente cobro.
+  reserveExtraPay?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -141,6 +165,9 @@ export interface Category extends SyncMeta {
   icon: string | null;
   archivedAt: number | null;
   sortOrder: number;
+  // Papel explicito en estadisticas (noviembre 2026). null/ausente = automatico por nombre
+  // ("Ahorro"/"Inversiones"); 'none' = gasto normal aunque el nombre coincida.
+  statsRole?: CategoryStatsRole | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -175,6 +202,9 @@ export interface Transaction extends SyncMeta {
   parentId: string | null;
   isSplitParent: boolean;
   refundOfId: string | null;
+  // Importe (centimos, positivo) que esperas recuperar de un gasto compartido. Lo pendiente es
+  // este importe menos los reembolsos ya enlazados (refundOfId). null/ausente = no compartido.
+  reimbursableCents?: number | null;
   excludedFromStats: boolean;
   // Espejo indexable de excludedFromStats (1 = excluido). Lo mantiene el repositorio.
   statsFlag: StatsFlag;
@@ -283,6 +313,8 @@ export interface Budget extends SyncMeta {
   customStart: string | null;
   customEnd: string | null;
   rollover: boolean;
+  // Ausente = 'limit' (filas anteriores a noviembre 2026).
+  kind?: BudgetKind;
   archivedAt: number | null;
   createdAt: number;
   updatedAt: number;
@@ -806,4 +838,17 @@ export interface WebAuthnCredentialRef {
   friendlyName: string | null;
   createdAt: number;
   lastUsedAt: number | null;
+}
+
+// Opinion local sobre un aviso de la portada (noviembre 2026). Solo en este dispositivo: no se
+// sincroniza ni entra en backups. id = `${profileId}:${alertId}`.
+export interface InsightFeedback {
+  id: string;
+  profileId: string;
+  alertId: string;
+  // true = util, false = no util, null = sin opinion (solo pospuesto).
+  useful: boolean | null;
+  // epoch ms hasta el que el aviso no se vuelve a mostrar, o null.
+  snoozedUntil: number | null;
+  updatedAt: number;
 }

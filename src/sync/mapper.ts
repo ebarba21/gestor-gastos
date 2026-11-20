@@ -19,6 +19,10 @@ interface FieldSpec {
   local: string;
   remote: string;
   kind: FieldKind;
+  // Valor por defecto (solo 'plain'/'cents') para campos anadidos despues de crear la entidad:
+  // una fila local antigua sin el campo, o una remota previa a su migracion, se convierte con
+  // este valor en lugar de null (las columnas remotas NOT NULL lo exigen).
+  fallback?: unknown;
 }
 
 // Campos de auditoria comunes a todas las entidades sincronizables.
@@ -43,6 +47,12 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'weekStart', remote: 'week_start', kind: 'plain' },
     { local: 'defaultAccountId', remote: 'default_account_id', kind: 'plain' },
     { local: 'encryptionEnabled', remote: 'encryption_enabled', kind: 'plain' },
+    // --- Planificacion (noviembre 2026) ---
+    { local: 'payDay', remote: 'pay_day', kind: 'plain' },
+    { local: 'safetyBufferCents', remote: 'safety_buffer_cents', kind: 'cents', fallback: 0 },
+    { local: 'budgetCycle', remote: 'budget_cycle', kind: 'plain', fallback: 'calendar' },
+    { local: 'extraPayMonths', remote: 'extra_pay_months', kind: 'plain', fallback: [] },
+    { local: 'reserveExtraPay', remote: 'reserve_extra_pay', kind: 'plain', fallback: true },
   ],
   account: [
     { local: 'name', remote: 'name', kind: 'plain' },
@@ -60,6 +70,7 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'icon', remote: 'icon', kind: 'plain' },
     { local: 'archivedAt', remote: 'archived_at', kind: 'msNull' },
     { local: 'sortOrder', remote: 'sort_order', kind: 'plain' },
+    { local: 'statsRole', remote: 'stats_role', kind: 'plain' },
   ],
   tag: [
     { local: 'name', remote: 'name', kind: 'plain' },
@@ -82,6 +93,7 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'parentId', remote: 'parent_id', kind: 'plain' },
     { local: 'isSplitParent', remote: 'is_split_parent', kind: 'plain' },
     { local: 'refundOfId', remote: 'refund_of_id', kind: 'plain' },
+    { local: 'reimbursableCents', remote: 'reimbursable_cents', kind: 'centsNull' },
     { local: 'excludedFromStats', remote: 'excluded_from_stats', kind: 'plain' },
     { local: 'statsFlag', remote: 'stats_flag', kind: 'plain' },
     { local: 'importBatchId', remote: 'import_batch_id', kind: 'plain' },
@@ -132,6 +144,7 @@ const BUSINESS_FIELDS: Record<SyncEntityType, FieldSpec[]> = {
     { local: 'customStart', remote: 'custom_start', kind: 'plain' },
     { local: 'customEnd', remote: 'custom_end', kind: 'plain' },
     { local: 'rollover', remote: 'rollover', kind: 'plain' },
+    { local: 'kind', remote: 'kind', kind: 'plain', fallback: 'limit' },
     { local: 'archivedAt', remote: 'archived_at', kind: 'msNull' },
   ],
   importTemplate: [
@@ -287,7 +300,7 @@ export function toRow(
 ): Record<string, unknown> {
   const row: Record<string, unknown> = {};
   for (const spec of fieldsFor(entityType)) {
-    const value = local[spec.local];
+    const value = local[spec.local] ?? spec.fallback;
     switch (spec.kind) {
       case 'plain':
         row[spec.remote] = value ?? null;
@@ -317,7 +330,7 @@ export function fromRow(
 ): Record<string, unknown> {
   const local: Record<string, unknown> = {};
   for (const spec of fieldsFor(entityType)) {
-    const value = row[spec.remote];
+    const value = row[spec.remote] ?? spec.fallback;
     switch (spec.kind) {
       case 'plain':
         local[spec.local] = value ?? null;
@@ -326,7 +339,7 @@ export function fromRow(
         local[spec.local] = deserializeCents(value as number | string);
         break;
       case 'centsNull':
-        local[spec.local] = deserializeCentsNullable(value as number | string | null);
+        local[spec.local] = value == null ? null : deserializeCentsNullable(value as number | string);
         break;
       case 'ms':
         local[spec.local] = isoToMs(value as string);
