@@ -4,6 +4,7 @@
 //    "segura" (fecha, concepto, notas, estado, etiquetas) para no romper sus invariantes;
 //    el importe/tipo/cuenta se muestran de solo lectura y se gestionan desde sus acciones.
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { ruleSuggestionService, suggestRule, type RuleSuggestion } from '../../services/ruleSuggestion';
 import type { Account, Category, Tag, Transaction, TransactionStatus, TransactionType } from '../../db/schema';
 import { Modal } from '../common';
 import { useToast } from '../../context/ToastContext';
@@ -42,6 +43,8 @@ interface TransactionFormModalProps {
   onSaved: () => void | Promise<void>;
   // Editar un movimiento existente; null/undefined para crear.
   tx?: Transaction | null;
+  // Nombres de comercio (para proponer una regla con el comercio al corregir la categoria).
+  merchantNames?: Map<string, string>;
 }
 
 const inputClass =
@@ -56,7 +59,9 @@ export function TransactionFormModal({
   tags,
   onSaved,
   tx,
+  merchantNames,
 }: TransactionFormModalProps) {
+  const merchantNameOf = (id: string) => merchantNames?.get(id) ?? null;
   const { showToast } = useToast();
   const isEdit = Boolean(tx);
   const special = tx ? isSpecial(tx) : false;
@@ -74,6 +79,11 @@ export function TransactionFormModal({
   const [status, setStatus] = useState<TransactionStatus>('cleared');
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [excluded, setExcluded] = useState(false);
+  // Gasto compartido: cuanto esperas que te devuelvan (euros, texto del input).
+  const [reimbursable, setReimbursable] = useState('');
+  // Tras corregir la categoria: propuesta de regla para que no haya que repetirlo.
+  const [suggestion, setSuggestion] = useState<RuleSuggestion | null>(null);
+  const [acceptingRule, setAcceptingRule] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -118,6 +128,7 @@ export function TransactionFormModal({
       setStatus(tx.status);
       setTagIds(tx.tagIds);
       setExcluded(tx.excludedFromStats);
+      setReimbursable(tx.reimbursableCents ? (tx.reimbursableCents / 100).toFixed(2) : '');
     } else {
       const today = new Date().toISOString().slice(0, 10);
       setDate(today);
@@ -131,8 +142,36 @@ export function TransactionFormModal({
       setStatus('cleared');
       setTagIds([]);
       setExcluded(false);
+      setReimbursable('');
     }
+    setSuggestion(null);
   }, [open, tx, accounts]);
+
+  function parseReimbursable(): number | null {
+    const raw = reimbursable.trim().replace(',', '.');
+    if (raw === '') return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) throw new Error('El importe a recuperar no es valido.');
+    return n === 0 ? null : eurosToCents(n);
+  }
+
+  async function acceptSuggestion() {
+    if (!suggestion || acceptingRule) return;
+    setAcceptingRule(true);
+    try {
+      const { changed } = await ruleSuggestionService.accept(profileId, suggestion);
+      showToast(
+        changed > 0 ? `Regla creada. ${changed} movimientos recategorizados.` : 'Regla creada para los proximos movimientos.',
+        'success',
+      );
+      await onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo crear la regla.');
+    } finally {
+      setAcceptingRule(false);
+    }
+  }
 
   function toggleTag(id: string) {
     setTagIds((cur) => (cur.includes(id) ? cur.filter((t) => t !== id) : [...cur, id]));
@@ -151,6 +190,7 @@ export function TransactionFormModal({
           notes,
           status,
           tagIds,
+          ...(tx.type === 'expense' && tx.amountCents < 0 ? { reimbursableCents: parseReimbursable() } : {}),
         });
       } else {
         const amountNumber = Number(amountEuros);
@@ -172,9 +212,24 @@ export function TransactionFormModal({
           tagIds,
           status,
           excludedFromStats: excluded,
+          reimbursableCents: type === 'expense' ? parseReimbursable() : null,
         };
         if (tx) {
           await transactionService.update(profileId, tx.id, payload);
+          // Correccion de categoria: ofrece convertirla en regla (una vez, sin insistir).
+          const newCat = payload.categoryId;
+          if (newCat !== null && (newCat !== tx.categoryId || payload.subcategoryId !== tx.subcategoryId)) {
+            const label = categories.find((c) => c.id === (payload.subcategoryId ?? newCat))?.name ?? 'su categoria';
+            const merchant = tx.merchantId ? merchantNameOf(tx.merchantId) : null;
+            const s = suggestRule(tx, merchant, newCat, payload.subcategoryId, label);
+            if (s) {
+              // Se recarga la lista al cerrar el paso de la regla (recargar antes reabriria el
+              // formulario con los datos nuevos y perderia la propuesta).
+              showToast('Movimiento actualizado.', 'success');
+              setSuggestion(s);
+              return;
+            }
+          }
         } else {
           const created = await transactionService.create(profileId, payload);
           // Autocategorizacion por reglas al crear a mano: solo actua si el movimiento no se
@@ -199,7 +254,44 @@ export function TransactionFormModal({
   const title = isEdit ? (limited ? 'Editar detalles del movimiento' : 'Editar movimiento') : 'Nuevo movimiento';
 
   return (
-    <Modal open={open} onClose={onClose} title={title} dismissible={!saving}>
+    <Modal
+      open={open}
+      onClose={suggestion ? () => void Promise.resolve(onSaved()).finally(onClose) : onClose}
+      title={suggestion ? 'Aplicar siempre?' : title} dismissible={!saving && !acceptingRule}>
+      {suggestion ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-300">
+            Guardado. Quieres que los movimientos cuyo concepto contenga{' '}
+            <strong className="text-slate-100">"{suggestion.keyword}"</strong> vayan siempre a{' '}
+            <strong className="text-slate-100">{suggestion.name.split('→')[1]?.trim()}</strong>?
+          </p>
+          <p className="text-xs text-slate-500">
+            Se crea una regla con la maxima prioridad y se aplica tambien a tu historico, sin tocar lo que hayas
+            categorizado a mano. Puedes editarla o borrarla en Reglas.
+          </p>
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void Promise.resolve(onSaved()).finally(onClose);
+              }}
+              disabled={acceptingRule}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+            >
+              Ahora no
+            </button>
+            <button
+              type="button"
+              onClick={() => void acceptSuggestion()}
+              disabled={acceptingRule}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            >
+              {acceptingRule ? 'Creando...' : 'Crear regla'}
+            </button>
+          </div>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} className="space-y-4">
         {limited && (
           <p className="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-400">
@@ -410,6 +502,26 @@ export function TransactionFormModal({
           />
         </div>
 
+        {(limited ? tx?.type === 'expense' && (tx?.amountCents ?? 0) < 0 : type === 'expense') && (
+          <div>
+            <label htmlFor="tx-reimbursable" className="block text-sm font-medium text-slate-300">
+              A recuperar (EUR)
+            </label>
+            <input
+              id="tx-reimbursable"
+              type="text"
+              inputMode="decimal"
+              value={reimbursable}
+              onChange={(e) => setReimbursable(e.target.value)}
+              placeholder="Si es un gasto compartido: lo que te deben"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Cuando llegue el Bizum, enlazalo como reembolso: lo pendiente baja solo.
+            </p>
+          </div>
+        )}
+
         {!limited && (
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
@@ -442,6 +554,7 @@ export function TransactionFormModal({
           </button>
         </div>
       </form>
+      )}
     </Modal>
   );
 }

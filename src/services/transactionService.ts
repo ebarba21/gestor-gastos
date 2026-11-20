@@ -46,6 +46,22 @@ export interface TransactionInput {
   tagIds?: string[];
   status?: TransactionStatus;
   excludedFromStats?: boolean;
+  // Importe (centimos) que esperas recuperar de un gasto compartido. null = no compartido.
+  reimbursableCents?: number | null;
+}
+
+// Valida el importe a recuperar: entero positivo, solo en gastos y nunca mayor que el gasto.
+export function normalizeReimbursable(
+  value: number | null | undefined,
+  type: TransactionType,
+  amountCents: number,
+): number | null {
+  if (value === null || value === undefined || value === 0) return null;
+  assertCents(value);
+  assert(value > 0, 'El importe a recuperar debe ser positivo.');
+  assert(type === 'expense' && amountCents < 0, 'Solo un gasto puede tener importe a recuperar.');
+  assert(value <= Math.abs(amountCents), 'No puedes recuperar mas de lo que gastaste.');
+  return value;
 }
 
 export function normalizeConceptText(concept: string): string {
@@ -124,6 +140,7 @@ function buildNewTransaction(profileId: string, input: TransactionInput): NewTra
     parentId: null,
     isSplitParent: false,
     refundOfId: null,
+    reimbursableCents: normalizeReimbursable(input.reimbursableCents, input.type, input.amountCents),
     excludedFromStats,
     importBatchId: null,
     dedupeHash: computeDedupeHash({
@@ -316,6 +333,9 @@ export const transactionService = {
       categorizedBy: categorizedByFor(categoryId),
       ruleId: null,
       excludedFromStats: input.excludedFromStats ?? false,
+      ...(input.reimbursableCents !== undefined
+        ? { reimbursableCents: normalizeReimbursable(input.reimbursableCents, input.type, input.amountCents) }
+        : {}),
       dedupeHash: computeDedupeHash({
         profileId,
         accountId: input.accountId,
@@ -340,6 +360,7 @@ export const transactionService = {
       notes?: string | null;
       status?: TransactionStatus;
       tagIds?: string[];
+      reimbursableCents?: number | null;
     },
   ): Promise<Transaction> {
     requireProfileId(profileId);
@@ -356,6 +377,9 @@ export const transactionService = {
     if (fields.notes !== undefined) patch.notes = normalizeNotes(fields.notes);
     if (fields.status !== undefined) patch.status = fields.status;
     if (fields.tagIds !== undefined) patch.tagIds = fields.tagIds;
+    if (fields.reimbursableCents !== undefined) {
+      patch.reimbursableCents = normalizeReimbursable(fields.reimbursableCents, current.type, current.amountCents);
+    }
     if (fields.date !== undefined || fields.concept !== undefined) {
       patch.dedupeHash = computeDedupeHash({
         profileId,

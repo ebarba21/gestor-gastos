@@ -334,6 +334,7 @@ export function TransactionsSection() {
         tags={tags}
         onSaved={reload}
         tx={editing}
+        merchantNames={merchantNames}
       />
       <TransferModal
         open={transferOpen}

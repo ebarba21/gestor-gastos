@@ -439,6 +439,7 @@ export function DashboardSection() {
         tags={editor.tags}
         onSaved={reloadAll}
         tx={editor.editing}
+        merchantNames={merchantNames}
       />
     </section>
   );

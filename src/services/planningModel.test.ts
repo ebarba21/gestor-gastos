@@ -112,3 +112,17 @@ describe('mapper: campos nuevos', () => {
     expect(catRow.stats_role).toBe('savings');
   });
 });
+
+describe('importe a recuperar de un gasto compartido', async () => {
+  const { normalizeReimbursable } = await import('./transactionService');
+  it('acepta un importe positivo no mayor que el gasto', () => {
+    expect(normalizeReimbursable(4800, 'expense', -7200)).toBe(4800);
+    expect(normalizeReimbursable(null, 'expense', -7200)).toBeNull();
+    expect(normalizeReimbursable(0, 'expense', -7200)).toBeNull();
+  });
+  it('rechaza importes mayores que el gasto, negativos o en ingresos', () => {
+    expect(() => normalizeReimbursable(8000, 'expense', -7200)).toThrow();
+    expect(() => normalizeReimbursable(-1, 'expense', -7200)).toThrow();
+    expect(() => normalizeReimbursable(100, 'income', 7200)).toThrow();
+  });
+});
