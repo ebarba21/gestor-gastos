@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useActiveProfileId } from './useProfiles';
 import { budgetService, type BudgetEvaluation } from '../services/budgetService';
+import { planningService, type FlexPlan } from '../services/planningService';
 import { categoryService, type CategoryNode } from '../services/categoryService';
 import { accountService } from '../services/accountService';
 import type { Account, Category } from '../db/schema';
@@ -17,6 +18,7 @@ export interface UseBudgets {
   setReferenceMonths: (delta: number) => void;
   resetReference: () => void;
   evaluations: BudgetEvaluation[];
+  flexPlan: FlexPlan | null;
   categories: Category[];
   categoryTree: CategoryNode[];
   accounts: Account[];
@@ -31,11 +33,15 @@ export function useBudgets(): UseBudgets {
   const profileId = useActiveProfileId();
   const [referenceISO, setReferenceISO] = useState<string>(() => todayISO());
   const [evaluations, setEvaluations] = useState<BudgetEvaluation[]>([]);
+  const [flexPlan, setFlexPlan] = useState<FlexPlan | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Al cambiar de perfil no se muestra el plan del anterior mientras carga el nuevo.
+  useEffect(() => setFlexPlan(null), [profileId]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -48,6 +54,11 @@ export function useBudgets(): UseBudgets {
         accountService.listAll(profileId),
       ]);
       setEvaluations(evals);
+      // El plan flexible sugerido es orientativo: si falla, la pagina sigue funcionando.
+      planningService
+        .compute(profileId)
+        .then((p) => setFlexPlan(p.flex))
+        .catch(() => setFlexPlan(null));
       setCategories(cats);
       setCategoryTree(tree);
       setAccounts(accs);
@@ -78,6 +89,7 @@ export function useBudgets(): UseBudgets {
   return {
     profileId,
     referenceISO,
+    flexPlan,
     setReferenceMonths,
     resetReference,
     evaluations,

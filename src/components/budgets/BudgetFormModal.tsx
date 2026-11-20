@@ -2,18 +2,21 @@
 // convierte a centimos enteros (nunca se persiste como float). El ambito determina que
 // selector se muestra (categoria raiz, subcategoria o cuenta). Delega en budgetService.
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import type { Account, Budget, BudgetDirection, BudgetPeriod, BudgetScope } from '../../db/schema';
+import type { Account, Budget, BudgetDirection, BudgetKind, BudgetPeriod, BudgetScope } from '../../db/schema';
 import type { CategoryNode } from '../../services/categoryService';
 import { Modal } from '../common';
 import {
   budgetService,
   BUDGET_DIRECTION_LABELS,
+  BUDGET_KIND_LABELS,
   BUDGET_PERIOD_LABELS,
+  budgetKindOf,
   BUDGET_SCOPE_LABELS,
   MAX_BUDGET_NAME_LENGTH,
 } from '../../services/budgetService';
 import { centsToEuros, eurosToCents } from '../../lib/money';
-import { todayISO } from '../../lib/dates';
+import { shiftMonths, todayISO } from '../../lib/dates';
+import { formatCents } from '../../lib/money';
 import { useToast } from '../../context/ToastContext';
 
 interface BudgetFormModalProps {
@@ -24,7 +27,19 @@ interface BudgetFormModalProps {
   budget?: Budget | null;
   categoryTree: CategoryNode[];
   accounts: Account[];
+  // Tipo con el que se abre al crear (desde los botones de la seccion).
+  initialKind?: BudgetKind;
+  // Importe flexible sugerido (ingreso habitual - fijos - fondos - objetivos), si se conoce.
+  suggestedFlexCents?: number | null;
 }
+
+const KIND_ORDER: readonly BudgetKind[] = ['limit', 'flex', 'goal', 'fund'];
+const KIND_HINTS: Record<BudgetKind, string> = {
+  limit: 'Un tope de gasto (o un objetivo de ingreso) para una categoria, cuenta o todo.',
+  flex: 'Un unico tope para tu gasto variable: los recibos fijos de tus recurrencias no cuentan.',
+  goal: 'Una cantidad que quieres reunir antes de una fecha (viaje, colchon, entrada...).',
+  fund: 'Un gasto que no es mensual (seguro, IBI, ITV): se aparta una cuota cada mes hasta su fecha.',
+};
 
 const SCOPE_ORDER: readonly BudgetScope[] = ['overall', 'category', 'subcategory', 'account'];
 const PERIOD_ORDER: readonly BudgetPeriod[] = ['monthly', 'quarterly', 'yearly', 'custom'];
@@ -41,6 +56,8 @@ export function BudgetFormModal({
   budget,
   categoryTree,
   accounts,
+  initialKind = 'limit',
+  suggestedFlexCents = null,
 }: BudgetFormModalProps) {
   const { showToast } = useToast();
   const isEdit = Boolean(budget);
@@ -52,6 +69,8 @@ export function BudgetFormModal({
   const [period, setPeriod] = useState<BudgetPeriod>('monthly');
   const [customStart, setCustomStart] = useState(todayISO());
   const [customEnd, setCustomEnd] = useState(todayISO());
+  const [kind, setKind] = useState<BudgetKind>('limit');
+  const [rollover, setRollover] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -82,17 +101,55 @@ export function BudgetFormModal({
       setPeriod(budget.period);
       setCustomStart(budget.customStart ?? todayISO());
       setCustomEnd(budget.customEnd ?? todayISO());
+      setKind(budgetKindOf(budget));
+      setRollover(budget.rollover);
     } else {
       setName('');
+      setLimit('0');
+      setRollover(false);
+      applyKind(initialKind);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, budget, initialKind]);
+
+  // Ajusta los campos fijos de cada tipo (ambito, direccion y periodo).
+  function applyKind(next: BudgetKind) {
+    setKind(next);
+    setError(null);
+    if (next === 'flex') {
       setScope('overall');
       setScopeId('');
       setDirection('expense');
-      setLimit('0');
       setPeriod('monthly');
+      if (suggestedFlexCents !== null && suggestedFlexCents > 0) setLimit(String(centsToEuros(suggestedFlexCents)));
+    } else if (next === 'goal') {
+      setScope('category');
+      setScopeId('');
+      setDirection('income');
+      setPeriod('custom');
+      setRollover(false);
       setCustomStart(todayISO());
-      setCustomEnd(todayISO());
+      setCustomEnd(shiftMonths(todayISO(), 6));
+    } else if (next === 'fund') {
+      setScope('category');
+      setScopeId('');
+      setDirection('expense');
+      setPeriod('custom');
+      setRollover(false);
+      setCustomStart(todayISO());
+      setCustomEnd(shiftMonths(todayISO(), 12));
+    } else {
+      setScope('overall');
+      setScopeId('');
+      setDirection('expense');
+      setPeriod('monthly');
     }
-  }, [open, budget]);
+  }
+  const scopeOptions: readonly BudgetScope[] =
+    kind === 'fund' ? ['category', 'subcategory'] : kind === 'flex' ? ['overall'] : SCOPE_ORDER;
+  const periodOptions: readonly BudgetPeriod[] =
+    kind === 'flex' ? ['monthly', 'quarterly', 'yearly'] : PERIOD_ORDER;
+  const canRollover = (kind === 'limit' || kind === 'flex') && direction === 'expense' && period !== 'custom';
 
   // Al cambiar de ambito se limpia el scopeId (las opciones dependen del ambito).
   function changeScope(next: BudgetScope) {
@@ -120,6 +177,8 @@ export function BudgetFormModal({
         period,
         customStart: period === 'custom' ? customStart : null,
         customEnd: period === 'custom' ? customEnd : null,
+        rollover: canRollover && rollover,
+        kind,
       };
       if (budget) {
         await budgetService.update(profileId, budget.id, input);
@@ -140,7 +199,7 @@ export function BudgetFormModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={isEdit ? 'Editar presupuesto' : 'Nuevo presupuesto'}
+      title={isEdit ? `Editar: ${BUDGET_KIND_LABELS[kind].toLowerCase()}` : 'Nuevo presupuesto, objetivo o fondo'}
       dismissible={!saving}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -160,7 +219,33 @@ export function BudgetFormModal({
           />
         </div>
 
+        {!isEdit && (
+          <div>
+            <span className="block text-sm font-medium text-slate-300">Que quieres crear</span>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {KIND_ORDER.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => applyKind(k)}
+                  aria-pressed={kind === k}
+                  className={[
+                    'rounded-lg border px-3 py-2 text-left text-sm',
+                    kind === k
+                      ? 'border-indigo-500 bg-indigo-600/20 text-indigo-200'
+                      : 'border-slate-700 text-slate-300',
+                  ].join(' ')}
+                >
+                  {BUDGET_KIND_LABELS[k]}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-slate-500">{KIND_HINTS[kind]}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
+          {kind === 'limit' ? (
           <div>
             <label htmlFor="budget-direction" className="block text-sm font-medium text-slate-300">
               Tipo
@@ -178,9 +263,20 @@ export function BudgetFormModal({
               ))}
             </select>
           </div>
+          ) : (
+            <div className="self-end pb-2 text-xs text-slate-500">
+              {kind === 'flex' && suggestedFlexCents !== null
+                ? `Sugerido: ${formatCents(suggestedFlexCents)} (ingreso habitual menos fijos, fondos y objetivos)`
+                : kind === 'goal'
+                  ? 'Importe a reunir'
+                  : kind === 'fund'
+                    ? 'Importe del gasto'
+                    : ''}
+            </div>
+          )}
           <div>
             <label htmlFor="budget-limit" className="block text-sm font-medium text-slate-300">
-              Importe (EUR)
+              {kind === 'goal' ? 'Objetivo (EUR)' : kind === 'fund' ? 'Gasto previsto (EUR)' : 'Importe (EUR)'}
             </label>
             <input
               id="budget-limit"
@@ -193,9 +289,10 @@ export function BudgetFormModal({
           </div>
         </div>
 
+        {kind !== 'flex' && (
         <div>
           <label htmlFor="budget-scope" className="block text-sm font-medium text-slate-300">
-            Ambito
+            {kind === 'goal' ? 'Donde ahorras' : kind === 'fund' ? 'Donde se registrara el gasto' : 'Ambito'}
           </label>
           <select
             id="budget-scope"
@@ -203,13 +300,20 @@ export function BudgetFormModal({
             onChange={(e) => changeScope(e.target.value as BudgetScope)}
             className={inputClass}
           >
-            {SCOPE_ORDER.map((s) => (
+            {scopeOptions.map((s) => (
               <option key={s} value={s}>
-                {BUDGET_SCOPE_LABELS[s]}
+                {kind === 'goal' && s === 'overall' ? 'Ahorro neto total' : BUDGET_SCOPE_LABELS[s]}
               </option>
             ))}
           </select>
+          {kind === 'goal' && (
+            <p className="mt-1 text-xs text-slate-500">
+              Por categoria cuenta lo que aportas a ella (p. ej. Ahorro); por cuenta, su saldo (una hucha o cuenta
+              aparte, que deja de contar como dinero disponible).
+            </p>
+          )}
         </div>
+        )}
 
         {scope !== 'overall' && (
           <div>
@@ -245,6 +349,7 @@ export function BudgetFormModal({
           </div>
         )}
 
+        {(kind === 'limit' || kind === 'flex') && (
         <div>
           <label htmlFor="budget-period" className="block text-sm font-medium text-slate-300">
             Periodo
@@ -255,19 +360,38 @@ export function BudgetFormModal({
             onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}
             className={inputClass}
           >
-            {PERIOD_ORDER.map((p) => (
+            {periodOptions.map((p) => (
               <option key={p} value={p}>
                 {BUDGET_PERIOD_LABELS[p]}
               </option>
             ))}
           </select>
         </div>
+        )}
+
+        {canRollover && (
+          <label className="flex items-start gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={rollover}
+              onChange={(e) => setRollover(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              Acumular lo que sobre o falte
+              <span className="block text-xs text-slate-500">
+                Lo que no gastes pasa al periodo siguiente; si te pasas, se descuenta. Sin castigo por un mal
+                mes.
+              </span>
+            </span>
+          </label>
+        )}
 
         {period === 'custom' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="budget-start" className="block text-sm font-medium text-slate-300">
-                Desde
+                {kind === 'goal' || kind === 'fund' ? 'Empiezas el' : 'Desde'}
               </label>
               <input
                 id="budget-start"
@@ -279,7 +403,7 @@ export function BudgetFormModal({
             </div>
             <div>
               <label htmlFor="budget-end" className="block text-sm font-medium text-slate-300">
-                Hasta
+                {kind === 'goal' ? 'Fecha objetivo' : kind === 'fund' ? 'Vence el' : 'Hasta'}
               </label>
               <input
                 id="budget-end"
@@ -290,6 +414,12 @@ export function BudgetFormModal({
               />
             </div>
           </div>
+        )}
+
+        {kind === 'fund' && (
+          <p className="text-xs text-slate-500">
+            Se repite cada ano en la misma fecha. Lo apartado no cuenta en tu disponible para gastar.
+          </p>
         )}
 
         {error && <p className="text-sm text-red-400">{error}</p>}
