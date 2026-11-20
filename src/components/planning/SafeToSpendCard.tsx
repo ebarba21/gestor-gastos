@@ -12,6 +12,11 @@ function euros(cents: number): string {
   return formatCents(cents).replace(/,00(?=\s|$| )/, '');
 }
 
+// Cifra orientativa por dia: euros enteros hacia abajo.
+function wholeEuros(cents: number): number {
+  return Math.floor(cents / 100) * 100;
+}
+
 export function SafeToSpendCard({ safe }: { safe: SafeToSpend }) {
   const [open, setOpen] = useState(false);
   const negative = safe.rangeHighCents <= 0;
@@ -46,8 +51,8 @@ export function SafeToSpendCard({ safe }: { safe: SafeToSpend }) {
           <>
             {' · '}
             <span className="text-slate-200">
-              unos {safe.perDayLowCents !== null ? `${euros(safe.perDayLowCents)} a ` : ''}
-              {euros(safe.perDayHighCents)}/dia
+              unos {safe.perDayLowCents !== null ? `${euros(wholeEuros(safe.perDayLowCents))} a ` : ''}
+              {euros(wholeEuros(safe.perDayHighCents))}/dia
             </span>
           </>
         )}

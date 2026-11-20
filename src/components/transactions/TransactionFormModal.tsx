@@ -513,7 +513,7 @@ export function TransactionFormModal({
               inputMode="decimal"
               value={reimbursable}
               onChange={(e) => setReimbursable(e.target.value)}
-              placeholder="Si es un gasto compartido: lo que te deben"
+              placeholder="Lo que te deben (gasto compartido)"
               className={inputClass}
             />
             <p className="mt-1 text-xs text-slate-500">

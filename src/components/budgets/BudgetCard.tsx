@@ -105,7 +105,7 @@ export function BudgetCard({
     const gs = GOAL_STATUS[g.status];
     const pct = g.targetCents > 0 ? Math.round((g.savedCents * 100) / g.targetCents) : 0;
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+      <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -155,7 +155,7 @@ export function BudgetCard({
     const f = evaluation.fund;
     const pct = budget.limitCents > 0 ? Math.round((f.provisionedCents * 100) / budget.limitCents) : 0;
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+      <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold text-slate-100">{budget.name}</h3>
@@ -186,7 +186,7 @@ export function BudgetCard({
   const barPercent = Math.max(0, Math.min(100, percent));
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+    <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">

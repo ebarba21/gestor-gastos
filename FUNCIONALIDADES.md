@@ -139,6 +139,16 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 
 **Beneficio**: limites y objetivos realistas que se vigilan solos, sin hojas de calculo aparte.
 
+## 9 bis. Planificacion (noviembre 2026)
+
+- **Disponible hasta el proximo cobro**, en rango y con su calculo: saldo menos recibos pendientes, fondos, objetivos, paga extra apartada y colchon.
+- **Prevision de saldo a 30/90 dias** con banda, saldo minimo y aviso si va a quedar en negativo o bajo el colchon.
+- **Presupuesto flexible** (gasto variable sin recibos fijos) con el importe sugerido, **rollover** real, **objetivos con fecha** (ritmo y fecha estimada) y **fondos** para gastos no mensuales.
+- **Indicadores**: meses de colchon, recibos al mes, fijos sobre ingresos, tasa de ahorro a 3 y 12 meses y lo pendiente de recuperar.
+- **Avisos priorizados** (variacion frente al mes pasado, proyeccion de cierre, importacion pendiente, paga extra) con util, no util y posponer.
+- **Portada movil Hoy/Analisis**, boton + para anadir un gasto y regla sugerida al corregir una categoria.
+- Ajustes > Planificacion: dia de cobro, colchon, presupuestos de nomina a nomina y pagas extra.
+
 ## 10. Exportaciones y backup
 
 - **Exportar a Excel (XLSX)**: todos los movimientos o solo los filtrados, cuentas con saldos, categorias, reglas, presupuestos y un resumen completo del dashboard en hojas separadas.

@@ -202,3 +202,33 @@ Los fixtures viven en los `*.test.ts` de cada servicio y son la referencia de `f
 - Deudas: calendario cuadra con la formula; ultimo pago deja saldo 0; casos degenerados detectados; Snowball/Avalanche deterministas.
 - Vinculacion de pagos de deuda sin doble conteo; reduccion de pasivo no tratada como consumo.
 - Integridad bajo sincronizacion/migracion/restauracion: sin perdida, duplicacion, mezcla ni sobrescritura silenciosa de importes.
+
+## 13. Planificacion (noviembre 2026)
+
+Codigo: `src/services/planningService.ts`, `budgetService.ts`, `fixedSpend.ts`, `insightsService.ts`. Funciones puras, centimos enteros, hoy inyectable.
+
+### 13.1 Gasto fijo y variable
+Fijo = movimientos vinculados (`matched`) a una recurrencia de gasto no candidata y no semanal, sus lineas de split y sus reembolsos (`fixedSpend.ts`). Variable = el resto del gasto neto. Fuente unica para ritmo, cascada, presupuesto flexible y prevision.
+
+### 13.2 Disponible seguro
+`asOf` = ultimo movimiento registrado (<= hoy) en las cuentas liquidas. Cuentas liquidas = todas salvo las de objetivos por cuenta.
+`disponible = saldo(asOf) - recibos esperados en (asOf, proximo cobro) - fondos apartados - aportacion pendiente del mes a objetivos - paga extra apartada - colchon`.
+Proximo cobro: siguiente ocurrencia de la recurrencia de ingreso activa de mayor importe mensual; si no hay, siguiente dia de cobro configurado; si no, dia 1 del mes siguiente; nunca mas de 45 dias (si no, 31). Recibos atrasados dentro de su tolerancia de fecha cuentan como pendientes.
+Rango mostrado: alto = `floor10(disponible)`; bajo = `floor10(disponible - max(10 EUR, margen de los recibos, 5 %))`. Por dia = rango / dias hasta el cobro (euros enteros en la UI).
+Paga extra: ingreso real desde (cobro - 1 mes) hasta asOf menos el ingreso habitual (mediana de 6 meses completos con ingreso); si supera el 25 % del habitual y `reserveExtraPay`, se aparta (como maximo el saldo).
+
+### 13.3 Prevision de saldo (90 dias)
+Saldo diario desde `asOf`: + ingresos y - recibos de ocurrencias `expected` de series activas; nomina estimada en el dia de cobro si no hay serie de ingreso; paga extra estimada (un ingreso habitual) en los meses configurados; fondos que vencen si no hay ya un recibo de importe parecido (+-20 %) a +-15 dias. Gasto diario = (variable + ahorro no recurrente mensual) / dias del mes, con la mediana de los 3 ultimos meses completos (central), el maximo (banda baja) y el minimo (banda alta). Riesgo: `negative` si el central baja de 0; `belowBuffer` si baja del colchon o la banda baja de 0.
+
+### 13.4 Presupuestos
+- Rollover: `arrastre = sum(limite - consumo)` de los periodos anteriores desde el de creacion, maximo 12. Limite efectivo = limite + arrastre (puede ser menor que el limite).
+- Flexible: consumo global de gasto excluyendo el fijo (13.1).
+- Ciclo de nomina: con `budgetCycle = payday`, el periodo mensual va del dia de cobro al dia anterior del siguiente (dias inexistentes = ultimo dia del mes).
+- Objetivo: ahorrado = aportaciones netas a la categoria/subcategoria desde el inicio, saldo de la cuenta, o ahorro neto global. Aportacion necesaria = `ceil(restante / meses naturales hasta la fecha, incluido el actual)`. Ritmo = progreso desde el inicio / meses transcurridos. Fecha estimada = hoy + `ceil(restante / ritmo)` meses.
+- Fondo: ciclo inicial `customStart..customEnd`, despues anual. Cuota = `ceil(importe / meses del ciclo)`. Apartado = `min(importe, cuota x meses transcurridos)`. Reservado = `max(0, apartado - gastado en el ciclo)`.
+
+### 13.5 KPIs
+Meses de colchon = saldo liquido / mediana del gasto neto mensual (6 meses). Recibos al mes = suma de equivalentes mensuales de series fijas activas (semanal x 52/12, trimestral / 3, anual / 12). Fijos sobre ingresos = recibos al mes / ingreso habitual. Tasa de ahorro 3 y 12 meses = suma de ahorro neto / suma de ingresos de los meses completos con actividad. Pendiente de recuperar = suma por gasto de `reimbursableCents - reembolsos enlazados`, si es positiva.
+
+### 13.6 Insights
+Variacion = gasto neto por categoria del mes actual frente al anterior a la misma fraccion del mes. Proyeccion de cierre por categoria = actual + (media mensual - media a estas alturas). Prioridad de un aviso (0..100) = base por gravedad (critico 70, accion 40, info 15) + hasta 20 por dinero en juego (log) + 10/5 si vence en 3/7 dias + 3 si hay accion. Un aviso pospuesto se oculta 7 dias, uno no util 30; uno critico nunca mas de 1 dia.

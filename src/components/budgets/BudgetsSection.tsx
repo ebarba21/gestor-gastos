@@ -222,7 +222,7 @@ export function BudgetsSection() {
             .map((g) => (
               <div key={g.title} className="mb-5">
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{g.title}</h3>
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   {g.items.map((ev) => (
                     <BudgetCard
                       key={ev.budget.id}
