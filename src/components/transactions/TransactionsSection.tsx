@@ -2,7 +2,7 @@
 // multiple, edicion/borrado masivo (con confirmacion y recuento) y acciones de movimientos
 // especiales. Toda la logica vive en transactionService/transactionFilters; aqui solo
 // orquestacion de UI y estado local de la pagina.
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Transaction } from '../../db/schema';
 import { useTransactions } from '../../hooks/useTransactions';
@@ -59,7 +59,7 @@ export function TransactionsSection() {
 
   // Filtro inicial: si se llega desde el resumen de importacion (?importBatchId=...), la lista
   // arranca ya filtrada por ese lote (ampliacion fase 6, "enlace a dashboard filtrado").
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialImportBatchId = searchParams.get('importBatchId') ?? undefined;
   const [filter, setFilter] = useState<TxFilter>({
     hideSplitChildren: true,
@@ -69,7 +69,16 @@ export function TransactionsSection() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Modales / dialogos.
-  const [creating, setCreating] = useState(false);
+  // ?nuevo=1 (boton + de la barra inferior del movil) abre directamente el alta.
+  const [creating, setCreating] = useState(() => searchParams.get('nuevo') === '1');
+  useEffect(() => {
+    if (searchParams.get('nuevo') === '1') {
+      setCreating(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('nuevo');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [actionsFor, setActionsFor] = useState<Transaction | null>(null);
   const [splitFor, setSplitFor] = useState<Transaction | null>(null);

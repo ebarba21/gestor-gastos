@@ -312,3 +312,22 @@ describe('recurringSeriesService - validaciones (createManual/edit)', () => {
     expect(created.expectedAmountCents).toBe(3000);
   });
 });
+
+describe('recurringSeriesService.syncAllTracked en paralelo', () => {
+  it('varias pantallas sincronizando a la vez no duplican las ocurrencias esperadas', async () => {
+    const account = await makeAccount();
+    const merchant = await makeMerchant();
+    await seedMonthlySeries(PROFILE_A, account.id, merchant.id);
+    await recurringSeriesService.runDetection(PROFILE_A);
+    const [candidate] = await recurringSeriesRepo.list(PROFILE_A);
+    await recurringSeriesService.confirm(PROFILE_A, candidate!.id, { today: '2026-04-10' });
+    await Promise.all([
+      recurringSeriesService.syncAllTracked(PROFILE_A, { today: '2026-04-10' }),
+      recurringSeriesService.syncAllTracked(PROFILE_A, { today: '2026-04-10' }),
+      recurringSeriesService.syncAllTracked(PROFILE_A, { today: '2026-04-10' }),
+    ]);
+    const occurrences = await recurringOccurrencesRepo.list(PROFILE_A);
+    const dates = occurrences.map((o) => o.expectedDate);
+    expect(new Set(dates).size).toBe(dates.length);
+  });
+});

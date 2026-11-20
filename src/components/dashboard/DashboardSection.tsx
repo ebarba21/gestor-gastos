@@ -2,9 +2,10 @@
 // agregacion vive en statsService (via useDashboard); aqui solo hay presentacion y layout
 // responsive. Estados cuidados: cargando, rango invalido, periodo sin datos.
 import { useCallback, useState, type ReactNode } from 'react';
+import { BalanceForecastCard, PlanningKpisCard, SafeToSpendCard, UpcomingWithBalanceCard, VarianceCard } from '../planning';
+import type { AlertFeedback } from '../insights/AlertsCard';
 import { useDashboard } from '../../hooks/useDashboard';
 import { useForecastRange } from '../../hooks/useForecastRange';
-import { useRecurringSeries } from '../../hooks/useRecurringSeries';
 import { useMovementEditor } from '../../hooks/useMovementEditor';
 import { useToast } from '../../context/ToastContext';
 import type { DrillDownKind } from '../../services/statsService';
@@ -19,7 +20,6 @@ import { MonthlyEvolutionChart } from './MonthlyEvolutionChart';
 import { CategorySpendChart } from './CategorySpendChart';
 import { IncomeExpenseChart } from './IncomeExpenseChart';
 import { TopExpensesCard } from './TopExpensesCard';
-import { UpcomingChargesCard } from './UpcomingChargesCard';
 import { MerchantSpendCard } from './MerchantSpendCard';
 import { SavingsInvestmentSection } from './SavingsInvestmentSection';
 import { MovementsDrillDownModal } from './MovementsDrillDownModal';
@@ -81,7 +81,17 @@ export function DashboardSection() {
   // Insights del mes seleccionado (sobre el mes entero, sin filtro cruzado). En modo rango no se
   // muestran: serian de un mes y los KPIs del rango, y las cifras no cuadrarian entre si.
   const insightsAnchor = mode === 'month' ? referenceISO : null;
-  const { insights, netWorth, error: insightsError, reload: reloadInsights } = useInsights(insightsAnchor);
+  const {
+    insights,
+    netWorth,
+    planning,
+    alerts,
+    feedback,
+    giveFeedback,
+    error: insightsError,
+    reload: reloadInsights,
+  } = useInsights(insightsAnchor);
+  const [view, setView] = useState<'today' | 'analysis'>('today');
   const isMobile = useMediaQuery(MOBILE_QUERY);
   const reloadAll = useCallback(async () => {
     await Promise.all([reload(), reloadInsights()]);
@@ -89,7 +99,6 @@ export function DashboardSection() {
   const scrollToWaterfall = useCallback(() => {
     document.getElementById('cascada-del-mes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
-  const { upcomingCharges, loading: recurringLoading } = useRecurringSeries();
   const { showToast } = useToast();
   const onEditorError = useCallback((message: string) => showToast(message, 'error'), [showToast]);
   const editor = useMovementEditor(onEditorError);
@@ -112,16 +121,103 @@ export function DashboardSection() {
         ? 'Sin categoria'
         : categoryNames.get(filter.categoryId) ?? 'Categoria';
 
+  // En el movil la portada se divide en "Hoy" (decidir) y "Analisis" (entender); en el PC se
+  // muestran las dos, "Hoy" primero.
+  const showToday = !isMobile || view === 'today';
+  const showAnalysis = !isMobile || view === 'analysis';
+  const catName = (id: string | null) => (id === null ? 'Sin categoria' : categoryNames.get(id) ?? 'Categoria');
+  const atRisk = insights?.pace.isCurrentMonth ? insights.categories.filter((c) => c.status === 'over').slice(0, 3) : [];
+  const usefulIds = new Set(feedback.filter((f) => f.useful === true).map((f) => f.alertId));
+  const onFeedback = (id: string, kind: AlertFeedback) => void giveFeedback(id, kind);
+
   return (
     <section>
-      <h2 className="text-xl font-semibold text-slate-100">Dashboard</h2>
-      <p className="mt-1 text-sm text-slate-400">
+      <h2 className="text-xl font-semibold text-slate-100">{isMobile ? 'Inicio' : 'Dashboard'}</h2>
+
+      {isMobile && (
+        <div className="mt-3 grid grid-cols-2 rounded-lg border border-slate-700 p-0.5 text-sm" role="tablist" aria-label="Vista de la portada">
+          {(['today', 'analysis'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`rounded-md py-1.5 font-medium ${view === v ? 'bg-slate-700 text-slate-100' : 'text-slate-400'}`}
+            >
+              {v === 'today' ? 'Hoy' : 'Analisis'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showToday && (
+        <div className="mt-4 space-y-4">
+          {planning ? (
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <SafeToSpendCard safe={planning.safe} />
+              </div>
+              {!isMobile && netWorth && netWorth.hasData && <NetWorthMiniCard netWorth={netWorth} accounts={accounts} />}
+            </div>
+          ) : (
+            loading && <p className="text-sm text-slate-500">Calculando tu disponible...</p>
+          )}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card
+              title="Necesita atencion"
+              subtitle={
+                insights && insights.health.openReviewCount > 0
+                  ? `${insights.health.openReviewCount} tareas abiertas en la bandeja`
+                  : 'Lo que tiene dinero en juego, primero'
+              }
+            >
+              <AlertsCard
+                alerts={alerts}
+                limit={isMobile ? 3 : 5}
+                onSelectCategory={toggleCategoryFilter}
+                onSelectMovement={openMovement}
+                onFeedback={onFeedback}
+                usefulIds={usefulIds}
+              />
+            </Card>
+            {planning && (
+              <Card title="Proximos 14 dias" subtitle="Recibos e ingresos esperados y el saldo que quedara">
+                <UpcomingWithBalanceCard forecast={planning.forecast} bufferCents={planning.safe.bufferCents} />
+              </Card>
+            )}
+          </div>
+          {atRisk.length > 0 && (
+            <Card title="Categorias en riesgo" subtitle="Por encima de lo que sueles llevar a estas alturas">
+              <CategoryBulletsCard
+                bullets={atRisk}
+                categoryNames={categoryNames}
+                activeCategoryId={filter?.categoryId}
+                onSelectCategory={toggleCategoryFilter}
+              />
+            </Card>
+          )}
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setView('analysis')}
+              className="w-full rounded-lg border border-slate-700 py-2 text-sm text-slate-300"
+            >
+              Ver el analisis completo
+            </button>
+          )}
+        </div>
+      )}
+
+      {showAnalysis && (
+      <>
+      {!isMobile && <h3 className="mt-8 text-lg font-semibold text-slate-100">Analisis</h3>}
+      <p className="mt-1 hidden text-sm text-slate-400 sm:block">
         Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
         cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa Ingresos o Gastos para ver
         sus movimientos, una categoria para filtrar el resto, y un mes en los graficos para ver su
         resumen y filtrar el dashboard por ese mes.
       </p>
-
       <div className="mt-4">
         <PeriodSelector
           mode={mode}
@@ -195,20 +291,27 @@ export function DashboardSection() {
           )}
           {insights && (
             <>
-              <div className="grid gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2">
-                  <PaceCard pace={insights.pace} health={insights.health} onOpenWaterfall={scrollToWaterfall} />
-                </div>
-                {netWorth && netWorth.hasData && <NetWorthMiniCard netWorth={netWorth} accounts={accounts} />}
-              </div>
               <div className="grid gap-6 lg:grid-cols-2">
-                <Card title="Lo que ha cambiado" subtitle="Avisos del mes, con lo que los origina">
-                  <AlertsCard
-                    alerts={insights.alerts}
-                    onSelectCategory={toggleCategoryFilter}
-                    onSelectMovement={openMovement}
-                  />
-                </Card>
+                <PaceCard pace={insights.pace} health={insights.health} onOpenWaterfall={scrollToWaterfall} />
+                {insights.variance ? (
+                  <Card title="Frente al mes pasado" subtitle="Que categorias explican la diferencia a estas alturas">
+                    <VarianceCard variance={insights.variance} catName={catName} onSelectCategory={toggleCategoryFilter} />
+                  </Card>
+                ) : (
+                  <div />
+                )}
+              </div>
+              {planning && (
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <Card title="Prevision de saldo" subtitle="Lo que tendras en tus cuentas si nada cambia">
+                    <BalanceForecastCard forecast={planning.forecast} bufferCents={planning.safe.bufferCents} />
+                  </Card>
+                  <Card title="Indicadores" subtitle="Resiliencia y ahorro, cada uno con su calculo">
+                    <PlanningKpisCard kpis={planning.kpis} />
+                  </Card>
+                </div>
+              )}
+              <div className="grid gap-6 lg:grid-cols-2">
                 <Card title="Categorías frente a tu media" subtitle="Pulsa una para filtrar el dashboard">
                   <CategoryBulletsCard
                     bullets={insights.categories}
@@ -217,14 +320,14 @@ export function DashboardSection() {
                     onSelectCategory={toggleCategoryFilter}
                   />
                 </Card>
+                <Card title="Resumen del mes">
+                  <ul className="space-y-1.5 text-sm text-slate-300">
+                    {insights.narrative.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </Card>
               </div>
-              <Card title="Resumen del mes">
-                <ul className="space-y-1.5 text-sm text-slate-300">
-                  {insights.narrative.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-              </Card>
             </>
           )}
           <StatTiles
@@ -273,9 +376,7 @@ export function DashboardSection() {
                 onSelectMovement={openMovement}
               />
             </Card>
-            <Card title="Proximos cobros" subtitle="Series recurrentes confirmadas">
-              <UpcomingChargesCard charges={upcomingCharges} loading={recurringLoading} />
-            </Card>
+
           </div>
 
           {insights && (
@@ -315,6 +416,8 @@ export function DashboardSection() {
             </Card>
           )}
         </div>
+      )}
+      </>
       )}
 
       <MovementsDrillDownModal

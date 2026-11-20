@@ -219,7 +219,7 @@ export function StatTiles({ summary, onOpenIncome, onOpenExpenses }: StatTilesPr
         <Tile
           label="Ahorro neto"
           value={formatCents(summary.netSavingsCents)}
-          valueClass={savingsPositive ? 'text-indigo-300' : 'text-red-400'}
+          valueClass={savingsPositive ? 'text-indigo-300' : 'text-amber-300'}
           hint="Ingresos menos gastos"
         />
         <Tile
@@ -230,7 +230,7 @@ export function StatTiles({ summary, onOpenIncome, onOpenExpenses }: StatTilesPr
               ? 'text-slate-400'
               : summary.savingsRatePerMille >= 0
                 ? 'text-indigo-300'
-                : 'text-red-400'
+                : 'text-amber-300'
           }
           hint="Ahorro sobre ingresos"
         />

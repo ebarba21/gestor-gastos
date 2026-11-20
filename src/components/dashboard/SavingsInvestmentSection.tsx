@@ -106,7 +106,7 @@ export function SavingsInvestmentSection({ analysis, onSelectMonth, activeMonth 
         <Tile
           label="Ahorro neto acumulado"
           value={formatCents(analysis.totalNetSavingsCents)}
-          valueClass={analysis.totalNetSavingsCents >= 0 ? 'text-indigo-300' : 'text-red-400'}
+          valueClass={analysis.totalNetSavingsCents >= 0 ? 'text-indigo-300' : 'text-amber-300'}
           hint={`Tasa media: ${rateLabel(analysis.overallSavingsRatePerMille)}`}
         />
         <Tile

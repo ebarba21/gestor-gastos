@@ -22,6 +22,10 @@ describe('MobileNav', () => {
     for (const label of ['Inicio', 'Movimientos', 'Presupuestos', 'Bandeja']) {
       expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument();
     }
+    expect(within(nav).getByRole('link', { name: 'Anadir movimiento' })).toHaveAttribute(
+      'href',
+      '/movimientos?nuevo=1',
+    );
     expect(within(nav).getByRole('button', { name: 'Mas' })).toHaveAttribute(
       'aria-expanded',
       'false',

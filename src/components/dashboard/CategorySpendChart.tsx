@@ -6,7 +6,7 @@
 // Es el CONTROL del filtro cruzado: pulsar una barra filtra el resto de visuales por esa
 // categoria (y vuelve a pulsar para quitarlo). Cuando hay un filtro activo, la barra
 // seleccionada se resalta y las demas se atenuan.
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { CategorySpend } from '../../services/statsService';
 import { pickAccentColor } from '../../lib/colors';
 import { formatCompactEuros, useChartColors } from './chartTheme';
@@ -64,7 +64,7 @@ export function CategorySpendChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, bottom: 4, left: 8 }}>
         <XAxis
           type="number"
           tickFormatter={formatCompactEuros}
@@ -98,6 +98,13 @@ export function CategorySpendChart({
             const dimmed = hasFilter && d.categoryId !== activeCategoryId;
             return <Cell key={i} fill={d.color} fillOpacity={dimmed ? 0.3 : 1} />;
           })}
+          {/* Importe escrito junto a cada barra: en el movil no hay raton para el tooltip. */}
+          <LabelList
+            dataKey="value"
+            position="right"
+            formatter={(v: unknown) => (typeof v === 'number' ? formatCompactEuros(v) : '')}
+            style={{ fontSize: 11, fill: colors.axis }}
+          />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
