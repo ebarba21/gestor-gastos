@@ -71,6 +71,8 @@ export interface Pace {
   vsPaceCents: number | null;
   days: PaceDay[];
   hasFixedSeries: boolean; // hay recurrencias confirmadas para separar los fijos
+  // Proyeccion de cierre del gasto variable: lo gastado + lo que sueles gastar el resto del mes.
+  projectedEndCents: number | null;
 }
 
 export type CategoryStatus = 'over' | 'under' | 'normal' | 'new';
@@ -94,6 +96,25 @@ export interface InsightAlert {
   route?: string; // pantalla donde resolverlo
   transactionId?: string; // movimiento que lo origina, si es uno
   categoryId?: string | null; // categoria que lo origina, si es una
+  // Para priorizar (noviembre 2026): dinero en juego, cuando importa y si se puede actuar.
+  impactCents?: number;
+  dueDate?: string; // YYYY-MM-DD en que el aviso deja de tener margen
+  priority?: number; // 0..100, calculada por alertPriority
+}
+
+// Explicacion de la variacion frente al mes anterior a la misma altura del mes.
+export interface VarianceItem {
+  categoryId: string | null;
+  deltaCents: number; // + gastaste mas, - gastaste menos
+}
+
+export interface MonthVariance {
+  previousMonth: string; // YYYY-MM
+  currentCents: number;
+  previousCents: number;
+  deltaCents: number;
+  items: VarianceItem[]; // las categorias que mas explican la diferencia (hasta 5)
+  restCents: number; // lo que explican las demas
 }
 
 export interface WaterfallStep {
@@ -173,6 +194,7 @@ export interface MonthInsights {
   flow: MoneyFlow;
   narrative: string[];
   health: DataHealth;
+  variance: MonthVariance | null;
 }
 
 export interface InsightsInput {
@@ -419,6 +441,10 @@ export function computeInsights(input: InsightsInput): MonthInsights {
     vsPaceCents: baselineCents === null ? null : current.variable - idealAt(daysElapsed)!,
     days,
     hasFixedSeries: input.hasFixedSeries,
+    projectedEndCents:
+      isCurrentMonth && baselineCents !== null
+        ? current.variable + Math.max(0, baselineCents - idealAt(daysElapsed)!)
+        : null,
   };
 
   // 2. Categorias frente a su media
@@ -481,14 +507,23 @@ export function computeInsights(input: InsightsInput): MonthInsights {
     });
   }
   for (const b of bullets.filter((x) => x.status === 'over').slice(0, 3)) {
+    // Proyeccion de cierre: lo que llevas + lo que sueles gastar el resto del mes.
+    const projected = b.currentCents + Math.max(0, b.averageCents - b.averageToDateCents);
+    const overrun = projected - b.averageCents;
     alerts.push({
       id: `category-over-${b.categoryId ?? 'none'}`,
       severity: 'action',
       title: `${catName(b.categoryId)} va un ${pct(b.deltaPerMille ?? 0)} por encima de tu media`,
-      detail: `${formatCents(b.currentCents)} ${isCurrentMonth ? 'hasta hoy' : 'en el mes'} frente a ${formatCents(
-        b.averageToDateCents,
-      )} de media ${isCurrentMonth ? 'a estas alturas' : 'mensual'}.`,
+      detail:
+        `${formatCents(b.currentCents)} ${isCurrentMonth ? 'hasta hoy' : 'en el mes'} frente a ${formatCents(
+          b.averageToDateCents,
+        )} de media ${isCurrentMonth ? 'a estas alturas' : 'mensual'}.` +
+        (isCurrentMonth && overrun > 0
+          ? ` A este ritmo cerraras el mes en unos ${formatCents(projected)}, ${formatCents(overrun)} por encima de lo habitual.`
+          : ''),
       categoryId: b.categoryId,
+      impactCents: isCurrentMonth ? Math.max(0, overrun) : b.currentCents - b.averageToDateCents,
+      dueDate: isCurrentMonth ? range.to : undefined,
     });
   }
   // Gasto inusual: muy por encima de la mediana de su categoria en los meses de referencia.
@@ -526,6 +561,7 @@ export function computeInsights(input: InsightsInput): MonthInsights {
       )} (${formatCents(u.median)}).`,
       transactionId: u.t.id,
       categoryId: u.categoryId,
+      impactCents: u.cents - u.median,
     });
   }
   const toLink = (review.transferCandidate ?? 0) + (review.refundCandidate ?? 0);
@@ -548,8 +584,6 @@ export function computeInsights(input: InsightsInput): MonthInsights {
       route: '/bandeja',
     });
   }
-  const severityOrder: Record<InsightSeverity, number> = { critical: 0, action: 1, info: 2 };
-  alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
   // 4. Cascada (mes completo). fijo + variable = gasto neto (misma semantica que los KPIs).
   const freeCents = summary.netSavingsCents - summary.savingsContribCents - summary.investmentContribCents;
@@ -625,6 +659,33 @@ export function computeInsights(input: InsightsInput): MonthInsights {
   // 8. Salud de los datos (antes del resumen, que la menciona)
   const health = computeDataHealth(input, today, staleDays);
 
+  // Recordatorio de importacion: cuentas sin movimientos recientes (sin sincronizacion bancaria,
+  // importar a tiempo es lo que mantiene fiables las cifras).
+  const staleAccounts = health.accounts
+    .filter((a) => a.stale && a.daysSinceLastMovement !== null)
+    .sort((a, b) => (b.daysSinceLastMovement ?? 0) - (a.daysSinceLastMovement ?? 0));
+  if (staleAccounts.length > 0) {
+    const accName = new Map(input.accounts.map((a) => [a.id, a.name]));
+    const first = staleAccounts[0]!;
+    const names = staleAccounts.slice(0, 2).map((a) => accName.get(a.accountId) ?? 'una cuenta');
+    alerts.push({
+      id: 'import-stale',
+      severity: 'action',
+      title:
+        staleAccounts.length === 1
+          ? `Hace ${first.daysSinceLastMovement} dias que no importas ${names[0]}`
+          : `Hace ${first.daysSinceLastMovement} dias que no importas ${names.join(' ni ')}${
+              staleAccounts.length > 2 ? ` (y ${staleAccounts.length - 2} mas)` : ''
+            }`,
+      detail: 'Importa el extracto para que el disponible, el ritmo y la prevision usen tus datos reales.',
+      route: '/importar',
+    });
+  }
+  sortAlertsByPriority(alerts, today);
+
+  // 9. Variacion frente al mes anterior a la misma altura del mes.
+  const variance = computeVariance(month, buckets, prevKeys);
+
   // 7. Resumen narrado
   const narrative = buildNarrative({
     month,
@@ -648,6 +709,65 @@ export function computeInsights(input: InsightsInput): MonthInsights {
     flow,
     narrative,
     health,
+    variance,
+  };
+}
+
+// --- Prioridad de avisos ---
+
+const SEVERITY_BASE: Record<InsightSeverity, number> = { critical: 70, action: 40, info: 15 };
+
+// Prioridad 0..100 = gravedad + dinero en juego + urgencia + si se puede actuar. Determinista.
+export function alertPriority(a: InsightAlert, today: string): number {
+  let score = SEVERITY_BASE[a.severity];
+  const impactEuros = Math.max(0, a.impactCents ?? 0) / 100;
+  if (impactEuros > 0) score += Math.min(20, Math.round(Math.log10(1 + impactEuros) * 7));
+  if (a.dueDate !== undefined) {
+    const days = daysBetween(today, a.dueDate);
+    if (days <= 3) score += 10;
+    else if (days <= 7) score += 5;
+  }
+  if (a.route !== undefined || a.transactionId !== undefined || a.categoryId !== undefined) score += 3;
+  return Math.max(0, Math.min(100, score));
+}
+
+export function sortAlertsByPriority(alerts: InsightAlert[], today: string): InsightAlert[] {
+  for (const a of alerts) a.priority = alertPriority(a, today);
+  return alerts.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.id.localeCompare(b.id));
+}
+
+// Variacion frente al mes anterior "a estas alturas" (misma fraccion del mes), por categoria.
+function computeVariance(
+  month: string,
+  buckets: Map<string, MonthBuckets>,
+  prevKeys: string[],
+): MonthVariance | null {
+  const previousMonth = prevKeys[prevKeys.length - 1];
+  if (previousMonth === undefined) return null;
+  const cur = buckets.get(month);
+  const prev = buckets.get(previousMonth);
+  if (!cur || !prev || !prev.active) return null;
+  const ids = new Set<string | null>([...cur.byCategoryToDay.keys(), ...prev.byCategoryToDay.keys()]);
+  const items: VarianceItem[] = [];
+  let currentTotal = 0;
+  let previousTotal = 0;
+  for (const id of ids) {
+    const c = cur.byCategoryToDay.get(id) ?? 0;
+    const p = prev.byCategoryToDay.get(id) ?? 0;
+    currentTotal += c;
+    previousTotal += p;
+    if (c !== p) items.push({ categoryId: id, deltaCents: c - p });
+  }
+  items.sort((a, b) => Math.abs(b.deltaCents) - Math.abs(a.deltaCents));
+  const top = items.slice(0, 5);
+  const delta = currentTotal - previousTotal;
+  return {
+    previousMonth,
+    currentCents: currentTotal,
+    previousCents: previousTotal,
+    deltaCents: delta,
+    items: top,
+    restCents: delta - top.reduce((s, i) => s + i.deltaCents, 0),
   };
 }
 

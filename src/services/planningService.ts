@@ -48,6 +48,8 @@ import { balancesAtDates } from './netWorthService';
 import { planningSettingsService, type PlanningSettings } from './planningSettings';
 import { effectiveAmountTolerance } from './recurringOccurrencePlanner';
 import { recurringSeriesService } from './recurringSeriesService';
+import type { InsightAlert } from './insightsService';
+import { formatCents } from '../lib/money';
 
 // --- Parametros ---
 
@@ -642,6 +644,78 @@ export function computeBalanceForecast(params: {
     variableMonthlyLowCents: low,
     variableMonthlyHighCents: high,
   };
+}
+
+// --- Avisos de planificacion ---
+
+function shortDate(iso: string): string {
+  const { y, m, d } = parseISO(iso);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+// Avisos que salen de mirar hacia delante: riesgo de saldo negativo o bajo el colchon, cobro que
+// no llega, paga extra y gastos compartidos pendientes de cobrar. Explicados con cifras.
+export function planningAlerts(p: PlanningResult): InsightAlert[] {
+  const alerts: InsightAlert[] = [];
+  const f = p.forecast;
+  const horizon30 = shiftDays(f.asOf, 30);
+  if (f.min !== null && f.min.date <= horizon30 && (f.risk === 'negative' || f.risk === 'belowBuffer')) {
+    const date = f.risk === 'negative' && f.firstNegativeDate !== null ? f.firstNegativeDate : f.min.date;
+    const day = f.days.find((d) => d.date === date);
+    const cause = f.events
+      .filter((e) => e.amountCents < 0 && e.date <= date && e.date > f.asOf)
+      .sort((a, b) => a.amountCents - b.amountCents)[0];
+    const balance = day?.centralCents ?? f.min.centralCents;
+    alerts.push({
+      id: `forecast-${f.risk}-${date}`,
+      severity: f.risk === 'negative' ? 'critical' : 'action',
+      title:
+        f.risk === 'negative'
+          ? `Tu saldo podria quedar en ${formatCents(balance)} el ${shortDate(date)}`
+          : `Tu saldo bajara a ${formatCents(f.min.centralCents)} el ${shortDate(f.min.date)}, por debajo de tu colchon`,
+      detail:
+        (cause ? `Antes llega ${cause.name} (${formatCents(-cause.amountCents)}). ` : '') +
+        'Puedes mover dinero desde otra cuenta o revisar los proximos cargos.',
+      route: '/recurrencias',
+      impactCents: Math.max(0, -balance),
+      dueDate: date,
+    });
+  }
+  if (p.safe.incomeOverdue && p.safe.nextIncomeSource === 'series') {
+    alerts.push({
+      id: `income-overdue-${p.safe.nextIncomeDate}`,
+      severity: 'info',
+      title: `${p.safe.nextIncomeName ?? 'Tu nomina'} se esperaba el ${shortDate(p.safe.nextIncomeDate)}`,
+      detail: 'Aun no esta registrada. Si ya la cobraste, importa el extracto para que el disponible sea correcto.',
+      route: '/importar',
+    });
+  }
+  if (p.extraPay.detected) {
+    alerts.push({
+      id: `extra-pay-${p.extraPay.cycleFrom}`,
+      severity: 'action',
+      title: `Has cobrado unos ${formatCents(p.extraPay.excessCents)} mas de lo habitual`,
+      detail:
+        p.safe.extraPayReservedCents > 0
+          ? 'Parece una paga extra: no cuenta en tu disponible hasta el proximo cobro. Asignala a un objetivo o a un fondo.'
+          : 'Parece una paga extra. Puedes asignarla a un objetivo o a un fondo para que no se diluya en el mes.',
+      route: '/presupuestos',
+      impactCents: p.extraPay.excessCents,
+    });
+  }
+  if (p.kpis.reimbursablePendingCents > 0) {
+    alerts.push({
+      id: 'reimbursable-pending',
+      severity: 'info',
+      title: `Te deben ${formatCents(p.kpis.reimbursablePendingCents)} de ${p.kpis.reimbursablePendingCount} ${
+        p.kpis.reimbursablePendingCount === 1 ? 'gasto compartido' : 'gastos compartidos'
+      }`,
+      detail: 'Cuando llegue el Bizum o la transferencia, enlazalo como reembolso al gasto original.',
+      route: '/movimientos',
+      impactCents: p.kpis.reimbursablePendingCents,
+    });
+  }
+  return alerts;
 }
 
 // --- Servicio (carga aislada por perfil) ---
