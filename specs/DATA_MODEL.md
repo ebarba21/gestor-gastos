@@ -817,3 +817,20 @@ El invariante 4 de CLAUDE.md se amplia a doble clave y a todas las capas:
 6. **Backups**: siguen siendo por perfil; nunca cruzan perfiles ni incluyen datos de otro usuario.
 
 Ninguna capa confia solo en la de arriba. La UI nunca es la unica barrera.
+
+## 24. Planificacion (noviembre 2026, Dexie v10 y v11, migracion `20261121090000`)
+
+Aditivo, sin tablas remotas nuevas. Todos los campos son opcionales en el tipo local y tienen default (filas antiguas, backups y remotos previos siguen siendo validos; el mapper de sync rellena los NOT NULL).
+
+| Entidad | Campo local | Columna remota | Default | Notas |
+|---|---|---|---|---|
+| Category | `statsRole` | `stats_role` | null | `savings`, `investment`, `none`; null = automatico por nombre |
+| Setting | `payDay` | `pay_day` | null | 1..31 |
+| Setting | `safetyBufferCents` | `safety_buffer_cents` | 0 | >= 0 |
+| Setting | `budgetCycle` | `budget_cycle` | `calendar` | `calendar`, `payday` |
+| Setting | `extraPayMonths` | `extra_pay_months` | `{}` | meses 1..12 |
+| Setting | `reserveExtraPay` | `reserve_extra_pay` | true | |
+| Budget | `kind` | `kind` | `limit` | `limit`, `flex`, `goal`, `fund` |
+| Transaction | `reimbursableCents` | `reimbursable_cents` | null | > 0 y <= importe del gasto |
+
+Tabla local `insightFeedback` (v11): opiniones sobre avisos de la portada (`useful`, `snoozedUntil`). Solo del dispositivo: no se sincroniza ni entra en backups; se borra con el perfil.

@@ -570,8 +570,25 @@ async function syncSeries(
 // pantalla de recurrencias o el dashboard). UNA sola lectura de transactions/recurringOccurrences
 // para todo el perfil (no una por serie); secuencial entre series para no competir por la misma
 // transaccion candidata.
-async function syncAllTracked(profileId: string, opts: { today?: string; horizon?: string } = {}): Promise<void> {
+// Las sincronizaciones de un mismo perfil se ejecutan de una en una: varias pantallas (prevision
+// del mes, proximos cobros, planificacion) la piden a la vez al abrir el dashboard y, en paralelo,
+// cada una veria las ocurrencias antes de que la otra cree las suyas y duplicaria los
+// placeholders 'expected'. Cola por perfil (en memoria del dispositivo).
+const syncQueues = new Map<string, Promise<void>>();
+
+function syncAllTracked(profileId: string, opts: { today?: string; horizon?: string } = {}): Promise<void> {
   requireProfileId(profileId);
+  const previous = syncQueues.get(profileId) ?? Promise.resolve();
+  const run = previous.catch(() => undefined).then(() => syncAllTrackedNow(profileId, opts));
+  const tail = run.catch(() => undefined);
+  syncQueues.set(profileId, tail);
+  void tail.then(() => {
+    if (syncQueues.get(profileId) === tail) syncQueues.delete(profileId);
+  });
+  return run;
+}
+
+async function syncAllTrackedNow(profileId: string, opts: { today?: string; horizon?: string }): Promise<void> {
   const tracked = await recurringSeriesRepo.listTracked(profileId);
   if (tracked.length === 0) return;
 

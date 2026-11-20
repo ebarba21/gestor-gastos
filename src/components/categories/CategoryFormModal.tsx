@@ -1,7 +1,8 @@
 // Formulario de crear/editar categoria o subcategoria. Una subcategoria hereda el tipo
 // (kind) de su categoria raiz. Delega en categoryService via los handlers.
 import { useEffect, useState, type FormEvent } from 'react';
-import type { Category, CategoryKind } from '../../db/schema';
+import type { Category, CategoryKind, CategoryStatsRole } from '../../db/schema';
+import { automaticStatsRole } from '../../services/statsService';
 import { Modal, ColorPicker, IconPicker } from '../common';
 import { ACCENT_COLORS, subcategoryShade, subcategoryShades } from '../../lib/colors';
 import {
@@ -16,6 +17,16 @@ const KIND_LABELS: Record<CategoryKind, string> = {
   both: 'Ambos',
 };
 const KINDS: readonly CategoryKind[] = ['expense', 'income', 'both'];
+
+// Papel en estadisticas: 'auto' = deducido del nombre (comportamiento historico).
+type RoleChoice = 'auto' | CategoryStatsRole;
+const ROLE_LABELS: Record<RoleChoice, string> = {
+  auto: 'Automatico',
+  none: 'Gasto normal',
+  savings: 'Ahorro',
+  investment: 'Inversion',
+};
+const ROLE_CHOICES: readonly RoleChoice[] = ['auto', 'none', 'savings', 'investment'];
 
 interface CategoryFormModalProps {
   open: boolean;
@@ -50,6 +61,7 @@ export function CategoryFormModal({
   const [kind, setKind] = useState<CategoryKind>('expense');
   const [color, setColor] = useState<string>(ACCENT_COLORS[0]!);
   const [icon, setIcon] = useState<string | null>(null);
+  const [role, setRole] = useState<RoleChoice>('auto');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -62,13 +74,17 @@ export function CategoryFormModal({
       setKind(category.kind);
       setColor(category.color ?? ACCENT_COLORS[0]!);
       setIcon(category.icon);
+      setRole(category.statsRole ?? 'auto');
     } else {
       setName('');
       setKind(parent ? parent.kind : 'expense');
       setColor(parent ? subcategoryShade(parent.color, siblingCount) : ACCENT_COLORS[0]!);
       setIcon(null);
+      setRole('auto');
     }
   }, [open, category, parent, siblingCount]);
+  const statsRole: CategoryStatsRole | null = role === 'auto' ? null : role;
+  const autoRole = automaticStatsRole(name);
 
   // Las subcategorias solo eligen entre variantes claras del color de su categoria.
   const familyRoot = parent ?? parentOfEdited ?? null;
@@ -96,6 +112,7 @@ export function CategoryFormModal({
           name,
           color,
           icon,
+          statsRole,
           ...(isRoot ? { kind } : {}),
         });
       } else if (parent) {
@@ -105,9 +122,10 @@ export function CategoryFormModal({
           color,
           icon,
           parentId: parent.id,
+          statsRole,
         });
       } else {
-        await categoryService.createCategory(profileId, { name, kind, color, icon });
+        await categoryService.createCategory(profileId, { name, kind, color, icon, statsRole });
       }
       showToast(isEdit ? 'Categoria actualizada.' : 'Categoria creada.', 'success');
       await onSaved();
@@ -160,6 +178,40 @@ export function CategoryFormModal({
             </div>
           </div>
         )}
+
+        <div>
+          <span className="block text-sm font-medium text-slate-300">En las estadisticas cuenta como</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {ROLE_CHOICES.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRole(r)}
+                aria-pressed={role === r}
+                className={[
+                  'rounded-lg border px-3 py-1.5 text-sm',
+                  role === r
+                    ? 'border-indigo-500 bg-indigo-600/20 text-indigo-200'
+                    : 'border-slate-700 text-slate-300',
+                ].join(' ')}
+              >
+                {ROLE_LABELS[r]}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-slate-500">
+            {role === 'auto'
+              ? autoRole === 'savings'
+                ? 'Por su nombre se trata como ahorro: no cuenta como gasto.'
+                : autoRole === 'investment'
+                  ? 'Por su nombre se trata como inversion: no cuenta como gasto.'
+                  : 'Por su nombre se trata como gasto normal.'
+              : role === 'none'
+                ? 'Siempre cuenta como gasto, aunque se llame Ahorro.'
+                : 'Lo que se mueve aqui es dinero apartado, no gasto.'}
+            {!isRoot && role === 'auto' ? ' Si su categoria es de ahorro o inversion, la hereda.' : ''}
+          </p>
+        </div>
 
         <ColorPicker
           value={color}

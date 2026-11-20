@@ -141,7 +141,10 @@ export function ExportSection() {
   const exportRules = async () => {
     try {
       const rules = await ruleService.list(profileId);
-      await exportWorkbook([exportService.buildRulesSheet(rules, names)], EXPORT_LABELS.rules);
+      await exportWorkbook(
+        [exportService.buildRulesSheet(rules, names), exportService.buildImportableRulesSheet(rules, names)],
+        EXPORT_LABELS.rules,
+      );
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'No se pudieron cargar las reglas.', 'error');
     }

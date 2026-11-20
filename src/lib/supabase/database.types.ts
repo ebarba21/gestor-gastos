@@ -158,6 +158,7 @@ export type Database = {
       }
       budgets: {
         Row: {
+          kind: string
           archived_at: string | null
           created_at: string
           custom_end: string | null
@@ -178,6 +179,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          kind?: string
           archived_at?: string | null
           created_at?: string
           custom_end?: string | null
@@ -198,6 +200,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          kind?: string
           archived_at?: string | null
           created_at?: string
           custom_end?: string | null
@@ -229,6 +232,7 @@ export type Database = {
       }
       categories: {
         Row: {
+          stats_role: string | null
           archived_at: string | null
           color: string | null
           created_at: string
@@ -246,6 +250,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          stats_role?: string | null
           archived_at?: string | null
           color?: string | null
           created_at?: string
@@ -263,6 +268,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          stats_role?: string | null
           archived_at?: string | null
           color?: string | null
           created_at?: string
@@ -1309,6 +1315,11 @@ export type Database = {
       }
       settings: {
         Row: {
+          pay_day: number | null
+          safety_buffer_cents: number
+          budget_cycle: string
+          extra_pay_months: number[]
+          reserve_extra_pay: boolean
           created_at: string
           currency: string
           default_account_id: string | null
@@ -1324,6 +1335,11 @@ export type Database = {
           week_start: string
         }
         Insert: {
+          pay_day?: number | null
+          safety_buffer_cents?: number
+          budget_cycle?: string
+          extra_pay_months?: number[]
+          reserve_extra_pay?: boolean
           created_at?: string
           currency?: string
           default_account_id?: string | null
@@ -1339,6 +1355,11 @@ export type Database = {
           week_start: string
         }
         Update: {
+          pay_day?: number | null
+          safety_buffer_cents?: number
+          budget_cycle?: string
+          extra_pay_months?: number[]
+          reserve_extra_pay?: boolean
           created_at?: string
           currency?: string
           default_account_id?: string | null
@@ -1465,6 +1486,7 @@ export type Database = {
       }
       transactions: {
         Row: {
+          reimbursable_cents: number | null
           account_id: string
           amount_cents: number
           balance_after_cents: number | null
@@ -1520,6 +1542,7 @@ export type Database = {
           value_date: string | null
         }
         Insert: {
+          reimbursable_cents?: number | null
           account_id: string
           amount_cents: number
           balance_after_cents?: number | null
@@ -1575,6 +1598,7 @@ export type Database = {
           value_date?: string | null
         }
         Update: {
+          reimbursable_cents?: number | null
           account_id?: string
           amount_cents?: number
           balance_after_cents?: number | null

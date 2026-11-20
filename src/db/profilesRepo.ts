@@ -143,10 +143,12 @@ export const profilesRepo = {
   // todo en una unica transaccion Dexie. Accion destructiva e irreversible.
   async removeCascade(id: string): Promise<void> {
     requireId(id);
-    const tables = [db.profiles, ...childTables, db.outbox];
+    const tables = [db.profiles, ...childTables, db.outbox, db.insightFeedback];
     await db.transaction('rw', tables, async () => {
       const existing = await db.profiles.get(id);
       if (!existing) throw new NotFoundError(`Profile ${id} no existe.`);
+      // Opiniones sobre avisos: dato local del dispositivo, se borra siempre fisicamente.
+      await db.insightFeedback.where('profileId').equals(id).delete();
       const userId = existing.ownerUserId;
       if (userId) {
         // Perfil VINCULADO: borrado LOGICO en cascada (tombstone + mutacion) para propagar la baja

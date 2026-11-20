@@ -1,7 +1,7 @@
 // Logica de negocio de categorias y subcategorias (ver DATA_MODEL 2.4). Una subcategoria
 // es una Category con parentId (un unico nivel de anidamiento en el MVP). Orquesta
 // categoriesRepo y consulta transactionsRepo para las reglas de integridad al borrar.
-import type { Category, CategoryKind } from '../db/schema';
+import type { Category, CategoryKind, CategoryStatsRole } from '../db/schema';
 import { categoriesRepo } from '../db/categoriesRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
 import { pastelAssignments, pickAccentColor, subcategoryShade } from '../lib/colors';
@@ -16,6 +16,15 @@ export interface CategoryInput {
   icon?: string | null;
   // Si viene parentId, se crea como subcategoria de esa raiz.
   parentId?: string | null;
+  // Papel en estadisticas (null = automatico por nombre).
+  statsRole?: CategoryStatsRole | null;
+}
+
+const STATS_ROLES: readonly CategoryStatsRole[] = ['savings', 'investment', 'none'];
+
+function assertStatsRole(role: CategoryStatsRole | null | undefined): void {
+  if (role === undefined || role === null) return;
+  if (!STATS_ROLES.includes(role)) throw new ValidationError('Papel en estadisticas no valido.');
 }
 
 // Categoria raiz con sus subcategorias, para pintar el arbol en la UI.
@@ -67,6 +76,7 @@ export const categoryService = {
   },
 
   async createCategory(profileId: string, input: CategoryInput): Promise<Category> {
+    assertStatsRole(input.statsRole);
     const name = normalizeCategoryName(input.name);
     const siblings = await categoriesRepo.list(profileId);
     const sameLevel = siblings.filter((c) => c.parentId === (input.parentId ?? null));
@@ -88,14 +98,16 @@ export const categoryService = {
       icon: input.icon ?? null,
       archivedAt: null,
       sortOrder,
+      statsRole: input.statsRole ?? null,
     });
   },
 
   async updateCategory(
     profileId: string,
     id: string,
-    patch: Partial<Pick<Category, 'name' | 'kind' | 'color' | 'icon' | 'sortOrder'>>,
+    patch: Partial<Pick<Category, 'name' | 'kind' | 'color' | 'icon' | 'sortOrder' | 'statsRole'>>,
   ): Promise<Category> {
+    assertStatsRole(patch.statsRole);
     const clean = { ...patch };
     if (patch.name !== undefined) clean.name = normalizeCategoryName(patch.name);
     const before = patch.color !== undefined ? await categoriesRepo.getById(profileId, id) : undefined;

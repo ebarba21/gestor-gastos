@@ -2,7 +2,7 @@
 // panel "Mas" con el resto. Respeta las zonas seguras (notch e indicador de inicio) mediante
 // env(safe-area-inset-*). Solo presentacion; sin logica de negocio.
 import { useEffect, useState, type ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { NAV_GROUPS } from './navItems';
 import { lockDocumentScroll } from '../../lib/scrollLock';
 
@@ -136,7 +136,25 @@ export function MobileNav() {
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-800 bg-slate-900/95 backdrop-blur"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {TABS.map((tab) => (
+        {TABS.slice(0, 2).map((tab) => (
+          <NavLink key={tab.to} to={tab.to} end={tab.end} className={tabClass}>
+            {tab.icon}
+            <span>{tab.label}</span>
+          </NavLink>
+        ))}
+        {/* Alta rapida: efectivo, Bizum o cualquier gasto en dos toques. */}
+        <Link
+          to="/movimientos?nuevo=1"
+          aria-label="Anadir movimiento"
+          className="flex flex-1 flex-col items-center justify-center py-1.5"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+        </Link>
+        {TABS.slice(2).map((tab) => (
           <NavLink key={tab.to} to={tab.to} end={tab.end} className={tabClass}>
             {tab.icon}
             <span>{tab.label}</span>

@@ -384,6 +384,47 @@ export function buildRulesSheet(rules: Rule[], names: NameLookups): SheetSpec {
   return { name: 'Reglas', rows: [header, ...rows] };
 }
 
+// Reglas en el formato que entiende la importacion de reglas (ruleImportService): una fila por
+// regla de una sola condicion de concepto (el caso habitual). Asi el Excel de reglas sirve de
+// copia que se puede volver a importar en otro perfil o dispositivo. Las reglas con varias
+// condiciones o sobre importe/cuenta/fecha solo van en la hoja descriptiva "Reglas".
+export function buildImportableRulesSheet(rules: Rule[], names: NameLookups): SheetSpec {
+  const header: ExportCell[] = [
+    'Nombre',
+    'Campo',
+    'Operador',
+    'Valor',
+    'Sensible a mayusculas',
+    'Modo',
+    'Categoria',
+    'Subcategoria',
+    'Etiquetas',
+    'Excluir de estadisticas',
+    'Activa',
+    'Detener al casar',
+  ];
+  const rows = rules
+    .filter((r) => r.conditions.length === 1 && r.conditions[0]!.field === 'concept')
+    .map((r) => {
+      const c = r.conditions[0]!;
+      return [
+        r.name,
+        'concept',
+        c.operator,
+        String(c.value),
+        c.caseSensitive ? 'Si' : 'No',
+        r.matchMode === 'all' ? 'all' : 'any',
+        nameOf(names.categoryNames, r.action.setCategoryId),
+        nameOf(names.categoryNames, r.action.setSubcategoryId),
+        r.action.addTagIds.map((id) => nameOf(names.tagNames, id)).join('; '),
+        r.action.setExcludedFromStats === null ? '' : r.action.setExcludedFromStats ? 'Si' : 'No',
+        r.enabled ? 'Si' : 'No',
+        r.stopOnMatch ? 'Si' : 'No',
+      ];
+    });
+  return { name: 'Reglas reimportables', rows: [header, ...rows] };
+}
+
 const BUDGET_STATUS_LABELS: Record<BudgetEvaluation['status'], string> = {
   ok: 'En rango',
   warning: 'Cerca del limite',
@@ -562,6 +603,7 @@ export const exportService = {
   buildAccountsSheet,
   buildCategoriesSheet,
   buildRulesSheet,
+  buildImportableRulesSheet,
   buildBudgetsSheet,
   buildDashboardSheets,
   buildMerchantsSheet,

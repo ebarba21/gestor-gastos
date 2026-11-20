@@ -89,31 +89,51 @@ export function isIncomeCategoryName(name: string): boolean {
   return tokens.some((tok) => INCOME_NAME_TOKENS.has(tok));
 }
 
-// Conjunto de ids cuyo nombre (normalizado, sin distinguir mayusculas ni acentos) esta en
-// `names`, mas TODAS sus subcategorias (un nivel en el MVP). Base comun de las categorias de
-// ahorro y de inversion: asi una subcategoria dentro de "Ahorros" (p. ej. "Fondo de
-// emergencia") o de "Inversiones" (p. ej. "Fondos indexados") hereda el tratamiento del padre
-// aunque su nombre no lo diga.
-function categoryIdsMatchingNames(categories: Category[], names: Set<string>): Set<string> {
+// Papel efectivo de una categoria en estadisticas: el marcado explicito (statsRole) manda; si no
+// lo tiene (null/ausente), se deduce del nombre como antes de noviembre 2026 ("Ahorro"/"Ahorros"
+// e "Inversion"/"Inversiones"). 'none' fuerza gasto normal aunque el nombre coincida.
+function directRole(c: Category, kind: 'savings' | 'investment', names: Set<string>): boolean {
+  const role = c.statsRole ?? null;
+  if (role !== null) return role === kind;
+  return names.has(normalizeConcept(c.name));
+}
+
+// Conjunto de ids con papel `kind` (explicito o por nombre) mas sus subcategorias (un nivel en
+// el MVP). Base comun de las categorias de ahorro y de inversion: asi una subcategoria dentro de
+// "Ahorros" (p. ej. "Fondo de emergencia") o de "Inversiones" (p. ej. "Fondos indexados") hereda
+// el tratamiento del padre aunque su nombre no lo diga. Una subcategoria marcada
+// explicitamente con otro papel ('none' o el contrario) no hereda.
+function categoryIdsWithRole(categories: Category[], kind: 'savings' | 'investment', names: Set<string>): Set<string> {
   const roots = new Set<string>();
   for (const c of categories) {
-    if (names.has(normalizeConcept(c.name))) roots.add(c.id);
+    if (directRole(c, kind, names)) roots.add(c.id);
   }
   const all = new Set<string>(roots);
   for (const c of categories) {
-    if (c.parentId !== null && roots.has(c.parentId)) all.add(c.id);
+    if (c.parentId === null || !roots.has(c.parentId)) continue;
+    const role = c.statsRole ?? null;
+    if (role === null || role === kind) all.add(c.id);
   }
   return all;
 }
 
-// Categorias de ahorro (raiz + subcategorias). Ver categoryIdsMatchingNames.
+// Categorias de ahorro (raiz + subcategorias). Ver categoryIdsWithRole.
 export function computeSavingsCategoryIds(categories: Category[]): Set<string> {
-  return categoryIdsMatchingNames(categories, SAVINGS_CATEGORY_NAMES);
+  return categoryIdsWithRole(categories, 'savings', SAVINGS_CATEGORY_NAMES);
 }
 
 // Categorias de inversion (raiz + subcategorias). Analogo a computeSavingsCategoryIds.
 export function computeInvestmentCategoryIds(categories: Category[]): Set<string> {
-  return categoryIdsMatchingNames(categories, INVESTMENT_CATEGORY_NAMES);
+  return categoryIdsWithRole(categories, 'investment', INVESTMENT_CATEGORY_NAMES);
+}
+
+// Papel automatico que tendria una categoria por su nombre (para mostrarlo en la UI cuando el
+// marcado es "Automatico").
+export function automaticStatsRole(name: string): 'savings' | 'investment' | null {
+  const n = normalizeConcept(name);
+  if (SAVINGS_CATEGORY_NAMES.has(n)) return 'savings';
+  if (INVESTMENT_CATEGORY_NAMES.has(n)) return 'investment';
+  return null;
 }
 
 // Categorias de ingreso (rendimiento del trabajo): las de tipo 'income' o cuyo nombre esta en

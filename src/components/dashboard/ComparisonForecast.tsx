@@ -17,13 +17,13 @@ function deltaLabel(perMille: number | null): string {
 }
 
 export function ComparisonForecast({ comparison }: ComparisonForecastProps) {
-  // Gastar mas que el promedio se resalta como negativo (rojo); menos, como positivo (verde).
+  // Gastar mas que el promedio es un aviso temprano (ambar, con flecha); menos, positivo (verde).
   const worse = comparison.deltaCents > 0;
   const deltaColor =
     comparison.deltaPerMille === null
       ? 'text-slate-400'
       : worse
-        ? 'text-red-400'
+        ? 'text-amber-300'
         : 'text-emerald-400';
   const arrow = comparison.deltaPerMille === null ? '' : worse ? '▲' : '▼';
 

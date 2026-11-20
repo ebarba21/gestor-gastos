@@ -21,6 +21,12 @@ export function defaultSettingInput(): SettingInput {
     weekStart: 'monday',
     defaultAccountId: null,
     encryptionEnabled: false, // Reservado fase 2. En el MVP siempre false.
+    // Planificacion (noviembre 2026): mismos defaults que services/planningSettings.ts.
+    payDay: null,
+    safetyBufferCents: 0,
+    budgetCycle: 'calendar',
+    extraPayMonths: [],
+    reserveExtraPay: true,
   };
 }
 

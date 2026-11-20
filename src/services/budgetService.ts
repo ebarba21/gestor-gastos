@@ -7,23 +7,44 @@
 // dashboard). Asi se garantiza que el consumo mostrado coincide con la suma de movimientos
 // que cuentan en estadisticas (PRD 6), respetando exclusiones, transferencias, splits y
 // reembolsos.
-import type { Budget, BudgetDirection, BudgetPeriod, BudgetScope, Transaction } from '../db/schema';
+import type {
+  Account,
+  Budget,
+  BudgetDirection,
+  BudgetKind,
+  BudgetPeriod,
+  BudgetScope,
+  Transaction,
+} from '../db/schema';
 import { budgetsRepo } from '../db/budgetsRepo';
 import type { CreateInput } from '../db/baseRepo';
 import { categoriesRepo } from '../db/categoriesRepo';
 import { accountsRepo } from '../db/accountsRepo';
 import { transactionsRepo } from '../db/transactionsRepo';
+import { recurringSeriesRepo } from '../db/recurringSeriesRepo';
+import { recurringOccurrencesRepo } from '../db/recurringOccurrencesRepo';
 import {
+  aggregatePeriod,
   buildStatsContext,
   computeBudgetConsumption,
+  computeConsumption,
   type Consumption,
   type StatsContext,
 } from './statsService';
+import { fixedTransactionIdsFrom, isFixedTransaction } from './fixedSpend';
+import { planningSettingsService, DEFAULT_PLANNING_SETTINGS, type PlanningSettings } from './planningSettings';
+import { balancesAtDates } from './netWorthService';
 import {
   customRange,
   isWithinRange,
   monthRange,
+  monthsSpanned,
+  payCycleRange,
   quarterRange,
+  shiftDays,
+  shiftMonths,
+  shiftYears,
+  toISO,
   todayISO,
   yearRange,
   type DateRange,
@@ -40,6 +61,22 @@ export const BUDGET_WARNING_RATIO = 0.8;
 export const BUDGET_SCOPES: readonly BudgetScope[] = ['overall', 'category', 'subcategory', 'account'];
 export const BUDGET_PERIODS: readonly BudgetPeriod[] = ['monthly', 'quarterly', 'yearly', 'custom'];
 export const BUDGET_DIRECTIONS: readonly BudgetDirection[] = ['expense', 'income'];
+export const BUDGET_KINDS: readonly BudgetKind[] = ['limit', 'flex', 'goal', 'fund'];
+
+export const BUDGET_KIND_LABELS: Record<BudgetKind, string> = {
+  limit: 'Limite',
+  flex: 'Gasto flexible',
+  goal: 'Objetivo de ahorro',
+  fund: 'Fondo para gasto no mensual',
+};
+
+// Maximo de periodos anteriores que acumula un presupuesto con rollover (un ano de meses).
+export const MAX_ROLLOVER_PERIODS = 12;
+
+// Tipo efectivo (filas anteriores a noviembre 2026 no lo tienen: equivale a 'limit').
+export function budgetKindOf(b: Pick<Budget, 'kind'>): BudgetKind {
+  return b.kind ?? 'limit';
+}
 
 export const BUDGET_SCOPE_LABELS: Record<BudgetScope, string> = {
   overall: 'Global',
@@ -77,6 +114,49 @@ export interface BudgetEvaluation {
   // Puede ser negativo si los reembolsos superan el gasto del periodo.
   percent: number;
   status: BudgetStatus;
+  kind: BudgetKind;
+  // Rollover: lo que sobra (o falta) de periodos anteriores. 0 sin rollover.
+  carryCents: number;
+  // Limite efectivo del periodo = limite + arrastre.
+  effectiveLimitCents: number;
+  goal?: GoalProgress;
+  fund?: FundProgress;
+}
+
+export type GoalStatus = 'met' | 'onTrack' | 'behind' | 'noPace' | 'overdue';
+
+export interface GoalProgress {
+  targetCents: number;
+  savedCents: number;
+  remainingCents: number; // >= 0
+  startDate: string;
+  targetDate: string;
+  monthsLeft: number; // meses naturales hasta la fecha objetivo (incluido el actual); 0 si vencido
+  requiredMonthlyCents: number; // aportacion mensual necesaria para llegar a tiempo
+  paceMonthlyCents: number | null; // ritmo medio de aportacion desde el inicio
+  etaISO: string | null; // fecha estimada de llegada al ritmo actual
+  status: GoalStatus;
+  // Aportacion que falta este mes para ir al ritmo necesario (lo que el disponible aparta).
+  pendingThisMonthCents: number;
+}
+
+export interface FundProgress {
+  cycle: DateRange; // ciclo actual (se repite cada ano en la misma fecha)
+  dueDate: string;
+  monthsInCycle: number;
+  monthlyProvisionCents: number;
+  provisionedCents: number; // apartado virtualmente hasta hoy
+  spentCents: number; // gastado en el ambito durante el ciclo
+  earmarkedCents: number; // apartado y aun no gastado (lo que el disponible reserva)
+}
+
+// Datos que necesita la evaluacion, cargados una sola vez por perfil.
+export interface BudgetEvalEnv {
+  allTx: Transaction[];
+  ctx: StatsContext;
+  fixedIds: ReadonlySet<string>;
+  accounts: Account[];
+  planning: PlanningSettings;
 }
 
 export interface BudgetInput {
@@ -89,6 +169,7 @@ export interface BudgetInput {
   customStart?: string | null;
   customEnd?: string | null;
   rollover?: boolean;
+  kind?: BudgetKind;
 }
 
 export function normalizeBudgetName(name: string): string {
@@ -104,9 +185,18 @@ export function normalizeBudgetName(name: string): string {
 // Resuelve el rango de fechas del periodo de un presupuesto para una fecha de referencia.
 // mensual/trimestral/anual dependen de la referencia (por defecto hoy); personalizado usa
 // sus fechas fijas guardadas.
-export function resolveBudgetRange(budget: Budget, referenceISO: string = todayISO()): DateRange {
+// Con el ciclo de nomina activo (y dia de cobro indicado), los presupuestos mensuales van de
+// nomina a nomina en lugar del mes natural.
+export function resolveBudgetRange(
+  budget: Pick<Budget, 'period' | 'customStart' | 'customEnd'>,
+  referenceISO: string = todayISO(),
+  planning: Pick<PlanningSettings, 'budgetCycle' | 'payDay'> = DEFAULT_PLANNING_SETTINGS,
+): DateRange {
   switch (budget.period) {
     case 'monthly':
+      if (planning.budgetCycle === 'payday' && planning.payDay !== null) {
+        return payCycleRange(referenceISO, planning.payDay);
+      }
       return monthRange(referenceISO);
     case 'quarterly':
       return quarterRange(referenceISO);
@@ -124,8 +214,13 @@ export function resolveBudgetRange(budget: Budget, referenceISO: string = todayI
 }
 
 // Deriva el estado y las metricas de un presupuesto a partir de su consumo.
-function buildEvaluation(budget: Budget, range: DateRange, consumption: Consumption): BudgetEvaluation {
-  const limit = budget.limitCents;
+function buildEvaluation(
+  budget: Budget,
+  range: DateRange,
+  consumption: Consumption,
+  carryCents = 0,
+): BudgetEvaluation {
+  const limit = budget.limitCents + carryCents;
   const consumed = consumption.consumedCents;
   const remaining = limit - consumed;
   const percent = limit > 0 ? Math.round((consumed / limit) * 100) : 0;
@@ -143,13 +238,16 @@ function buildEvaluation(budget: Budget, range: DateRange, consumption: Consumpt
   return {
     budget,
     range,
-    limitCents: limit,
+    limitCents: budget.limitCents,
     grossCents: consumption.grossCents,
     refundCents: consumption.refundCents,
     consumedCents: consumed,
     remainingCents: remaining,
     percent,
     status,
+    kind: budgetKindOf(budget),
+    carryCents,
+    effectiveLimitCents: limit,
   };
 }
 
@@ -161,6 +259,28 @@ async function validateInput(profileId: string, input: BudgetInput): Promise<voi
   assert(BUDGET_SCOPES.includes(input.scope), 'Ambito de presupuesto no valido.');
   assert(BUDGET_PERIODS.includes(input.period), 'Periodo de presupuesto no valido.');
   assert(BUDGET_DIRECTIONS.includes(input.direction), 'Direccion de presupuesto no valida.');
+  const kind = input.kind ?? 'limit';
+  assert(BUDGET_KINDS.includes(kind), 'Tipo de presupuesto no valido.');
+  if (kind === 'flex') {
+    assert(input.scope === 'overall', 'El presupuesto flexible abarca todo tu gasto variable (ambito global).');
+    assert(input.direction === 'expense', 'El presupuesto flexible es un limite de gasto.');
+    assert(input.period !== 'custom', 'El presupuesto flexible es mensual, trimestral o anual.');
+  } else if (kind === 'goal') {
+    assert(input.period === 'custom', 'Un objetivo necesita fecha de inicio y fecha objetivo.');
+    assert(input.direction === 'income', 'Un objetivo de ahorro se registra como objetivo, no como limite de gasto.');
+  } else if (kind === 'fund') {
+    assert(input.period === 'custom', 'Un fondo necesita fecha de inicio y fecha de vencimiento.');
+    assert(input.direction === 'expense', 'Un fondo reserva dinero para un gasto.');
+    assert(
+      input.scope === 'category' || input.scope === 'subcategory',
+      'Un fondo se vincula a la categoria o subcategoria donde se registrara el gasto.',
+    );
+  }
+  if (input.rollover) {
+    assert(kind === 'limit' || kind === 'flex', 'Solo los limites de gasto acumulan lo que sobra.');
+    assert(input.direction === 'expense', 'Solo los limites de gasto acumulan lo que sobra.');
+    assert(input.period !== 'custom', 'Un periodo personalizado no se repite: no puede acumular lo que sobra.');
+  }
 
   // Coherencia ambito <-> scopeId y existencia de la entidad referenciada en el perfil.
   if (input.scope === 'overall') {
@@ -212,6 +332,7 @@ function toPersisted(input: BudgetInput): CreateInput<Budget> {
     customStart: input.period === 'custom' ? input.customStart ?? null : null,
     customEnd: input.period === 'custom' ? input.customEnd ?? null : null,
     rollover: input.rollover ?? false,
+    kind: input.kind ?? 'limit',
     archivedAt: null,
   };
 }
@@ -267,50 +388,213 @@ export const budgetService = {
     return budgetsRepo.remove(profileId, id);
   },
 
-  // Evalua un unico presupuesto para una fecha de referencia. Carga las categorias y los
-  // movimientos del perfil (estos ultimos completos, para atribuir reembolsos cuyo gasto
-  // original caiga fuera del periodo). Para evaluar muchos, usar evaluateActive (una carga).
+  // Evalua un unico presupuesto para una fecha de referencia. Para evaluar muchos, usar
+  // evaluateActive (una sola carga de datos).
   async evaluateOne(
     profileId: string,
     budget: Budget,
     referenceISO: string = todayISO(),
   ): Promise<BudgetEvaluation> {
     requireProfileId(profileId);
-    const [categories, allTx] = await Promise.all([
-      categoriesRepo.list(profileId),
-      transactionsRepo.list(profileId),
-    ]);
-    const ctx = buildStatsContext(categories, allTx);
-    return evaluateWithContext(budget, allTx, ctx, referenceISO);
+    const env = await loadBudgetEnv(profileId);
+    return evaluateBudget(budget, env, referenceISO);
   },
 
   // Evalua todos los presupuestos activos del perfil para una fecha de referencia, con una
-  // unica carga de categorias y movimientos (eficiente para la pagina de presupuestos).
+  // unica carga de categorias, movimientos, cuentas, recurrencias y configuracion.
   async evaluateActive(
     profileId: string,
     referenceISO: string = todayISO(),
   ): Promise<BudgetEvaluation[]> {
     requireProfileId(profileId);
-    const [budgets, categories, allTx] = await Promise.all([
-      budgetService.list(profileId),
-      categoriesRepo.list(profileId),
-      transactionsRepo.list(profileId),
-    ]);
-    const ctx = buildStatsContext(categories, allTx);
-    return budgets.map((b) => evaluateWithContext(b, allTx, ctx, referenceISO));
+    const [budgets, env] = await Promise.all([budgetService.list(profileId), loadBudgetEnv(profileId)]);
+    return budgets.map((b) => evaluateBudget(b, env, referenceISO));
   },
 };
 
-// Evaluacion pura: acota los movimientos al periodo del presupuesto y calcula su consumo.
-// Aislada para poder testearla y compartir la carga entre varios presupuestos.
-function evaluateWithContext(
-  budget: Budget,
-  allTx: Transaction[],
-  ctx: StatsContext,
-  referenceISO: string,
-): BudgetEvaluation {
-  const range = resolveBudgetRange(budget, referenceISO);
-  const inPeriod = allTx.filter((t) => isWithinRange(t.date, range));
-  const consumption = computeBudgetConsumption(budget, inPeriod, ctx);
-  return buildEvaluation(budget, range, consumption);
+// Carga, aislada por perfil, de todo lo que necesita la evaluacion.
+export async function loadBudgetEnv(profileId: string): Promise<BudgetEvalEnv> {
+  requireProfileId(profileId);
+  const [categories, allTx, accounts, series, matched, planning] = await Promise.all([
+    categoriesRepo.list(profileId),
+    transactionsRepo.list(profileId),
+    accountsRepo.list(profileId),
+    recurringSeriesRepo.list(profileId),
+    recurringOccurrencesRepo.listByStatus(profileId, 'matched'),
+    planningSettingsService.get(profileId),
+  ]);
+  return {
+    allTx,
+    ctx: buildStatsContext(categories, allTx),
+    fixedIds: fixedTransactionIdsFrom(series, matched),
+    accounts,
+    planning,
+  };
+}
+
+// Fecha contable (local) de un timestamp.
+function isoOfMs(ms: number): string {
+  const d = new Date(ms);
+  return toISO(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+function inRange(txs: Transaction[], range: DateRange): Transaction[] {
+  return txs.filter((t) => isWithinRange(t.date, range));
+}
+
+// Consumo de un limite (o del flexible, que excluye los recibos fijos) en un rango.
+function limitConsumption(budget: Budget, env: BudgetEvalEnv, range: DateRange): Consumption {
+  let txs = inRange(env.allTx, range);
+  if (budgetKindOf(budget) === 'flex') txs = txs.filter((t) => !isFixedTransaction(t, env.fixedIds));
+  return computeBudgetConsumption(budget, txs, env.ctx);
+}
+
+// Arrastre de periodos anteriores (rollover): suma de (limite - consumo) de cada periodo previo
+// desde el periodo en que se creo el presupuesto, como maximo MAX_ROLLOVER_PERIODS. Un periodo
+// con exceso arrastra negativo (lo gastado de mas se descuenta del siguiente).
+export function computeCarry(budget: Budget, env: BudgetEvalEnv, current: DateRange): number {
+  if (!budget.rollover || budget.direction !== 'expense' || budget.period === 'custom') return 0;
+  const kind = budgetKindOf(budget);
+  if (kind !== 'limit' && kind !== 'flex') return 0;
+  const createdISO = isoOfMs(budget.createdAt);
+  let carry = 0;
+  let range = current;
+  for (let i = 0; i < MAX_ROLLOVER_PERIODS; i++) {
+    const prev = resolveBudgetRange(budget, shiftDays(range.from, -1), env.planning);
+    if (prev.to < createdISO) break;
+    carry += budget.limitCents - limitConsumption(budget, env, prev).consumedCents;
+    range = prev;
+  }
+  return carry;
+}
+
+// Progreso de un objetivo de ahorro.
+export function computeGoalProgress(budget: Budget, env: BudgetEvalEnv, referenceISO: string): GoalProgress {
+  const startDate = budget.customStart!;
+  const targetDate = budget.customEnd!;
+  const until = referenceISO < startDate ? startDate : referenceISO;
+  let saved = 0;
+  let savedAtStart = 0;
+  if (budget.scope === 'account') {
+    const account = env.accounts.filter((a) => a.id === budget.scopeId);
+    const points = balancesAtDates(account, env.allTx, [shiftDays(startDate, -1), until]);
+    savedAtStart = points[0]!.totalCents;
+    saved = points[1]!.totalCents;
+  } else if (budget.scope === 'overall') {
+    const txs = inRange(env.allTx, { from: startDate, to: until });
+    saved = aggregatePeriod(txs, env.ctx).summary.netSavingsCents;
+  } else {
+    // Categoria/subcategoria (normalmente de ahorro o inversion): aportaciones netas.
+    const txs = inRange(env.allTx, { from: startDate, to: until });
+    saved = computeConsumption(txs, budget.scope, budget.scopeId, 'expense', env.ctx).consumedCents;
+  }
+  const target = budget.limitCents;
+  const remaining = Math.max(0, target - saved);
+  const overdue = referenceISO > targetDate;
+  const monthsLeft = overdue ? 0 : monthsSpanned(referenceISO < startDate ? startDate : referenceISO, targetDate);
+  const requiredMonthly = remaining === 0 ? 0 : Math.ceil(remaining / Math.max(1, monthsLeft));
+  const elapsedMonths = referenceISO < startDate ? 0 : monthsSpanned(startDate, referenceISO);
+  const progressSinceStart = saved - savedAtStart;
+  const pace = elapsedMonths > 0 && progressSinceStart > 0 ? Math.round(progressSinceStart / elapsedMonths) : null;
+  let eta: string | null = null;
+  if (remaining === 0) eta = referenceISO;
+  else if (pace !== null) eta = shiftMonths(referenceISO, Math.ceil(remaining / pace));
+  let status: GoalStatus;
+  if (remaining === 0) status = 'met';
+  else if (overdue) status = 'overdue';
+  else if (pace === null) status = 'noPace';
+  else status = eta !== null && eta <= targetDate ? 'onTrack' : 'behind';
+
+  // Lo que falta aportar este mes para ir al ritmo necesario (solo objetivos por categoria o
+  // global, cuya aportacion sale de tus cuentas; en uno por cuenta el dinero ya esta apartado).
+  let pendingThisMonth = 0;
+  if (remaining > 0 && !overdue && budget.scope !== 'account' && referenceISO >= startDate) {
+    const month = monthRange(referenceISO);
+    const from = month.from < startDate ? startDate : month.from;
+    const txs = inRange(env.allTx, { from, to: referenceISO });
+    const thisMonth =
+      budget.scope === 'overall'
+        ? 0
+        : computeConsumption(txs, budget.scope, budget.scopeId, 'expense', env.ctx).consumedCents;
+    if (budget.scope !== 'overall') pendingThisMonth = Math.max(0, Math.min(remaining, requiredMonthly - thisMonth));
+  }
+  return {
+    targetCents: target,
+    savedCents: saved,
+    remainingCents: remaining,
+    startDate,
+    targetDate,
+    monthsLeft,
+    requiredMonthlyCents: requiredMonthly,
+    paceMonthlyCents: pace,
+    etaISO: eta,
+    status,
+    pendingThisMonthCents: pendingThisMonth,
+  };
+}
+
+// Ciclo actual de un fondo: el primero va de customStart a customEnd; despues se repite cada
+// ano en la misma fecha de vencimiento.
+export function fundCycle(customStart: string, customEnd: string, referenceISO: string): DateRange {
+  let start = customStart;
+  let end = customEnd;
+  let guard = 0;
+  while (end < referenceISO && guard < 200) {
+    start = shiftDays(end, 1);
+    end = shiftYears(end, 1);
+    guard++;
+  }
+  return { from: start, to: end };
+}
+
+// Progreso de un fondo para gasto no mensual: se aparta (virtualmente) una cuota cada mes del
+// ciclo y se descuenta lo gastado en su ambito.
+export function computeFundProgress(budget: Budget, env: BudgetEvalEnv, referenceISO: string): FundProgress {
+  const cycle = fundCycle(budget.customStart!, budget.customEnd!, referenceISO);
+  const monthsInCycle = monthsSpanned(cycle.from, cycle.to);
+  const monthlyProvision = Math.ceil(budget.limitCents / monthsInCycle);
+  const elapsed = referenceISO < cycle.from ? 0 : Math.min(monthsInCycle, monthsSpanned(cycle.from, referenceISO));
+  const provisioned = Math.min(budget.limitCents, monthlyProvision * elapsed);
+  const spentRange: DateRange = { from: cycle.from, to: referenceISO < cycle.to ? referenceISO : cycle.to };
+  const spent =
+    referenceISO < cycle.from
+      ? 0
+      : Math.max(0, computeConsumption(inRange(env.allTx, spentRange), budget.scope, budget.scopeId, 'expense', env.ctx).consumedCents);
+  return {
+    cycle,
+    dueDate: cycle.to,
+    monthsInCycle,
+    monthlyProvisionCents: monthlyProvision,
+    provisionedCents: provisioned,
+    spentCents: spent,
+    earmarkedCents: Math.max(0, provisioned - spent),
+  };
+}
+
+// Evaluacion pura de un presupuesto de cualquier tipo.
+export function evaluateBudget(budget: Budget, env: BudgetEvalEnv, referenceISO: string): BudgetEvaluation {
+  const kind = budgetKindOf(budget);
+  if (kind === 'goal') {
+    const goal = computeGoalProgress(budget, env, referenceISO);
+    const range = customRange(budget.customStart!, budget.customEnd!);
+    const ev = buildEvaluation(budget, range, {
+      grossCents: goal.savedCents,
+      refundCents: 0,
+      consumedCents: goal.savedCents,
+    });
+    return { ...ev, goal };
+  }
+  if (kind === 'fund') {
+    const fund = computeFundProgress(budget, env, referenceISO);
+    const ev = buildEvaluation(budget, fund.cycle, {
+      grossCents: fund.spentCents,
+      refundCents: 0,
+      consumedCents: fund.spentCents,
+    });
+    return { ...ev, fund };
+  }
+  const range = resolveBudgetRange(budget, referenceISO, env.planning);
+  const consumption = limitConsumption(budget, env, range);
+  const carry = computeCarry(budget, env, range);
+  return buildEvaluation(budget, range, consumption, carry);
 }
