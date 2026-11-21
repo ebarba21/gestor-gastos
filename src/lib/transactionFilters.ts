@@ -23,6 +23,9 @@ export interface TxFilter {
   dateTo?: string; // YYYY-MM-DD inclusive
   amountMinCents?: number; // rango sobre el importe con signo (centimos)
   amountMaxCents?: number;
+  // Rango sobre la MAGNITUD del importe (sin signo), para la busqueda "> 100" (noviembre 2026).
+  absAmountMinCents?: number;
+  absAmountMaxCents?: number;
   excluded?: ExcludedFilter;
   onlyUncategorized?: boolean; // solo movimientos sin categoria
   // Ocultar las lineas hijas de un split (por defecto la lista muestra el padre).
@@ -100,6 +103,8 @@ export function filterTransactions(txs: Transaction[], filter: TxFilter): Transa
 
     if (filter.amountMinCents !== undefined && t.amountCents < filter.amountMinCents) return false;
     if (filter.amountMaxCents !== undefined && t.amountCents > filter.amountMaxCents) return false;
+    if (filter.absAmountMinCents !== undefined && Math.abs(t.amountCents) < filter.absAmountMinCents) return false;
+    if (filter.absAmountMaxCents !== undefined && Math.abs(t.amountCents) > filter.absAmountMaxCents) return false;
 
     if (filter.excluded === 'only' && !t.excludedFromStats) return false;
     if (filter.excluded === 'exclude' && t.excludedFromStats) return false;

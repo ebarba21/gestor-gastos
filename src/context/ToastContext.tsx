@@ -14,19 +14,28 @@ import {
 
 export type ToastKind = 'success' | 'error' | 'info';
 
+// Accion opcional del aviso (p. ej. "Deshacer" tras resolver una tarea con un gesto).
+export interface ToastAction {
+  label: string;
+  onClick: () => void | Promise<void>;
+}
+
 interface Toast {
   id: string;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, kind?: ToastKind) => void;
+  showToast: (message: string, kind?: ToastKind, action?: ToastAction) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const DEFAULT_DURATION_MS = 4000;
+// Con accion se deja mas tiempo para poder pulsarla.
+const ACTION_DURATION_MS = 6000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -43,10 +52,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const showToast = useCallback(
-    (message: string, kind: ToastKind = 'info') => {
+    (message: string, kind: ToastKind = 'info', action?: ToastAction) => {
       const id = crypto.randomUUID();
-      setToasts((current) => [...current, { id, kind, message }]);
-      const timer = setTimeout(() => dismiss(id), DEFAULT_DURATION_MS);
+      setToasts((current) => [...current, { id, kind, message, action }]);
+      const timer = setTimeout(() => dismiss(id), action ? ACTION_DURATION_MS : DEFAULT_DURATION_MS);
       timers.current.set(id, timer);
     },
     [dismiss],
@@ -71,23 +80,46 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 flex md:bottom-4 flex-col items-center gap-2 px-4"
       >
-        {toasts.map((toast) => (
-          <button
-            key={toast.id}
-            type="button"
-            onClick={() => dismiss(toast.id)}
-            className={[
-              'pointer-events-auto max-w-md rounded-lg px-4 py-2 text-sm font-medium shadow-lg',
-              toast.kind === 'success' && 'bg-emerald-600 text-white',
-              toast.kind === 'error' && 'bg-red-600 text-white',
-              toast.kind === 'info' && 'bg-slate-700 text-slate-50',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            {toast.message}
-          </button>
-        ))}
+        {toasts.map((toast) => {
+          const colors = [
+            toast.kind === 'success' && 'bg-emerald-600 text-white',
+            toast.kind === 'error' && 'bg-red-600 text-white',
+            toast.kind === 'info' && 'bg-slate-700 text-slate-50',
+          ]
+            .filter(Boolean)
+            .join(' ');
+          if (toast.action) {
+            const action = toast.action;
+            return (
+              <div
+                key={toast.id}
+                className={`pointer-events-auto flex max-w-md items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium shadow-lg ${colors}`}
+              >
+                <span>{toast.message}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismiss(toast.id);
+                    void action.onClick();
+                  }}
+                  className="shrink-0 rounded px-2 py-1 font-semibold underline underline-offset-2 hover:bg-white/10"
+                >
+                  {action.label}
+                </button>
+              </div>
+            );
+          }
+          return (
+            <button
+              key={toast.id}
+              type="button"
+              onClick={() => dismiss(toast.id)}
+              className={`pointer-events-auto max-w-md rounded-lg px-4 py-2 text-sm font-medium shadow-lg ${colors}`}
+            >
+              {toast.message}
+            </button>
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );

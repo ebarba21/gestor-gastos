@@ -14,11 +14,13 @@ import {
   type SortField,
 } from '../../lib/transactionFilters';
 import { transactionService } from '../../services/transactionService';
-import { EmptyState, ConfirmDialog, VirtualList, type DialogButton } from '../common';
+import { EmptyState, ConfirmDialog, SwipeRow, VirtualList, type DialogButton } from '../common';
 import { useToast } from '../../context/ToastContext';
 import { TransactionRow, ROW_HEIGHT } from './TransactionRow';
 import { computeIncomeCategoryIds } from '../../services/statsService';
 import { TransactionFilters } from './TransactionFilters';
+import { mergeSmartFilter, parseSmartSearch } from '../../lib/smartSearch';
+import { todayISO } from '../../lib/dates';
 import { TransactionFormModal } from './TransactionFormModal';
 import { BulkEditModal } from './BulkEditModal';
 import { SplitModal } from './SplitModal';
@@ -88,10 +90,20 @@ export function TransactionsSection() {
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; count: number } | null>(null);
 
   // Lista filtrada y ordenada (memoizada). El aislamiento ya lo garantiza el hook.
+  // Busqueda con sintaxis ("mercadona octubre", ">100 restaurantes", "#viaje"): lo que se
+  // reconoce se convierte en filtros y se ensena como chips; el resto busca en concepto y notas.
+  const smart = useMemo(
+    () => (filter.search ? parseSmartSearch(filter.search, { categories, accounts, tags, today: todayISO() }) : null),
+    [filter.search, categories, accounts, tags],
+  );
+  const effectiveFilter = useMemo(
+    () => (smart ? mergeSmartFilter({ ...filter, search: undefined }, smart.filter) : filter),
+    [smart, filter],
+  );
   const visible = useMemo(() => {
-    const filtered = filterTransactions(transactions, filter);
+    const filtered = filterTransactions(transactions, effectiveFilter);
     return sortTransactions(filtered, sort, { accountNames, categoryNames });
-  }, [transactions, filter, sort, accountNames, categoryNames]);
+  }, [transactions, effectiveFilter, sort, accountNames, categoryNames]);
   const incomeCategoryIds = useMemo(() => computeIncomeCategoryIds(categories), [categories]);
 
   const visibleIds = useMemo(() => visible.map((t) => t.id), [visible]);
@@ -197,6 +209,7 @@ export function TransactionsSection() {
 
       <TransactionFilters
         filter={filter}
+        searchChips={smart?.chips}
         onChange={(next) => setFilter({ ...next, hideSplitChildren: true })}
         accounts={accounts}
         categories={categories}
@@ -263,6 +276,14 @@ export function TransactionsSection() {
               height={LIST_HEIGHT}
               keyFor={(t) => t.id}
               renderRow={(t) => (
+                // Gestos en el movil: derecha abre la ficha para categorizar, izquierda abre las
+                // acciones (dividir, transferencia, excluir, borrar). Los mismos botones siguen en
+                // la fila (concepto y boton de acciones).
+                <SwipeRow
+                  className="h-full"
+                  leading={{ label: 'Categorizar', className: 'bg-indigo-600 text-white', onTrigger: () => setEditing(t) }}
+                  trailing={{ label: 'Acciones', className: 'bg-slate-700 text-slate-100', onTrigger: () => setActionsFor(t) }}
+                >
                 <TransactionRow
                   tx={t}
                   selected={selected.has(t.id)}
@@ -279,6 +300,7 @@ export function TransactionsSection() {
                   locale={LOCALE}
                   currency={CURRENCY}
                 />
+                </SwipeRow>
               )}
             />
           )}

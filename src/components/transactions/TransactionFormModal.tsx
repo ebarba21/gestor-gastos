@@ -3,7 +3,7 @@
 //  - Editar movimientos especiales (transferencia, padre o linea de split): edicion
 //    "segura" (fecha, concepto, notas, estado, etiquetas) para no romper sus invariantes;
 //    el importe/tipo/cuenta se muestran de solo lectura y se gestionan desde sus acciones.
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ruleSuggestionService, suggestRule, type RuleSuggestion } from '../../services/ruleSuggestion';
 import type { Account, Category, Tag, Transaction, TransactionStatus, TransactionType } from '../../db/schema';
 import { Modal } from '../common';
@@ -17,6 +17,7 @@ import {
 import { ruleService } from '../../services/ruleService';
 import { merchantService } from '../../services/merchantService';
 import { eurosToCents } from '../../lib/money';
+import { lastAccountId, pushRecentCategory, recentCategoryIds, rememberAccount } from '../../lib/quickEntryMemory';
 
 const TYPE_LABELS: Record<'expense' | 'income', string> = {
   expense: 'Gasto',
@@ -86,6 +87,10 @@ export function TransactionFormModal({
   const [acceptingRule, setAcceptingRule] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Alta rapida: categorias recientes (chips) y "guardar y anadir otro".
+  const [recentCats, setRecentCats] = useState<string[]>([]);
+  // Ref (no estado): el clic del boton y el envio del formulario ocurren en el mismo gesto.
+  const addAnother = useRef(false);
 
   // Categorias raiz aplicables al tipo (o todas si el tipo es transfer). Se incluye la
   // categoria actual aunque este archivada para no perderla al editar.
@@ -136,7 +141,11 @@ export function TransactionFormModal({
       setAmountEuros('');
       setConcept('');
       setNotes('');
-      setAccountId(accounts.find((a) => a.archivedAt === null)?.id ?? '');
+      // Ultima cuenta usada en este dispositivo (si sigue activa) o la primera activa.
+      const remembered = lastAccountId(profileId);
+      const active = accounts.filter((a) => a.archivedAt === null);
+      setAccountId(active.find((a) => a.id === remembered)?.id ?? active[0]?.id ?? '');
+      setRecentCats(recentCategoryIds(profileId));
       setCategoryId('');
       setSubcategoryId('');
       setStatus('cleared');
@@ -145,7 +154,31 @@ export function TransactionFormModal({
       setReimbursable('');
     }
     setSuggestion(null);
-  }, [open, tx, accounts]);
+  }, [open, tx, accounts, profileId]);
+
+  // Chips de categorias recientes aplicables al tipo elegido (solo al crear).
+  const recentChips = useMemo(() => {
+    if (isEdit) return [];
+    const byId = new Map(categories.map((c) => [c.id, c]));
+    const wanted = type === 'income' ? 'income' : 'expense';
+    return recentCats
+      .map((id) => byId.get(id))
+      .filter((c): c is Category => c !== undefined && c.archivedAt === null)
+      .filter((c) => {
+        const root = c.parentId === null ? c : byId.get(c.parentId);
+        return root !== undefined && (root.kind === 'both' || root.kind === wanted);
+      });
+  }, [isEdit, recentCats, categories, type]);
+
+  function pickRecent(c: Category) {
+    if (c.parentId === null) {
+      setCategoryId(c.id);
+      setSubcategoryId('');
+    } else {
+      setCategoryId(c.parentId);
+      setSubcategoryId(c.id);
+    }
+  }
 
   function parseReimbursable(): number | null {
     const raw = reimbursable.trim().replace(',', '.');
@@ -155,11 +188,11 @@ export function TransactionFormModal({
     return n === 0 ? null : eurosToCents(n);
   }
 
-  async function acceptSuggestion() {
+  async function acceptSuggestion(retroactive: boolean) {
     if (!suggestion || acceptingRule) return;
     setAcceptingRule(true);
     try {
-      const { changed } = await ruleSuggestionService.accept(profileId, suggestion);
+      const { changed } = await ruleSuggestionService.accept(profileId, suggestion, { retroactive });
       showToast(
         changed > 0 ? `Regla creada. ${changed} movimientos recategorizados.` : 'Regla creada para los próximos movimientos.',
         'success',
@@ -232,6 +265,10 @@ export function TransactionFormModal({
           }
         } else {
           const created = await transactionService.create(profileId, payload);
+          rememberAccount(profileId, accountId);
+          if (payload.subcategoryId ?? payload.categoryId) {
+            setRecentCats(pushRecentCategory(profileId, (payload.subcategoryId ?? payload.categoryId)!));
+          }
           // Autocategorizacion por reglas al crear a mano: solo actua si el movimiento no se
           // categorizo manualmente (sin categoria elegida en el alta). Si ninguna regla casa,
           // no cambia nada. La categorizacion manual del usuario siempre prevalece.
@@ -240,6 +277,22 @@ export function TransactionFormModal({
           // asociacion manual y respeta el orden de asociacion determinista del motor.
           await merchantService.applyToTransaction(profileId, created.id);
         }
+      }
+      if (!isEdit && addAnother.current) {
+        // "Guardar y anadir otro": se queda abierto con la misma fecha y cuenta, listo para el
+        // siguiente ticket.
+        showToast('Movimiento creado. Añade el siguiente.', 'success');
+        setAmountEuros('');
+        setConcept('');
+        setNotes('');
+        setCategoryId('');
+        setSubcategoryId('');
+        setTagIds([]);
+        setReimbursable('');
+        setExcluded(false);
+        await onSaved();
+        document.getElementById('tx-amount')?.focus();
+        return;
       }
       showToast(isEdit ? 'Movimiento actualizado.' : 'Movimiento creado.', 'success');
       await onSaved();
@@ -266,28 +319,36 @@ export function TransactionFormModal({
             <strong className="text-slate-100">{suggestion.name.split('→')[1]?.trim()}</strong>?
           </p>
           <p className="text-xs text-slate-500">
-            Se crea una regla con la máxima prioridad y se aplica también a tu histórico, sin tocar lo que hayas
-            categorizado a mano. Puedes editarla o borrarla en Reglas.
+            Se crea una regla con la máxima prioridad. Lo que hayas categorizado a mano nunca se toca. Puedes editarla o
+            borrarla en Reglas.
           </p>
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <button
               type="button"
               onClick={() => {
                 void Promise.resolve(onSaved()).finally(onClose);
               }}
               disabled={acceptingRule}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg border border-slate-700 px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50"
             >
-              Ahora no
+              Solo esta
             </button>
             <button
               type="button"
-              onClick={() => void acceptSuggestion()}
+              onClick={() => void acceptSuggestion(false)}
               disabled={acceptingRule}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+              className="rounded-lg border border-indigo-500/60 px-3 py-2.5 text-sm font-medium text-indigo-200 hover:bg-indigo-950/40 disabled:opacity-50"
             >
-              {acceptingRule ? 'Creando...' : 'Crear regla'}
+              Esta y las futuras
+            </button>
+            <button
+              type="button"
+              onClick={() => void acceptSuggestion(true)}
+              disabled={acceptingRule}
+              className="rounded-lg bg-indigo-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            >
+              {acceptingRule ? 'Creando...' : 'Todas, pasadas y futuras'}
             </button>
           </div>
         </div>
@@ -355,6 +416,7 @@ export function TransactionFormModal({
               value={amountEuros}
               onChange={(e) => setAmountEuros(e.target.value)}
               disabled={limited}
+              autoFocus={!isEdit}
               className={`${inputClass} disabled:opacity-50`}
             />
           </div>
@@ -370,7 +432,7 @@ export function TransactionFormModal({
             value={concept}
             onChange={(e) => setConcept(e.target.value)}
             maxLength={MAX_CONCEPT_LENGTH}
-            autoFocus
+            autoFocus={isEdit}
             className={inputClass}
           />
         </div>
@@ -396,6 +458,31 @@ export function TransactionFormModal({
                 ))}
               </select>
             </div>
+
+            {recentChips.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-slate-400">Recientes</p>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {recentChips.map((c) => {
+                    const active = (subcategoryId || categoryId) === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => pickRecent(c)}
+                        aria-pressed={active}
+                        className={`min-h-[36px] rounded-full border px-3 py-1.5 text-sm ${
+                          active ? 'border-indigo-500 bg-indigo-600/20 text-indigo-200' : 'border-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {c.icon ? `${c.icon} ` : ''}
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -536,7 +623,7 @@ export function TransactionFormModal({
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex flex-wrap justify-end gap-2 pt-2">
           <button
             type="button"
             onClick={onClose}
@@ -545,8 +632,25 @@ export function TransactionFormModal({
           >
             Cancelar
           </button>
+          {!isEdit && (
+            <button
+              // type="button": asi la tecla Intro sigue usando "Guardar" (el primer boton submit).
+              type="button"
+              onClick={(e) => {
+                addAnother.current = true;
+                e.currentTarget.form?.requestSubmit();
+              }}
+              disabled={saving}
+              className="rounded-lg border border-indigo-500/60 px-4 py-2 text-sm font-medium text-indigo-200 hover:bg-indigo-950/40 disabled:opacity-50"
+            >
+              Guardar y añadir otro
+            </button>
+          )}
           <button
             type="submit"
+            onClick={() => {
+              addAnother.current = false;
+            }}
             disabled={saving}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >

@@ -51,8 +51,15 @@ export function suggestRule(
 
 export const ruleSuggestionService = {
   // Crea la regla con la maxima prioridad (la correccion del usuario manda sobre reglas
-  // genericas anteriores) y la aplica al historico sin tocar lo categorizado a mano.
-  async accept(profileId: string, s: RuleSuggestion): Promise<{ rule: Rule; changed: number }> {
+  // genericas anteriores). Alcance elegido por la persona (noviembre 2026):
+  //  - retroactive true (por defecto): pasadas y futuras; se aplica al historico sin tocar lo
+  //    categorizado a mano.
+  //  - retroactive false: solo futuras; el historico no se toca.
+  async accept(
+    profileId: string,
+    s: RuleSuggestion,
+    options: { retroactive?: boolean } = {},
+  ): Promise<{ rule: Rule; changed: number }> {
     requireProfileId(profileId);
     const rule = await ruleService.create(profileId, {
       name: s.name,
@@ -65,6 +72,7 @@ export const ruleSuggestionService = {
     const all = await ruleService.list(profileId);
     await ruleService.reorder(profileId, [rule.id, ...all.filter((r) => r.id !== rule.id).map((r) => r.id)]);
     const fresh = (await ruleService.list(profileId)).find((r) => r.id === rule.id) ?? rule;
+    if (options.retroactive === false) return { rule: fresh, changed: 0 };
     const { changed } = await ruleService.applyRetroactive(profileId, [fresh]);
     return { rule: fresh, changed };
   },

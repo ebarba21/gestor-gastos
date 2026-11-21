@@ -8,3 +8,5 @@ export { IconPicker } from './IconPicker';
 export { VirtualList } from './VirtualList';
 export { ThemeToggle } from './ThemeToggle';
 export { PrivacyToggle } from './PrivacyToggle';
+export { SwipeRow, swipeOutcome, SWIPE_THRESHOLD_PX } from './SwipeRow';
+export type { SwipeAction } from './SwipeRow';
