@@ -40,9 +40,9 @@ export function ComparisonForecast({ comparison }: ComparisonForecastProps) {
       </p>
       <p className="mt-1 text-xs text-slate-500">
         {comparison.monthsCompared === 0
-          ? 'Aun no hay meses anteriores con actividad para comparar'
+          ? 'Aún no hay meses anteriores con actividad para comparar'
           : comparison.prorated
-            ? `A estas alturas del mes (dia ${comparison.daysElapsed} de ${comparison.daysInMonth}) sueles llevar ${formatCents(
+            ? `A estas alturas del mes (día ${comparison.daysElapsed} de ${comparison.daysInMonth}) sueles llevar ${formatCents(
                 comparison.averageComparedCents,
               )}. Media mensual completa ${formatCents(comparison.averageExpenseNetCents)} de ${
                 comparison.monthsCompared

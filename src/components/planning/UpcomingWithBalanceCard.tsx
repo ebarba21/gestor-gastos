@@ -21,11 +21,11 @@ export function UpcomingWithBalanceCard({
   if (events.length === 0) {
     return (
       <p className="py-4 text-sm text-slate-500">
-        Nada previsto en los proximos {days} dias.{' '}
+        Nada previsto en los próximos {days} días.{' '}
         <Link to="/recurrencias" className="text-indigo-400 hover:underline">
           Confirma tus recibos
         </Link>{' '}
-        para verlos aqui.
+        para verlos aquí.
       </p>
     );
   }
@@ -47,9 +47,9 @@ export function UpcomingWithBalanceCard({
                   className={`block text-xs tabular-nums ${
                     balance < 0 ? 'text-red-400' : low ? 'text-amber-300' : 'text-slate-500'
                   }`}
-                  title="Saldo previsto al final de ese dia"
+                  title="Saldo previsto al final de ese día"
                 >
-                  {balance < 0 ? '⚠ ' : ''}Saldo despues: {formatCents(balance)}
+                  {balance < 0 ? '⚠ ' : ''}Saldo después: {formatCents(balance)}
                 </span>
               )}
             </span>

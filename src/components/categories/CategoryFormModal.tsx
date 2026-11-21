@@ -21,10 +21,10 @@ const KINDS: readonly CategoryKind[] = ['expense', 'income', 'both'];
 // Papel en estadisticas: 'auto' = deducido del nombre (comportamiento historico).
 type RoleChoice = 'auto' | CategoryStatsRole;
 const ROLE_LABELS: Record<RoleChoice, string> = {
-  auto: 'Automatico',
+  auto: 'Automático',
   none: 'Gasto normal',
   savings: 'Ahorro',
-  investment: 'Inversion',
+  investment: 'Inversión',
 };
 const ROLE_CHOICES: readonly RoleChoice[] = ['auto', 'none', 'savings', 'investment'];
 
@@ -95,11 +95,11 @@ export function CategoryFormModal({
 
   const title = isEdit
     ? isRoot
-      ? 'Editar categoria'
-      : 'Editar subcategoria'
+      ? 'Editar categoría'
+      : 'Editar subcategoría'
     : parent
-      ? `Nueva subcategoria de ${parent.name}`
-      : 'Nueva categoria';
+      ? `Nueva subcategoría de ${parent.name}`
+      : 'Nueva categoría';
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -127,11 +127,11 @@ export function CategoryFormModal({
       } else {
         await categoryService.createCategory(profileId, { name, kind, color, icon, statsRole });
       }
-      showToast(isEdit ? 'Categoria actualizada.' : 'Categoria creada.', 'success');
+      showToast(isEdit ? 'Categoría actualizada.' : 'Categoría creada.', 'success');
       await onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar la categoria.');
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la categoría.');
     } finally {
       setSaving(false);
     }
@@ -180,7 +180,7 @@ export function CategoryFormModal({
         )}
 
         <div>
-          <span className="block text-sm font-medium text-slate-300">En las estadisticas cuenta como</span>
+          <span className="block text-sm font-medium text-slate-300">En las estadísticas cuenta como</span>
           <div className="mt-2 flex flex-wrap gap-2">
             {ROLE_CHOICES.map((r) => (
               <button
@@ -204,12 +204,12 @@ export function CategoryFormModal({
               ? autoRole === 'savings'
                 ? 'Por su nombre se trata como ahorro: no cuenta como gasto.'
                 : autoRole === 'investment'
-                  ? 'Por su nombre se trata como inversion: no cuenta como gasto.'
+                  ? 'Por su nombre se trata como inversión: no cuenta como gasto.'
                   : 'Por su nombre se trata como gasto normal.'
               : role === 'none'
                 ? 'Siempre cuenta como gasto, aunque se llame Ahorro.'
-                : 'Lo que se mueve aqui es dinero apartado, no gasto.'}
-            {!isRoot && role === 'auto' ? ' Si su categoria es de ahorro o inversion, la hereda.' : ''}
+                : 'Lo que se mueve aquí es dinero apartado, no gasto.'}
+            {!isRoot && role === 'auto' ? ' Si su categoría es de ahorro o inversión, la hereda.' : ''}
           </p>
         </div>
 
@@ -219,8 +219,8 @@ export function CategoryFormModal({
           colors={pickerColors}
           hint={
             isRoot
-              ? 'Sus subcategorias usaran tonos mas claros de este mismo color.'
-              : `Tonos de la familia de ${familyRoot?.name ?? 'su categoria'}.`
+              ? 'Sus subcategorías usarán tonos más claros de este mismo color.'
+              : `Tonos de la familia de ${familyRoot?.name ?? 'su categoría'}.`
           }
         />
         <IconPicker value={icon} onChange={setIcon} />

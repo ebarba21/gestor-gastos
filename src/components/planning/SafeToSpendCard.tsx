@@ -23,14 +23,14 @@ export function SafeToSpendCard({ safe }: { safe: SafeToSpend }) {
   const until =
     safe.nextIncomeSource === 'monthStart'
       ? `hasta fin de mes (${shortDate(safe.nextIncomeDate)})`
-      : `hasta tu proximo cobro · ${shortDate(safe.nextIncomeDate)}`;
+      : `hasta tu próximo cobro · ${shortDate(safe.nextIncomeDate)}`;
   const lines: { label: string; cents: number; hint?: string }[] = [
     { label: 'Dinero en tus cuentas', cents: safe.liquidCents, hint: `a ${shortDate(safe.asOf)}` },
     ...(safe.commitmentsCents > 0 ? [{ label: 'Recibos antes del cobro', cents: -safe.commitmentsCents }] : []),
     ...(safe.fundsEarmarkedCents > 0 ? [{ label: 'Apartado en fondos', cents: -safe.fundsEarmarkedCents }] : []),
-    ...(safe.goalsPendingCents > 0 ? [{ label: 'Aportacion pendiente a objetivos', cents: -safe.goalsPendingCents }] : []),
+    ...(safe.goalsPendingCents > 0 ? [{ label: 'Aportación pendiente a objetivos', cents: -safe.goalsPendingCents }] : []),
     ...(safe.extraPayReservedCents > 0 ? [{ label: 'Paga extra apartada', cents: -safe.extraPayReservedCents }] : []),
-    ...(safe.bufferCents > 0 ? [{ label: 'Tu colchon minimo', cents: -safe.bufferCents }] : []),
+    ...(safe.bufferCents > 0 ? [{ label: 'Tu colchón mínimo', cents: -safe.bufferCents }] : []),
   ];
 
   return (
@@ -52,7 +52,7 @@ export function SafeToSpendCard({ safe }: { safe: SafeToSpend }) {
             {' · '}
             <span className="text-slate-200">
               unos {safe.perDayLowCents !== null ? `${euros(wholeEuros(safe.perDayLowCents))} a ` : ''}
-              {euros(wholeEuros(safe.perDayHighCents))}/dia
+              {euros(wholeEuros(safe.perDayHighCents))}/día
             </span>
           </>
         )}
@@ -72,7 +72,7 @@ export function SafeToSpendCard({ safe }: { safe: SafeToSpend }) {
         aria-expanded={open}
         className="mt-2 text-xs font-medium text-indigo-400 hover:underline"
       >
-        {open ? 'Ocultar el calculo' : 'Como se calcula'}
+        {open ? 'Ocultar el cálculo' : 'Cómo se calcula'}
       </button>
       {open && (
         <div className="mt-2 rounded-lg border border-slate-800 p-3 text-sm">
@@ -97,10 +97,10 @@ export function SafeToSpendCard({ safe }: { safe: SafeToSpend }) {
             </p>
           )}
           <p className="mt-2 text-xs text-slate-500">
-            Se muestra en rango porque algunos recibos varian. No es una invitacion a gastarlo todo: es lo que
+            Se muestra en rango porque algunos recibos varían. No es una invitación a gastarlo todo: es lo que
             puedes usar sin tocar tus recibos, fondos ni objetivos.{' '}
             <Link to="/ajustes" className="text-indigo-400 hover:underline">
-              Ajusta tu dia de cobro y tu colchon
+              Ajusta tu día de cobro y tu colchón
             </Link>
             .
           </p>

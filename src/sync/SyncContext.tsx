@@ -106,7 +106,7 @@ export function SyncProvider({ children }: { children: ReactNode }): React.React
       setLastSyncedAt(ts);
       writeLastSynced(userId, ts);
     } catch (error) {
-      setLastError(error instanceof Error ? error.message : 'Error de sincronizacion.');
+      setLastError(error instanceof Error ? error.message : 'Error de sincronización.');
     } finally {
       setSyncing(false);
       runningRef.current = false;

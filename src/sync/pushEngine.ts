@@ -172,7 +172,7 @@ async function handleConflict(
     baseRevision: mutation.baseRevision,
     remoteRevision,
   });
-  await outbox.markConflict(mutation.mutationId, 'La revision remota cambio; resolucion manual.');
+  await outbox.markConflict(mutation.mutationId, 'La revisión remota cambió; resolución manual.');
   await markConflictLocal(mutation.entityType, mutation.entityId);
   return 'conflict';
 }

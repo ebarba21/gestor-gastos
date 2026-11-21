@@ -40,7 +40,7 @@ export interface AccountInput {
 export function normalizeAccountName(name: string): string {
   const trimmed = (name ?? '').trim().replace(/\s+/g, ' ');
   if (trimmed.length === 0) {
-    throw new ValidationError('El nombre de la cuenta no puede estar vacio.');
+    throw new ValidationError('El nombre de la cuenta no puede estar vacío.');
   }
   if (trimmed.length > MAX_ACCOUNT_NAME_LENGTH) {
     throw new ValidationError(
@@ -99,7 +99,7 @@ export const accountService = {
     const used = await accountService.countUsage(profileId, id);
     assert(
       used === 0,
-      'La cuenta tiene movimientos. Archivala en su lugar para conservar el historico.',
+      'La cuenta tiene movimientos. Archívala en su lugar para conservar el histórico.',
     );
     await accountsRepo.remove(profileId, id);
   },

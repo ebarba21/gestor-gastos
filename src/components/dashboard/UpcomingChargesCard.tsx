@@ -16,7 +16,7 @@ export function UpcomingChargesCard({ charges, loading }: UpcomingChargesCardPro
   if (charges.length === 0) {
     return (
       <p className="py-6 text-center text-sm text-slate-500">
-        Sin cobros previstos. Confirma recurrencias en la seccion Recurrencias para verlas aqui.
+        Sin cobros previstos. Confirma recurrencias en la sección Recurrencias para verlas aquí.
       </p>
     );
   }

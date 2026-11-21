@@ -25,7 +25,7 @@ export const TRANSFER_REASON_CODE_LABELS: Record<TransferReasonCode, string> = {
   sameAbsoluteAmount: 'Mismo importe en valor absoluto',
   oppositeSigns: 'Signos opuestos (salida y entrada)',
   differentAccounts: 'Cuentas distintas',
-  closeDates: 'Fechas proximas',
+  closeDates: 'Fechas próximas',
 };
 
 // Forma minima de un movimiento candidato a formar parte de una transferencia. El llamante la

@@ -8,7 +8,7 @@ import { assertCents } from './money';
 // Comprueba que un valor es una tasa/tolerancia valida en micro-fraccion 1e-6 (entero >= 0).
 export function assertPpm(ppm: number): void {
   if (!Number.isInteger(ppm) || ppm < 0) {
-    throw new ValidationError('El tipo de interes debe ser un entero >= 0 en micro-fraccion 1e-6.');
+    throw new ValidationError('El tipo de interés debe ser un entero >= 0 en micro-fracción 1e-6.');
   }
 }
 

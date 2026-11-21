@@ -26,11 +26,11 @@ export function PlanningKpisCard({ kpis }: { kpis: PlanningKpis }) {
   return (
     <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
       <Tile
-        label="Meses de colchon"
+        label="Meses de colchón"
         value={runway}
         hint={
           kpis.typicalMonthlySpendCents !== null
-            ? `${formatCents(kpis.liquidCents)} ÷ ${formatCents(kpis.typicalMonthlySpendCents)} de gasto mensual tipico`
+            ? `${formatCents(kpis.liquidCents)} ÷ ${formatCents(kpis.typicalMonthlySpendCents)} de gasto mensual típico`
             : 'Necesita al menos un mes con gastos'
         }
       />
@@ -45,18 +45,18 @@ export function PlanningKpisCard({ kpis }: { kpis: PlanningKpis }) {
         hint={
           kpis.typicalIncomeCents !== null
             ? `Sobre tu ingreso habitual de ${formatCents(kpis.typicalIncomeCents)}`
-            : 'Sin ingresos en los ultimos 6 meses'
+            : 'Sin ingresos en los últimos 6 meses'
         }
       />
       <Tile
         label="Tasa de ahorro (3 meses)"
         value={perMilleLabel(kpis.savingsRate3mPerMille)}
-        hint={`Ultimos ${kpis.savingsRateMonthsUsed.short} meses completos; no la distorsiona un mes raro`}
+        hint={`Últimos ${kpis.savingsRateMonthsUsed.short} meses completos; no la distorsiona un mes raro`}
       />
       <Tile
         label="Tasa de ahorro (12 meses)"
         value={perMilleLabel(kpis.savingsRate12mPerMille)}
-        hint={`Ultimos ${kpis.savingsRateMonthsUsed.long} meses completos, pagas extra incluidas`}
+        hint={`Últimos ${kpis.savingsRateMonthsUsed.long} meses completos, pagas extra incluidas`}
       />
       <Tile
         label="Pendiente de recuperar"

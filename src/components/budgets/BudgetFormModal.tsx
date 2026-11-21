@@ -35,9 +35,9 @@ interface BudgetFormModalProps {
 
 const KIND_ORDER: readonly BudgetKind[] = ['limit', 'flex', 'goal', 'fund'];
 const KIND_HINTS: Record<BudgetKind, string> = {
-  limit: 'Un tope de gasto (o un objetivo de ingreso) para una categoria, cuenta o todo.',
-  flex: 'Un unico tope para tu gasto variable: los recibos fijos de tus recurrencias no cuentan.',
-  goal: 'Una cantidad que quieres reunir antes de una fecha (viaje, colchon, entrada...).',
+  limit: 'Un tope de gasto (o un objetivo de ingreso) para una categoría, cuenta o todo.',
+  flex: 'Un único tope para tu gasto variable: los recibos fijos de tus recurrencias no cuentan.',
+  goal: 'Una cantidad que quieres reunir antes de una fecha (viaje, colchón, entrada...).',
   fund: 'Un gasto que no es mensual (seguro, IBI, ITV): se aparta una cuota cada mes hasta su fecha.',
 };
 
@@ -165,7 +165,7 @@ export function BudgetFormModal({
     try {
       const euros = limit.trim() === '' ? NaN : Number(limit.replace(',', '.'));
       if (!Number.isFinite(euros)) {
-        throw new Error('El importe del presupuesto debe ser un numero valido.');
+        throw new Error('El importe del presupuesto debe ser un número válido.');
       }
       const limitCents = eurosToCents(euros);
       const input = {
@@ -221,7 +221,7 @@ export function BudgetFormModal({
 
         {!isEdit && (
           <div>
-            <span className="block text-sm font-medium text-slate-300">Que quieres crear</span>
+            <span className="block text-sm font-medium text-slate-300">Qué quieres crear</span>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {KIND_ORDER.map((k) => (
                 <button
@@ -292,7 +292,7 @@ export function BudgetFormModal({
         {kind !== 'flex' && (
         <div>
           <label htmlFor="budget-scope" className="block text-sm font-medium text-slate-300">
-            {kind === 'goal' ? 'Donde ahorras' : kind === 'fund' ? 'Donde se registrara el gasto' : 'Ambito'}
+            {kind === 'goal' ? 'Dónde ahorras' : kind === 'fund' ? 'Dónde se registrará el gasto' : 'Ámbito'}
           </label>
           <select
             id="budget-scope"
@@ -308,7 +308,7 @@ export function BudgetFormModal({
           </select>
           {kind === 'goal' && (
             <p className="mt-1 text-xs text-slate-500">
-              Por categoria cuenta lo que aportas a ella (p. ej. Ahorro); por cuenta, su saldo (una hucha o cuenta
+              Por categoría cuenta lo que aportas a ella (p. ej. Ahorro); por cuenta, su saldo (una hucha o cuenta
               aparte, que deja de contar como dinero disponible).
             </p>
           )}
@@ -318,7 +318,7 @@ export function BudgetFormModal({
         {scope !== 'overall' && (
           <div>
             <label htmlFor="budget-scope-id" className="block text-sm font-medium text-slate-300">
-              {scope === 'account' ? 'Cuenta' : scope === 'subcategory' ? 'Subcategoria' : 'Categoria'}
+              {scope === 'account' ? 'Cuenta' : scope === 'subcategory' ? 'Subcategoría' : 'Categoría'}
             </label>
             <select
               id="budget-scope-id"
@@ -418,7 +418,7 @@ export function BudgetFormModal({
 
         {kind === 'fund' && (
           <p className="text-xs text-slate-500">
-            Se repite cada ano en la misma fecha. Lo apartado no cuenta en tu disponible para gastar.
+            Se repite cada año en la misma fecha. Lo apartado no cuenta en tu disponible para gastar.
           </p>
         )}
 

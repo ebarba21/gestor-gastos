@@ -281,7 +281,7 @@ function msToIso(ms: number): string {
 function isoToMs(iso: string): number {
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) {
-    throw new Error(`Timestamp remoto invalido: ${iso}`);
+    throw new Error(`Timestamp remoto inválido: ${iso}`);
   }
   return ms;
 }

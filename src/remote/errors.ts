@@ -42,7 +42,7 @@ function isPostgrestLike(value: unknown): value is PostgrestLikeError {
 //   - '23505' unique_violation, '23503' foreign_key, '23514' check -> CONSTRAINT.
 //   - 'PGRST301'/'401' no autenticado -> AUTH.
 //   - 'PGRST116' no rows -> NOT_FOUND.
-export function toRemoteError(error: unknown, context = 'operacion remota'): RemoteError {
+export function toRemoteError(error: unknown, context = 'operación remota'): RemoteError {
   if (error instanceof RemoteError) return error;
 
   if (isPostgrestLike(error)) {
@@ -67,7 +67,7 @@ export function toRemoteError(error: unknown, context = 'operacion remota'): Rem
         return new RemoteError('REMOTE_CONSTRAINT', 'Un valor no cumple las restricciones.', code);
       case 'PGRST301':
       case '401':
-        return new RemoteError('REMOTE_AUTH', 'Inicia sesion para continuar.', code);
+        return new RemoteError('REMOTE_AUTH', 'Inicia sesión para continuar.', code);
       case 'PGRST116':
         return new RemoteError('REMOTE_NOT_FOUND', 'El registro no existe o no es accesible.', code);
       default:

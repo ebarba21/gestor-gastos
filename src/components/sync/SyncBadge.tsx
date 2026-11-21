@@ -5,7 +5,7 @@ import { useSyncOptional, type SyncStatusUi } from '../../sync/SyncContext';
 
 const LABELS: Record<SyncStatusUi, string> = {
   disabled: 'Local',
-  offline: 'Sin conexion',
+  offline: 'Sin conexión',
   syncing: 'Sincronizando',
   conflict: 'Conflicto',
   error: 'Error',
@@ -39,7 +39,7 @@ export function SyncBadge(): React.ReactElement | null {
     <Link
       to="/sincronizacion"
       className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
-      title="Estado de sincronizacion"
+      title="Estado de sincronización"
     >
       <span className={`h-2 w-2 rounded-full ${DOT[sync.status]}`} aria-hidden />
       <span>

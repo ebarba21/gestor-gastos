@@ -34,7 +34,7 @@ const SORT_FIELDS: { field: SortField; label: string }[] = [
   { field: 'date', label: 'Fecha' },
   { field: 'concept', label: 'Concepto' },
   { field: 'amount', label: 'Importe' },
-  { field: 'category', label: 'Categoria' },
+  { field: 'category', label: 'Categoría' },
   { field: 'account', label: 'Cuenta' },
   { field: 'type', label: 'Tipo' },
   { field: 'status', label: 'Estado' },
@@ -184,7 +184,7 @@ export function TransactionsSection() {
 
       {filter.importBatchId && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-indigo-800 bg-indigo-950/40 px-3 py-2 text-sm text-indigo-200">
-          <span>Mostrando solo los movimientos de una importacion.</span>
+          <span>Mostrando solo los movimientos de una importación.</span>
           <button
             type="button"
             onClick={() => setFilter((f) => ({ ...f, importBatchId: undefined }))}
@@ -254,7 +254,7 @@ export function TransactionsSection() {
 
           {visible.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-slate-500">
-              Ningun movimiento coincide con los filtros.
+              Ningún movimiento coincide con los filtros.
             </p>
           ) : (
             <VirtualList
@@ -411,10 +411,10 @@ export function TransactionsSection() {
               {deleteTarget.count > deleteTarget.ids.length && (
                 <>
                   {' '}
-                  Se incluyen patas de transferencia y lineas de split enlazadas a la seleccion.
+                  Se incluyen patas de transferencia y líneas de split enlazadas a la selección.
                 </>
               )}{' '}
-              Esta accion no se puede deshacer.
+              Esta acción no se puede deshacer.
             </span>
           ) : null
         }

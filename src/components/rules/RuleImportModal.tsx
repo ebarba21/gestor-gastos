@@ -21,17 +21,17 @@ type Step = 'select' | 'map' | 'preview';
 
 // Columnas mapeables y su etiqueta. value/category son las importantes; el resto opcionales.
 const MAP_FIELDS: { key: keyof RuleImportColumnMap; label: string; hint?: string }[] = [
-  { key: 'value', label: 'Valor de la condicion', hint: 'obligatorio' },
-  { key: 'category', label: 'Categoria (accion)', hint: 'por nombre' },
+  { key: 'value', label: 'Valor de la condición', hint: 'obligatorio' },
+  { key: 'category', label: 'Categoría (acción)', hint: 'por nombre' },
   { key: 'field', label: 'Campo', hint: 'por defecto concepto' },
   { key: 'operator', label: 'Operador', hint: 'por defecto contiene' },
   { key: 'value2', label: 'Segundo valor', hint: 'rangos' },
-  { key: 'subcategory', label: 'Subcategoria', hint: 'por nombre' },
+  { key: 'subcategory', label: 'Subcategoría', hint: 'por nombre' },
   { key: 'tags', label: 'Etiquetas', hint: 'separadas por ; o ,' },
   { key: 'name', label: 'Nombre de la regla' },
-  { key: 'caseSensitive', label: 'Sensible a mayusculas' },
+  { key: 'caseSensitive', label: 'Sensible a mayúsculas' },
   { key: 'matchMode', label: 'Modo (todas/alguna)' },
-  { key: 'excludeFromStats', label: 'Excluir de estadisticas' },
+  { key: 'excludeFromStats', label: 'Excluir de estadísticas' },
   { key: 'enabled', label: 'Activa' },
   { key: 'stopOnMatch', label: 'Detener al casar' },
 ];
@@ -189,7 +189,7 @@ export function RuleImportModal({
               La primera fila es cabecera
             </label>
             <p className="text-xs text-slate-500">
-              Asigna las columnas del fichero. Solo el valor de la condicion y la categoria (o
+              Asigna las columnas del fichero. Solo el valor de la condición y la categoría (o
               etiquetas) son obligatorios; el resto usa valores por defecto.
             </p>
             <div className="space-y-1.5">
@@ -220,7 +220,7 @@ export function RuleImportModal({
                 onClick={reset}
                 className="rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-slate-800"
               >
-                Atras
+                Atrás
               </button>
               <button
                 type="button"
@@ -236,7 +236,7 @@ export function RuleImportModal({
         {step === 'preview' && preview && (
           <div className="space-y-3">
             <p className="text-sm text-slate-300">
-              {preview.summary.ok} regla(s) validas · {preview.summary.errors} con errores ·{' '}
+              {preview.summary.ok} regla(s) válidas · {preview.summary.errors} con errores ·{' '}
               {preview.summary.total} filas.
             </p>
             <div className="max-h-72 divide-y divide-slate-800 overflow-y-auto rounded-lg border border-slate-800">
@@ -269,7 +269,7 @@ export function RuleImportModal({
               <span>
                 Dar prioridad a estas reglas sobre las que ya tienes
                 <span className="block text-xs text-slate-500">
-                  Gana la primera regla que coincide. Desmarcalo para anadirlas al final.
+                  Gana la primera regla que coincide. Desmárcalo para añadirlas al final.
                 </span>
               </span>
             </label>
@@ -279,7 +279,7 @@ export function RuleImportModal({
                 onClick={() => setStep('map')}
                 className="rounded-lg px-4 py-2 text-sm text-slate-300 hover:bg-slate-800"
               >
-                Atras
+                Atrás
               </button>
               <button
                 type="button"

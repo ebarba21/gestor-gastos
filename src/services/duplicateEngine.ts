@@ -38,7 +38,7 @@ export const REASON_CODE_LABELS: Record<DuplicateReasonCode, string> = {
   sameMerchant: 'Mismo comercio',
   sameNormalizedConcept: 'Mismo concepto normalizado',
   pendingConfirmedMatch: 'Sustituye a un movimiento pendiente',
-  weakDateProximity: 'Fecha proxima, sin mas coincidencias',
+  weakDateProximity: 'Fecha próxima, sin más coincidencias',
 };
 
 // Decisiones que puede tomar el usuario sobre una fila con posible duplicado (alcance fase 5,
@@ -173,7 +173,7 @@ export function scoreCandidate(
 
   const dayDiff = Math.abs(daysBetweenIso(input.date, existing.date));
   const diffs: string[] = [];
-  if (dayDiff > 0) diffs.push(`La fecha difiere ${dayDiff} dia(s).`);
+  if (dayDiff > 0) diffs.push(`La fecha difiere ${dayDiff} día(s).`);
 
   // Un pendiente existente que este borrador (ya confirmado) sustituye: solo aplica cuando el
   // candidato esta pendiente y el borrador no lo esta.

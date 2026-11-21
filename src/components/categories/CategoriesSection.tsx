@@ -158,12 +158,12 @@ export function CategoriesSection() {
 
   async function archive(cat: Category) {
     await categoryService.archiveCategory(profileId, cat.id);
-    showToast('Categoria archivada.', 'info');
+    showToast('Categoría archivada.', 'info');
     await reload();
   }
   async function unarchive(cat: Category) {
     await categoryService.unarchiveCategory(profileId, cat.id);
-    showToast('Categoria restaurada.', 'success');
+    showToast('Categoría restaurada.', 'success');
     await reload();
   }
 
@@ -177,7 +177,7 @@ export function CategoriesSection() {
                 variant: 'primary' as const,
                 onClick: async () => {
                   await categoryService.archiveCategory(profileId, deleting.id);
-                  showToast('Categoria archivada.', 'info');
+                  showToast('Categoría archivada.', 'info');
                   await reload();
                 },
               },
@@ -188,7 +188,7 @@ export function CategoriesSection() {
           variant: 'danger' as const,
           onClick: async () => {
             await categoryService.deleteCategory(profileId, deleting.id);
-            showToast('Categoria eliminada.', 'success');
+            showToast('Categoría eliminada.', 'success');
             await reload();
           },
         },
@@ -198,7 +198,7 @@ export function CategoriesSection() {
   return (
     <section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold text-slate-100">Categorias</h3>
+        <h3 className="text-lg font-semibold text-slate-100">Categorías</h3>
         <div className="flex gap-2">
           {tree.length > 0 && (
             <button
@@ -214,7 +214,7 @@ export function CategoriesSection() {
             onClick={() => setCreateRootOpen(true)}
             className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
           >
-            Nueva categoria
+            Nueva categoría
           </button>
         </div>
       </div>
@@ -236,8 +236,8 @@ export function CategoriesSection() {
       ) : visibleTree.length === 0 ? (
         <EmptyState
           icon="🗂️"
-          title="Sin categorias"
-          description="Crea tu primera categoria para clasificar tus movimientos."
+          title="Sin categorías"
+          description="Crea tu primera categoría para clasificar tus movimientos."
         />
       ) : (
         <div className="space-y-3">
@@ -296,8 +296,8 @@ export function CategoriesSection() {
         title="Aplicar paleta pastel"
         message={
           <span>
-            Cada categoria tendra un tono pastel y sus subcategorias, versiones mas claras de ese
-            mismo tono. Se sustituyen los colores actuales de todas las categorias de este perfil.
+            Cada categoría tendrá un tono pastel y sus subcategorías, versiones más claras de ese
+            mismo tono. Se sustituyen los colores actuales de todas las categorías de este perfil.
           </span>
         }
         buttons={[
@@ -308,7 +308,7 @@ export function CategoriesSection() {
             onClick: async () => {
               const n = await categoryService.applyPastelPalette(profileId);
               showToast(
-                n > 0 ? `Colores actualizados en ${n} categorias.` : 'Ya tenias la paleta pastel.',
+                n > 0 ? `Colores actualizados en ${n} categorías.` : 'Ya tenías la paleta pastel.',
                 'success',
               );
               await reload();
@@ -319,13 +319,13 @@ export function CategoriesSection() {
       <ConfirmDialog
         open={deleting !== null}
         onClose={() => setDeleting(null)}
-        title="Eliminar categoria"
+        title="Eliminar categoría"
         message={
           deleting ? (
             <span>
               Vas a eliminar <strong className="text-slate-100">{deleting.name}</strong>. Si tiene
-              subcategorias o esta en uso por movimientos, no se podra eliminar: archivala para
-              conservar el historico.
+              subcategorías o está en uso por movimientos, no se podrá eliminar: archívala para
+              conservar el histórico.
             </span>
           ) : null
         }

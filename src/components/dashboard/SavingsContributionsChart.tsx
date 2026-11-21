@@ -73,7 +73,7 @@ export function SavingsContributionsChart({ months, onSelectMonth, activeMonth }
         {activeMonth && <ReferenceLine x={activeMonth} stroke={colors.axis} strokeDasharray="3 3" />}
         {/* Separador de 2px entre segmentos apilados: trazo del color de superficie. */}
         <Bar dataKey="Ahorro" stackId="contrib" fill={colors.saved} stroke={colors.tooltipBg} strokeWidth={1} maxBarSize={28} />
-        <Bar dataKey="Inversion" name="Inversión" stackId="contrib" fill={colors.invested} stroke={colors.tooltipBg} strokeWidth={1} maxBarSize={28} />
+        <Bar dataKey="Inversión" name="Inversión" stackId="contrib" fill={colors.invested} stroke={colors.tooltipBg} strokeWidth={1} maxBarSize={28} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -82,17 +82,17 @@ export function AlertsCard({
             {onFeedback && (
               <div className="mt-1 flex justify-end gap-3 px-1 text-[11px] text-slate-500">
                 {usefulIds?.has(a.id) ? (
-                  <span>Marcado como util</span>
+                  <span>Marcado como útil</span>
                 ) : (
                   <button type="button" onClick={() => onFeedback(a.id, 'useful')} className="hover:text-slate-300">
-                    Util
+                    Útil
                   </button>
                 )}
                 <button type="button" onClick={() => onFeedback(a.id, 'notUseful')} className="hover:text-slate-300">
-                  No util
+                  No útil
                 </button>
                 <button type="button" onClick={() => onFeedback(a.id, 'snooze')} className="hover:text-slate-300">
-                  {a.severity === 'critical' ? 'Recordar manana' : 'Posponer 7 dias'}
+                  {a.severity === 'critical' ? 'Recordar mañana' : 'Posponer 7 días'}
                 </button>
               </div>
             )}

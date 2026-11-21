@@ -26,7 +26,7 @@ export function useCategories(): UseCategories {
       setTree(t);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudieron cargar las categorias.');
+      setError(e instanceof Error ? e.message : 'No se pudieron cargar las categorías.');
     } finally {
       setLoading(false);
     }

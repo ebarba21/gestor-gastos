@@ -35,7 +35,7 @@ describe('CloudAccessCard (acceso a la cuenta desde el selector de perfil)', () 
     authState.status = 'signed-out';
     authState.user = null;
     render(<CloudAccessCard />);
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Iniciar sesion o crear cuenta' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Iniciar sesión o crear cuenta' }));
     expect(screen.getByText('panel-de-cuenta')).toBeInTheDocument();
   });
 
@@ -46,7 +46,7 @@ describe('CloudAccessCard (acceso a la cuenta desde el selector de perfil)', () 
     render(<CloudAccessCard />);
     expect(screen.getByText('eric@example.com')).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Descargar mis datos' }));
-    expect(await screen.findByText(/aun no tiene datos guardados/)).toBeInTheDocument();
+    expect(await screen.findByText(/aún no tiene datos guardados/)).toBeInTheDocument();
   });
 
   it('con perfiles de la cuenta ya presentes no ofrece descargar, solo cerrar sesion', () => {
@@ -55,6 +55,6 @@ describe('CloudAccessCard (acceso a la cuenta desde el selector de perfil)', () 
     profilesState = [{ id: 'p1', ownerUserId: 'u1' }];
     render(<CloudAccessCard />);
     expect(screen.queryByRole('button', { name: 'Descargar mis datos' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cerrar sesion' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });
 });

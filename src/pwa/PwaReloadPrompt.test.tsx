@@ -36,13 +36,13 @@ describe('PwaReloadPrompt', () => {
   it('sin novedades del service worker no muestra nada', () => {
     renderPrompt();
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(screen.queryByText(/sin conexion/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sin conexión/)).not.toBeInTheDocument();
   });
 
   it('cuando el precache esta listo avisa con un toast y consume el flag', () => {
     mockState.offlineReady = true;
     renderPrompt();
-    expect(screen.getByText('App lista para funcionar sin conexion.')).toBeInTheDocument();
+    expect(screen.getByText('App lista para funcionar sin conexión.')).toBeInTheDocument();
     expect(setOfflineReady).toHaveBeenCalledWith(false);
   });
 
@@ -52,7 +52,7 @@ describe('PwaReloadPrompt', () => {
     const user = userEvent.setup();
 
     expect(
-      screen.getByRole('alertdialog', { name: 'Nueva version disponible' }),
+      screen.getByRole('alertdialog', { name: 'Nueva versión disponible' }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Actualizar' }));

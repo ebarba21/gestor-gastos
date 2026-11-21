@@ -217,7 +217,7 @@ export const importBatchesRepo = {
           const existing = await db.transactions.get(op.candidateId);
           if (!existing || existing.profileId !== profileId || !isAlive(existing)) {
             throw new NotFoundError(
-              `Transaction ${op.candidateId} no existe en el perfil ${profileId} (decision "vincular").`,
+              `Transaction ${op.candidateId} no existe en el perfil ${profileId} (decisión "vincular").`,
             );
           }
           const merged: Transaction = {

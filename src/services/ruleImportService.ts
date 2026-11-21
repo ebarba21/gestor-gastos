@@ -237,7 +237,7 @@ function parseBoolean(raw: string, fallback: boolean): boolean {
 // (el umbral de reglas no requiere la estrictez de dos decimales del import de movimientos).
 function parseAmountEurosToCents(raw: string): number {
   const s = raw.trim().replace(/\s/g, '').replace(/€/g, '').replace(/−/g, '-');
-  if (s.length === 0) throw new ValidationError('Importe de la condicion vacio.');
+  if (s.length === 0) throw new ValidationError('Importe de la condición vacío.');
   const hasComma = s.includes(',');
   const hasDot = s.includes('.');
   let normalized = s;
@@ -251,7 +251,7 @@ function parseAmountEurosToCents(raw: string): number {
   }
   const num = Number(normalized);
   if (!Number.isFinite(num)) {
-    throw new ValidationError(`Importe de condicion no numerico: "${raw}".`);
+    throw new ValidationError(`Importe de condición no numérico: "${raw}".`);
   }
   return eurosToCents(num);
 }
@@ -299,7 +299,7 @@ function buildRuleFromRow(
   const field: RuleConditionField =
     fieldText.length > 0 ? FIELD_ALIASES[normalizeConcept(fieldText)] ?? 'concept' : 'concept';
   if (fieldText.length > 0 && FIELD_ALIASES[normalizeConcept(fieldText)] === undefined) {
-    errors.push(`Campo de condicion no reconocido: "${fieldText}".`);
+    errors.push(`Campo de condición no reconocido: "${fieldText}".`);
   }
 
   // Operador (por defecto el primero valido del campo).
@@ -311,7 +311,7 @@ function buildRuleFromRow(
     if (resolved && OPERATORS_BY_FIELD[field].includes(resolved)) {
       operator = resolved;
     } else {
-      errors.push(`Operador no valido para el campo "${field}": "${operatorText}".`);
+      errors.push(`Operador no válido para el campo "${field}": "${operatorText}".`);
     }
   }
 
@@ -323,19 +323,19 @@ function buildRuleFromRow(
   let value2: string | number | null = null;
   const rawValue2 = textAt(raw, config.value2);
   if (rawValue.length === 0) {
-    errors.push('Falta el valor de la condicion.');
+    errors.push('Falta el valor de la condición.');
   } else {
     try {
       if (field === 'amount') {
         value = parseAmountEurosToCents(rawValue);
         if (operator === 'between') value2 = parseAmountEurosToCents(rawValue2);
       } else if (field === 'date') {
-        assert(isValidAccountingDate(rawValue), `Fecha invalida: "${rawValue}" (usa YYYY-MM-DD).`);
+        assert(isValidAccountingDate(rawValue), `Fecha inválida: "${rawValue}" (usa YYYY-MM-DD).`);
         value = rawValue;
         if (operator === 'between') {
           assert(
             isValidAccountingDate(rawValue2),
-            `Fecha final invalida: "${rawValue2}" (usa YYYY-MM-DD).`,
+            `Fecha final inválida: "${rawValue2}" (usa YYYY-MM-DD).`,
           );
           value2 = rawValue2;
         }
@@ -353,7 +353,7 @@ function buildRuleFromRow(
         value = rawValue;
       }
     } catch (e) {
-      errors.push(e instanceof ValidationError ? e.message : `Valor invalido: "${rawValue}".`);
+      errors.push(e instanceof ValidationError ? e.message : `Valor inválido: "${rawValue}".`);
     }
   }
 
@@ -364,13 +364,13 @@ function buildRuleFromRow(
   if (categoryText.length > 0) {
     const cat = resolveCategoryByName(categoryText, context.categories, null);
     if (!cat) {
-      errors.push(`Categoria no encontrada: "${categoryText}".`);
+      errors.push(`Categoría no encontrada: "${categoryText}".`);
     } else {
       setCategoryId = cat.id;
       const subText = textAt(raw, config.subcategory);
       if (subText.length > 0) {
         const sub = resolveCategoryByName(subText, context.categories, cat.id);
-        if (!sub) errors.push(`Subcategoria no encontrada bajo "${categoryText}": "${subText}".`);
+        if (!sub) errors.push(`Subcategoría no encontrada bajo "${categoryText}": "${subText}".`);
         else setSubcategoryId = sub.id;
       }
     }
@@ -390,7 +390,7 @@ function buildRuleFromRow(
 
   // Debe haber al menos una accion.
   if (setCategoryId === null && addTagIds.length === 0 && setExcludedFromStats === null) {
-    errors.push('La regla no tiene accion: indica categoria, etiquetas o exclusion.');
+    errors.push('La regla no tiene acción: indica categoría, etiquetas o exclusión.');
   }
 
   const matchModeText = normalizeConcept(textAt(raw, config.matchMode));
@@ -453,9 +453,9 @@ export const ruleImportService = {
       context.categories.every((c) => c.profileId === profileId) &&
         context.tags.every((t) => t.profileId === profileId) &&
         context.accounts.every((a) => a.profileId === profileId),
-      'Se han pasado entidades de otro perfil a la importacion de reglas.',
+      'Se han pasado entidades de otro perfil a la importación de reglas.',
     );
-    assert(config.columnMap.value !== null, 'Falta asignar la columna de valor de la condicion.');
+    assert(config.columnMap.value !== null, 'Falta asignar la columna de valor de la condición.');
     const dataRows = config.hasHeaderRow ? parsed.rows.slice(1) : parsed.rows;
     const rows = dataRows.map((raw, i) => buildRuleFromRow(raw, i, config.columnMap, context));
     return {
@@ -473,10 +473,10 @@ export const ruleImportService = {
     const problems: string[] = [];
     const inRange = (v: number | null): boolean => v !== null && v >= 0 && v < columnCount;
     if (!inRange(config.columnMap.value)) {
-      problems.push('Falta asignar la columna de valor de la condicion.');
+      problems.push('Falta asignar la columna de valor de la condición.');
     }
     if (!inRange(config.columnMap.category) && !inRange(config.columnMap.tags)) {
-      problems.push('Falta asignar la columna de categoria (o de etiquetas) de la accion.');
+      problems.push('Falta asignar la columna de categoría (o de etiquetas) de la acción.');
     }
     return problems;
   },

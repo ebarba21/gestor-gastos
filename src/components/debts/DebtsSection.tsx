@@ -14,7 +14,7 @@ import { DebtComparator } from './DebtComparator';
 import { useToast } from '../../context/ToastContext';
 
 const TYPE_LABELS: Record<Debt['type'], string> = {
-  personalLoan: 'Prestamo personal',
+  personalLoan: 'Préstamo personal',
   mortgageFixed: 'Hipoteca fija',
   card: 'Tarjeta',
   other: 'Otra',
@@ -97,9 +97,9 @@ export function DebtsSection() {
       <div>
         <h2 className="text-xl font-semibold text-slate-100">Deudas</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Calculadora y planificador de deudas: calendario de amortizacion, amortizacion
+          Calculadora y planificador de deudas: calendario de amortización, amortización
           anticipada y comparador Snowball/Avalanche. Esto no es asesoramiento financiero
-          personalizado: es un calculo determinista sobre los datos que registras.
+          personalizado: es un cálculo determinista sobre los datos que registras.
         </p>
       </div>
 
@@ -116,11 +116,11 @@ export function DebtsSection() {
             <p className="mt-1 text-lg font-semibold text-slate-100">{formatCents(summary.totalMinimumPaymentCents)}</p>
           </div>
           <div className={cardClass}>
-            <p className="text-xs text-slate-500">Interes medio ponderado</p>
+            <p className="text-xs text-slate-500">Interés medio ponderado</p>
             <p className="mt-1 text-lg font-semibold text-slate-100">{(summary.weightedAverageRatePpm / 10000).toFixed(2)}%</p>
           </div>
           <div className={cardClass}>
-            <p className="text-xs text-slate-500">Proximo pago</p>
+            <p className="text-xs text-slate-500">Próximo pago</p>
             <p className="mt-1 text-lg font-semibold text-slate-100">{summary.earliestNextPaymentDate ?? '-'}</p>
           </div>
         </div>
@@ -158,7 +158,7 @@ export function DebtsSection() {
               }}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
             >
-              Anadir deuda
+              Añadir deuda
             </button>
           </div>
 
@@ -178,11 +178,11 @@ export function DebtsSection() {
           {!loading && debts.length === 0 && !showForm && (
             <EmptyState
               icon="💳"
-              title="Aun no has registrado ninguna deuda"
-              description="Anade un prestamo, hipoteca u otra deuda para ver su calendario de amortizacion."
+              title="Aún no has registrado ninguna deuda"
+              description="Añade un préstamo, hipoteca u otra deuda para ver su calendario de amortización."
               action={
                 <button type="button" onClick={() => setShowForm(true)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-                  Anadir deuda
+                  Añadir deuda
                 </button>
               }
             />
@@ -247,8 +247,8 @@ export function DebtsSection() {
             <p>
               <strong className="text-slate-100">{toDelete.name}</strong>. Archivar conserva el
               historial de pagos y la saca de los listados activos. Borrar la elimina por
-              completo (los pagos registrados quedan sin la deuda a la que pertenecian). Esta
-              accion no se puede deshacer.
+              completo (los pagos registrados quedan sin la deuda a la que pertenecían). Esta
+              acción no se puede deshacer.
             </p>
           ) : null
         }

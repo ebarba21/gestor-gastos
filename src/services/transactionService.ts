@@ -60,14 +60,14 @@ export function normalizeReimbursable(
   assertCents(value);
   assert(value > 0, 'El importe a recuperar debe ser positivo.');
   assert(type === 'expense' && amountCents < 0, 'Solo un gasto puede tener importe a recuperar.');
-  assert(value <= Math.abs(amountCents), 'No puedes recuperar mas de lo que gastaste.');
+  assert(value <= Math.abs(amountCents), 'No puedes recuperar más de lo que gastaste.');
   return value;
 }
 
 export function normalizeConceptText(concept: string): string {
   const trimmed = (concept ?? '').trim().replace(/\s+/g, ' ');
   if (trimmed.length === 0) {
-    throw new ValidationError('El concepto no puede estar vacio.');
+    throw new ValidationError('El concepto no puede estar vacío.');
   }
   if (trimmed.length > MAX_CONCEPT_LENGTH) {
     throw new ValidationError(`El concepto no puede superar ${MAX_CONCEPT_LENGTH} caracteres.`);
@@ -111,7 +111,7 @@ function buildNewTransaction(profileId: string, input: TransactionInput): NewTra
   assert(input.accountId.length > 0, 'El movimiento debe tener una cuenta.');
   // Una subcategoria requiere su categoria raiz.
   if (subcategoryId !== null) {
-    assert(categoryId !== null, 'Una subcategoria requiere tambien su categoria raiz.');
+    assert(categoryId !== null, 'Una subcategoría requiere también su categoría raíz.');
   }
   const excludedFromStats = input.excludedFromStats ?? false;
   const normalizedConcept = normalizeConceptV1(concept);
@@ -283,7 +283,7 @@ export function assertSplitBalances(parentAmountCents: number, parts: SplitPart[
       'Cada parte del split debe tener el mismo signo que el movimiento original.',
     );
     if (part.subcategoryId != null) {
-      assert(part.categoryId !== null, 'Una subcategoria de split requiere su categoria raiz.');
+      assert(part.categoryId !== null, 'Una subcategoría de split requiere su categoría raíz.');
     }
     sum += part.amountCents;
   }
@@ -317,7 +317,7 @@ export const transactionService = {
     const categoryId = input.categoryId ?? null;
     const subcategoryId = input.subcategoryId ?? null;
     if (subcategoryId !== null) {
-      assert(categoryId !== null, 'Una subcategoria requiere tambien su categoria raiz.');
+      assert(categoryId !== null, 'Una subcategoría requiere también su categoría raíz.');
     }
     const patch: TransactionPatch = {
       date: input.date,
@@ -449,7 +449,7 @@ export const transactionService = {
   // movimientos se modificaron.
   async bulkEdit(profileId: string, ids: string[], edit: BulkEdit): Promise<number> {
     requireProfileId(profileId);
-    assert(!isEmptyBulkEdit(edit), 'La edicion masiva no contiene ningun cambio.');
+    assert(!isEmptyBulkEdit(edit), 'La edición masiva no contiene ningún cambio.');
     return transactionsRepo.applyToMany(profileId, ids, (t) => patchFromBulkEdit(t, edit));
   },
 
@@ -465,7 +465,7 @@ export const transactionService = {
   // El reembolso debe existir, ser de otro movimiento y el original ser un gasto.
   async markAsRefund(profileId: string, id: string, refundOfId: string): Promise<Transaction> {
     requireProfileId(profileId);
-    assert(id !== refundOfId, 'Un movimiento no puede ser reembolso de si mismo.');
+    assert(id !== refundOfId, 'Un movimiento no puede ser reembolso de sí mismo.');
     // El movimiento marcado como reembolso debe ser un ingreso: la semantica de estadisticas
     // (FINANCIAL_ALGORITHMS 3) solo trata como reembolso un income con refundOfId. Sin esta
     // comprobacion, marcar un gasto como reembolso dejaria un enlace que las stats ignoran en
@@ -676,7 +676,7 @@ export const transactionService = {
     const current = tx!;
     assert(current.transferGroupId === null, 'El movimiento ya es una transferencia.');
     assert(!current.isSplitParent, 'Un movimiento dividido (split) no puede marcarse como transferencia.');
-    assert(current.parentId === null, 'Una linea de split no puede marcarse como transferencia.');
+    assert(current.parentId === null, 'Una línea de split no puede marcarse como transferencia.');
     assert(current.amountCents !== 0, 'Un movimiento de importe cero no puede ser transferencia.');
     assert(
       counterAccountId !== current.accountId,
@@ -798,7 +798,7 @@ export const transactionService = {
     const parent = await transactionsRepo.getById(profileId, parentId);
     assert(parent !== undefined, 'El movimiento a dividir no existe en el perfil.');
     const p = parent!;
-    assert(p.parentId === null, 'Una linea de split no puede volver a dividirse.');
+    assert(p.parentId === null, 'Una línea de split no puede volver a dividirse.');
     assert(p.transferGroupId === null, 'Una transferencia no puede dividirse.');
     assertSplitBalances(p.amountCents, parts);
 

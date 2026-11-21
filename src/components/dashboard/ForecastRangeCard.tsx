@@ -40,7 +40,7 @@ export function ForecastRangeCard({ forecast, loading, error }: ForecastRangeCar
       <div className="flex items-center gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Forecast del periodo</p>
         <span className="rounded bg-amber-900/40 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
-          Estimacion
+          Estimación
         </span>
       </div>
       <p className="mt-1 text-xl font-semibold tabular-nums text-orange-300">
@@ -48,7 +48,7 @@ export function ForecastRangeCard({ forecast, loading, error }: ForecastRangeCar
       </p>
       <p className="mt-0.5 text-xs text-slate-500">
         Rango {formatCents(lowerTotalCents)} - {formatCents(upperTotalCents)}
-        {forecast.insufficientHistory && ' · con poco historico para el gasto variable'}
+        {forecast.insufficientHistory && ' · con poco histórico para el gasto variable'}
       </p>
 
       <dl className="mt-3 space-y-1 text-xs">
@@ -71,7 +71,7 @@ export function ForecastRangeCard({ forecast, loading, error }: ForecastRangeCar
         onClick={() => setShowMethodology((v) => !v)}
         className="mt-2 text-[11px] font-medium text-indigo-300 hover:text-indigo-200"
       >
-        {showMethodology ? 'Ocultar metodologia' : 'Ver metodologia'}
+        {showMethodology ? 'Ocultar metodología' : 'Ver metodología'}
       </button>
       {showMethodology && (
         <ul className="mt-2 space-y-1 border-t border-slate-800 pt-2 text-[11px] text-slate-500">

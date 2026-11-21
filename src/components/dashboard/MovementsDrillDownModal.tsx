@@ -72,7 +72,7 @@ export function MovementsDrillDownModal({
                   <div className="min-w-0">
                     <p className="truncate text-sm text-slate-200">{it.concept}</p>
                     <p className="truncate text-xs text-slate-500">
-                      {it.categoryId ? categoryNames.get(it.categoryId) ?? 'Desconocida' : 'Sin categoria'}
+                      {it.categoryId ? categoryNames.get(it.categoryId) ?? 'Desconocida' : 'Sin categoría'}
                       {' · '}
                       {accountNames.get(it.accountId) ?? 'Cuenta'}
                       {' · '}

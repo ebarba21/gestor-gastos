@@ -519,7 +519,7 @@ export function computeInsights(input: InsightsInput): MonthInsights {
           b.averageToDateCents,
         )} de media ${isCurrentMonth ? 'a estas alturas' : 'mensual'}.` +
         (isCurrentMonth && overrun > 0
-          ? ` A este ritmo cerraras el mes en unos ${formatCents(projected)}, ${formatCents(overrun)} por encima de lo habitual.`
+          ? ` A este ritmo cerrarás el mes en unos ${formatCents(projected)}, ${formatCents(overrun)} por encima de lo habitual.`
           : ''),
       categoryId: b.categoryId,
       impactCents: isCurrentMonth ? Math.max(0, overrun) : b.currentCents - b.averageToDateCents,
@@ -673,11 +673,11 @@ export function computeInsights(input: InsightsInput): MonthInsights {
       severity: 'action',
       title:
         staleAccounts.length === 1
-          ? `Hace ${first.daysSinceLastMovement} dias que no importas ${names[0]}`
-          : `Hace ${first.daysSinceLastMovement} dias que no importas ${names.join(' ni ')}${
-              staleAccounts.length > 2 ? ` (y ${staleAccounts.length - 2} mas)` : ''
+          ? `Hace ${first.daysSinceLastMovement} días que no importas ${names[0]}`
+          : `Hace ${first.daysSinceLastMovement} días que no importas ${names.join(' ni ')}${
+              staleAccounts.length > 2 ? ` (y ${staleAccounts.length - 2} más)` : ''
             }`,
-      detail: 'Importa el extracto para que el disponible, el ritmo y la prevision usen tus datos reales.',
+      detail: 'Importa el extracto para que el disponible, el ritmo y la previsión usen tus datos reales.',
       route: '/importar',
     });
   }

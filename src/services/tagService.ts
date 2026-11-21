@@ -18,7 +18,7 @@ export interface TagInput {
 export function normalizeTagDisplayName(name: string): string {
   const trimmed = (name ?? '').trim().replace(/\s+/g, ' ');
   if (trimmed.length === 0) {
-    throw new ValidationError('El nombre de la etiqueta no puede estar vacio.');
+    throw new ValidationError('El nombre de la etiqueta no puede estar vacío.');
   }
   if (trimmed.length > MAX_TAG_NAME_LENGTH) {
     throw new ValidationError(

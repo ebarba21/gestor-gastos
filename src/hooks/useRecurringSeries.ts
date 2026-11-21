@@ -84,7 +84,7 @@ export function useRecurringSeries(): UseRecurringSeries {
       await recurringSeriesService.runDetection(profileId);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo completar la deteccion.');
+      setError(e instanceof Error ? e.message : 'No se pudo completar la detección.');
     } finally {
       setDetecting(false);
     }
@@ -96,7 +96,7 @@ export function useRecurringSeries(): UseRecurringSeries {
         await fn(profileId, ...args);
         await reload();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'No se pudo completar la accion.');
+        setError(e instanceof Error ? e.message : 'No se pudo completar la acción.');
       }
     };
   }

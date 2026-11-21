@@ -51,7 +51,7 @@ export function getSupabaseClient(): AppSupabaseClient | null {
   const result = resolveSupabaseConfig();
   if (result.status === 'unconfigured') return null;
   if (result.status === 'invalid') {
-    throw new SupabaseConfigError(`Configuracion de Supabase invalida: ${result.reason}`);
+    throw new SupabaseConfigError(`Configuración de Supabase inválida: ${result.reason}`);
   }
   return createSupabaseClient(result.config);
 }

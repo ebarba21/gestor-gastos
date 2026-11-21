@@ -144,11 +144,11 @@ export async function migrateProfile(
       await updateMigration(record.id, { uploadedCounts });
       await setMigrationStatus(record.id, 'failed', {
         finishedAt: now(),
-        lastError: 'Los recuentos remotos no coinciden; reintenta la migracion.',
+        lastError: 'Los recuentos remotos no coinciden; reintenta la migración.',
       });
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Error de migracion.';
+    const message = error instanceof Error ? error.message : 'Error de migración.';
     await setMigrationStatus(record.id, 'failed', { finishedAt: now(), lastError: message });
   }
 

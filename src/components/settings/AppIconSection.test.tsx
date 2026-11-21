@@ -23,7 +23,7 @@ describe('AppIconSection', () => {
     renderSection();
     const radios = screen.getAllByRole('radio');
     expect(radios).toHaveLength(APP_ICONS.length);
-    expect(screen.getByRole('radio', { name: 'Cartera clasica' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Cartera clásica' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('al elegir otro icono lo guarda y explica como reinstalar avisando de los datos', async () => {

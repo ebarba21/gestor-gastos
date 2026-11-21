@@ -66,7 +66,7 @@ export function BalanceForecastCard({ forecast, bufferCents }: { forecast: Balan
         <p className="text-sm text-slate-300">
           {min !== null && (
             <>
-              Saldo minimo previsto:{' '}
+              Saldo mínimo previsto:{' '}
               <strong className={min.central < 0 ? 'text-red-400' : min.central < bufferCents ? 'text-amber-300' : 'text-slate-100'}>
                 {formatCents(min.central)}
               </strong>{' '}
@@ -83,7 +83,7 @@ export function BalanceForecastCard({ forecast, bufferCents }: { forecast: Balan
               aria-pressed={horizon === h}
               className={`px-2.5 py-1 ${horizon === h ? 'bg-slate-700 text-slate-100' : 'text-slate-400'}`}
             >
-              {h} dias
+              {h} días
             </button>
           ))}
         </div>
@@ -127,20 +127,20 @@ export function BalanceForecastCard({ forecast, bufferCents }: { forecast: Balan
           />
           <ReferenceLine y={0} stroke={colors.axis} />
           {bufferCents > 0 && (
-            <ReferenceLine y={bufferCents} stroke={colors.expense} strokeDasharray="2 4" label={{ value: 'Colchon', fill: colors.axis, fontSize: 10, position: 'insideTopLeft' }} />
+            <ReferenceLine y={bufferCents} stroke={colors.expense} strokeDasharray="2 4" label={{ value: 'Colchón', fill: colors.axis, fontSize: 10, position: 'insideTopLeft' }} />
           )}
           {min !== null && <ReferenceDot x={min.label} y={min.central} r={4} fill={colors.expense} stroke="none" />}
         </ComposedChart>
       </ResponsiveContainer>
       <p className="mt-1 text-xs text-slate-500">
         Desde tu saldo a {shortDate(forecast.asOf)}: recibos e ingresos recurrentes
-        {forecast.incomeAssumed === 'payDay' ? ', nomina estimada en tu dia de cobro' : ''}
+        {forecast.incomeAssumed === 'payDay' ? ', nómina estimada en tu día de cobro' : ''}
         {forecast.variableMonthlyCents !== null
           ? ` y tu gasto variable y ahorro habituales (${formatCents(forecast.variableMonthlyCents)}/mes)`
           : ''}
-        . La banda va de tu mes mas caro al mas barato de los ultimos 3.
-        {end ? ` En ${horizon} dias: ${formatCents(end.central)}.` : ''}
-        {forecast.incomeAssumed === 'none' ? ' Sin nomina confirmada: confirmala en Recurrencias o indica tu dia de cobro en Ajustes.' : ''}
+        . La banda va de tu mes más caro al más barato de los últimos 3.
+        {end ? ` En ${horizon} días: ${formatCents(end.central)}.` : ''}
+        {forecast.incomeAssumed === 'none' ? ' Sin nómina confirmada: confírmala en Recurrencias o indica tu día de cobro en Ajustes.' : ''}
       </p>
     </div>
   );

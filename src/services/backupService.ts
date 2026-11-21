@@ -141,11 +141,11 @@ function isValidProfile(value: unknown): value is Profile {
 // Comprueba que un valor es una tabla (array) cuyos elementos son objetos con profileId.
 function assertTable(name: string, value: unknown): asserts value is { profileId: string }[] {
   if (!Array.isArray(value)) {
-    throw new BackupError(`El backup esta corrupto: la tabla "${name}" no es una lista.`);
+    throw new BackupError(`El backup está corrupto: la tabla "${name}" no es una lista.`);
   }
   for (const row of value) {
     if (!isObject(row) || typeof row.profileId !== 'string') {
-      throw new BackupError(`El backup esta corrupto: un registro de "${name}" no es valido.`);
+      throw new BackupError(`El backup está corrupto: un registro de "${name}" no es válido.`);
     }
   }
 }
@@ -158,7 +158,7 @@ export function parseBackup(text: string): ProfileBackup {
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new BackupError('El archivo no es un JSON valido. Parece estar corrupto o no ser un backup.');
+    throw new BackupError('El archivo no es un JSON válido. Parece estar corrupto o no ser un backup.');
   }
   if (!isObject(raw)) {
     throw new BackupError('El archivo no tiene el formato de un backup de Gestor de Gastos.');
@@ -172,26 +172,26 @@ export function parseBackup(text: string): ProfileBackup {
     raw.backupFormatVersion > BACKUP_FORMAT_VERSION
   ) {
     throw new BackupError(
-      `Formato de backup incompatible (${String(raw.backupFormatVersion)}). Esta version de la app admite del formato ${MIN_BACKUP_FORMAT_VERSION} al ${BACKUP_FORMAT_VERSION}.`,
+      `Formato de backup incompatible (${String(raw.backupFormatVersion)}). Esta versión de la app admite del formato ${MIN_BACKUP_FORMAT_VERSION} al ${BACKUP_FORMAT_VERSION}.`,
     );
   }
   const schemaVersion = raw.schemaVersion;
   if (typeof schemaVersion !== 'number' || !Number.isInteger(schemaVersion) || schemaVersion < 1) {
-    throw new BackupError('El backup no indica una version de esquema valida.');
+    throw new BackupError('El backup no indica una versión de esquema válida.');
   }
   // Un backup creado con un esquema MAS NUEVO que el de esta app no se restaura: no se degrada
   // el dato (DATA_MODEL seccion 7). El usuario debe actualizar la app.
   if (schemaVersion > SCHEMA_VERSION) {
     throw new BackupError(
-      `El backup se creo con una version mas reciente de la app (esquema ${schemaVersion}). Actualiza la app para restaurarlo.`,
+      `El backup se creó con una versión más reciente de la app (esquema ${schemaVersion}). Actualiza la app para restaurarlo.`,
     );
   }
   if (!isValidProfile(raw.profile)) {
-    throw new BackupError('El backup no contiene un perfil valido.');
+    throw new BackupError('El backup no contiene un perfil válido.');
   }
   const profile = raw.profile;
   if (!isObject(raw.data)) {
-    throw new BackupError('El backup esta corrupto: falta el bloque de datos.');
+    throw new BackupError('El backup está corrupto: falta el bloque de datos.');
   }
   // Cada tabla conocida: si esta presente debe ser una lista valida; si falta, se asume vacia.
   const data: ProfileDataTables = {
@@ -227,7 +227,7 @@ export function parseBackup(text: string): ProfileBackup {
     for (const row of value) {
       if (row.profileId !== profile.id) {
         throw new BackupError(
-          `El backup esta corrupto: un registro de "${key}" pertenece a otro perfil.`,
+          `El backup está corrupto: un registro de "${key}" pertenece a otro perfil.`,
         );
       }
     }
@@ -650,7 +650,7 @@ export async function restoreIntoActiveProfile(
   // vincularlo despues con el asistente de migracion, que sube todo de forma verificada.
   if (target.ownerUserId) {
     throw new BackupError(
-      'Este perfil esta sincronizado con tu cuenta y no se puede sobrescribir. Usa "Crear perfil nuevo" y despues vinculalo a tu cuenta desde Sincronizacion.',
+      'Este perfil está sincronizado con tu cuenta y no se puede sobrescribir. Usa "Crear perfil nuevo" y después vincúlalo a tu cuenta desde Sincronización.',
     );
   }
   const data = remapProfileData(backup.data, activeProfileId);

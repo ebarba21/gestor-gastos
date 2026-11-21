@@ -50,9 +50,9 @@ export const REVIEW_TYPE_LABELS: Record<ReviewItemType, string> = {
   refundCandidate: 'Reembolso candidato',
   stalePending: 'Pendiente antiguo',
   newMerchant: 'Comercio nuevo',
-  importError: 'Error de importacion',
-  syncConflict: 'Conflicto de sincronizacion',
-  recurringAnomaly: 'Anomalia recurrente',
+  importError: 'Error de importación',
+  syncConflict: 'Conflicto de sincronización',
+  recurringAnomaly: 'Anomalía recurrente',
 };
 
 export const REVIEW_STATUS_LABELS: Record<ReviewItemStatus, string> = {

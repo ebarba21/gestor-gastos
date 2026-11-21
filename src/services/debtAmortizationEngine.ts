@@ -338,7 +338,7 @@ export function simulateMultiDebtStrategy(input: {
   const { strategy, recurringExtraCents, startDate } = input;
   const oneTime = input.oneTimeExtraPayments ?? [];
   if (!Number.isInteger(recurringExtraCents) || recurringExtraCents < 0) {
-    throw new ValidationError('El extra mensual debe ser un entero >= 0 en centimos.');
+    throw new ValidationError('El extra mensual debe ser un entero >= 0 en céntimos.');
   }
 
   const orderIndex = new Map(input.debts.map((d, idx) => [d.id, idx]));

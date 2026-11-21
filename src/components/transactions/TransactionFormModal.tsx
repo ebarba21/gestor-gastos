@@ -151,7 +151,7 @@ export function TransactionFormModal({
     const raw = reimbursable.trim().replace(',', '.');
     if (raw === '') return null;
     const n = Number(raw);
-    if (!Number.isFinite(n) || n < 0) throw new Error('El importe a recuperar no es valido.');
+    if (!Number.isFinite(n) || n < 0) throw new Error('El importe a recuperar no es válido.');
     return n === 0 ? null : eurosToCents(n);
   }
 
@@ -161,7 +161,7 @@ export function TransactionFormModal({
     try {
       const { changed } = await ruleSuggestionService.accept(profileId, suggestion);
       showToast(
-        changed > 0 ? `Regla creada. ${changed} movimientos recategorizados.` : 'Regla creada para los proximos movimientos.',
+        changed > 0 ? `Regla creada. ${changed} movimientos recategorizados.` : 'Regla creada para los próximos movimientos.',
         'success',
       );
       await onSaved();
@@ -195,7 +195,7 @@ export function TransactionFormModal({
       } else {
         const amountNumber = Number(amountEuros);
         if (amountEuros.trim() === '' || !Number.isFinite(amountNumber)) {
-          throw new Error('Introduce un importe valido.');
+          throw new Error('Introduce un importe válido.');
         }
         const magnitude = eurosToCents(amountNumber);
         if (magnitude <= 0) throw new Error('El importe debe ser mayor que cero.');
@@ -219,7 +219,7 @@ export function TransactionFormModal({
           // Correccion de categoria: ofrece convertirla en regla (una vez, sin insistir).
           const newCat = payload.categoryId;
           if (newCat !== null && (newCat !== tx.categoryId || payload.subcategoryId !== tx.subcategoryId)) {
-            const label = categories.find((c) => c.id === (payload.subcategoryId ?? newCat))?.name ?? 'su categoria';
+            const label = categories.find((c) => c.id === (payload.subcategoryId ?? newCat))?.name ?? 'su categoría';
             const merchant = tx.merchantId ? merchantNameOf(tx.merchantId) : null;
             const s = suggestRule(tx, merchant, newCat, payload.subcategoryId, label);
             if (s) {
@@ -257,7 +257,7 @@ export function TransactionFormModal({
     <Modal
       open={open}
       onClose={suggestion ? () => void Promise.resolve(onSaved()).finally(onClose) : onClose}
-      title={suggestion ? 'Aplicar siempre?' : title} dismissible={!saving && !acceptingRule}>
+      title={suggestion ? '¿Aplicar siempre?' : title} dismissible={!saving && !acceptingRule}>
       {suggestion ? (
         <div className="space-y-4">
           <p className="text-sm text-slate-300">
@@ -266,7 +266,7 @@ export function TransactionFormModal({
             <strong className="text-slate-100">{suggestion.name.split('→')[1]?.trim()}</strong>?
           </p>
           <p className="text-xs text-slate-500">
-            Se crea una regla con la maxima prioridad y se aplica tambien a tu historico, sin tocar lo que hayas
+            Se crea una regla con la máxima prioridad y se aplica también a tu histórico, sin tocar lo que hayas
             categorizado a mano. Puedes editarla o borrarla en Reglas.
           </p>
           {error && <p className="text-sm text-red-400">{error}</p>}
@@ -295,7 +295,7 @@ export function TransactionFormModal({
       <form onSubmit={handleSubmit} className="space-y-4">
         {limited && (
           <p className="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-400">
-            Este es un movimiento especial (transferencia o split). Aqui solo puedes editar
+            Este es un movimiento especial (transferencia o split). Aquí solo puedes editar
             fecha, concepto, notas, estado y etiquetas. El importe y la cuenta se gestionan
             desde sus acciones.
           </p>
@@ -400,7 +400,7 @@ export function TransactionFormModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="tx-category" className="block text-sm font-medium text-slate-300">
-                  Categoria
+                  Categoría
                 </label>
                 <select
                   id="tx-category"
@@ -411,7 +411,7 @@ export function TransactionFormModal({
                   }}
                   className={inputClass}
                 >
-                  <option value="">Sin categoria</option>
+                  <option value="">Sin categoría</option>
                   {rootCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -421,7 +421,7 @@ export function TransactionFormModal({
               </div>
               <div>
                 <label htmlFor="tx-subcategory" className="block text-sm font-medium text-slate-300">
-                  Subcategoria
+                  Subcategoría
                 </label>
                 <select
                   id="tx-subcategory"
@@ -517,7 +517,7 @@ export function TransactionFormModal({
               className={inputClass}
             />
             <p className="mt-1 text-xs text-slate-500">
-              Cuando llegue el Bizum, enlazalo como reembolso: lo pendiente baja solo.
+              Cuando llegue el Bizum, enlázalo como reembolso: lo pendiente baja solo.
             </p>
           </div>
         )}
@@ -530,7 +530,7 @@ export function TransactionFormModal({
               onChange={(e) => setExcluded(e.target.checked)}
               className="h-4 w-4"
             />
-            Excluir de las estadisticas
+            Excluir de las estadísticas
           </label>
         )}
 

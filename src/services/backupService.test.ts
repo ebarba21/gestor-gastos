@@ -535,7 +535,7 @@ describe('validacion de archivos corruptos o de version incompatible', () => {
       profile: { id: 'p', name: 'X' },
       data: {},
     });
-    expect(() => parseBackup(text)).toThrow(/version mas reciente/i);
+    expect(() => parseBackup(text)).toThrow(/versión más reciente/i);
   });
 
   it('rechaza un backup sin bloque de datos', () => {

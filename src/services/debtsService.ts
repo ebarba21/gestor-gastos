@@ -53,10 +53,10 @@ function validateDebtFields(input: {
     throw new ValidationError('El nombre de la deuda debe tener entre 1 y 160 caracteres.');
   }
   if (!DEBT_TYPES.includes(input.type)) {
-    throw new ValidationError(`Tipo de deuda invalido: ${input.type}.`);
+    throw new ValidationError(`Tipo de deuda inválido: ${input.type}.`);
   }
   if (input.currency.length !== 3) {
-    throw new ValidationError('La moneda debe ser un codigo ISO 4217 de 3 letras.');
+    throw new ValidationError('La moneda debe ser un código ISO 4217 de 3 letras.');
   }
   assertCents(input.originalPrincipalCents);
   assertCents(input.outstandingPrincipalCents);
@@ -66,7 +66,7 @@ function validateDebtFields(input: {
     throw new ValidationError('Los importes de la deuda no pueden ser negativos.');
   }
   if (!DEBT_STATUSES.includes(input.status)) {
-    throw new ValidationError(`Estado de deuda invalido: ${input.status}.`);
+    throw new ValidationError(`Estado de deuda inválido: ${input.status}.`);
   }
   if (
     input.remainingTermMonths !== null &&
@@ -112,7 +112,7 @@ async function getSchedule(profileId: string, debtId: string): Promise<ScheduleR
     throw new ValidationError('La deuda no tiene plazo restante registrado: no se puede generar el calendario.');
   }
   if (!isAmortizable(debt.type)) {
-    throw new ValidationError('Las tarjetas (revolving) no tienen calendario de amortizacion en esta fase.');
+    throw new ValidationError('Las tarjetas (revolving) no tienen calendario de amortización en esta fase.');
   }
   return buildAmortizationSchedule({
     principalCents: debt.outstandingPrincipalCents,
@@ -136,7 +136,7 @@ async function simulateDebtExtraPayments(profileId: string, debtId: string, inpu
     throw new ValidationError('La deuda no tiene plazo restante registrado: no se puede simular.');
   }
   if (!isAmortizable(debt.type)) {
-    throw new ValidationError('Las tarjetas (revolving) no tienen calendario de amortizacion en esta fase.');
+    throw new ValidationError('Las tarjetas (revolving) no tienen calendario de amortización en esta fase.');
   }
   const baseline = buildAmortizationSchedule({
     principalCents: debt.outstandingPrincipalCents,
@@ -206,7 +206,7 @@ async function reflectPaymentInLinkedTransaction(
     throw new ValidationError('No se puede vincular un pago de deuda a una transferencia.');
   }
   if (tx.parentId !== null) {
-    throw new ValidationError('No se puede vincular un pago de deuda a una linea de un split existente.');
+    throw new ValidationError('No se puede vincular un pago de deuda a una línea de un split existente.');
   }
   const totalCents = principalCents + interestCents + feesCents;
   if (Math.abs(tx.amountCents) !== totalCents) {
@@ -235,7 +235,7 @@ async function reflectPaymentInLinkedTransaction(
       amountCents: sign * interestPlusFees,
       categoryId: tx.categoryId,
       subcategoryId: tx.subcategoryId,
-      concept: `${tx.concept} (interes/comisiones)`,
+      concept: `${tx.concept} (interés/comisiones)`,
       excludedFromStats: false,
     },
   ]);
@@ -283,10 +283,10 @@ async function recordPayment(profileId: string, debtId: string, input: RecordPay
     throw new ValidationError('Los importes de un pago de deuda no pueden ser negativos.');
   }
   if (input.totalCents !== input.principalCents + input.interestCents + input.feesCents) {
-    throw new ValidationError('El pago no cuadra: total debe ser igual a principal + interes + comisiones.');
+    throw new ValidationError('El pago no cuadra: total debe ser igual a principal + interés + comisiones.');
   }
   if (input.extraPrincipalCents > input.principalCents) {
-    throw new ValidationError('La amortizacion extraordinaria no puede superar el principal del pago.');
+    throw new ValidationError('La amortización extraordinaria no puede superar el principal del pago.');
   }
   const debt = await requireDebt(profileId, debtId);
 
@@ -300,7 +300,7 @@ async function recordPayment(profileId: string, debtId: string, input: RecordPay
     if (input.transactionId !== null) {
       const alreadyLinked = await debtPaymentsRepo.findByTransactionId(profileId, input.transactionId);
       if (alreadyLinked) {
-        throw new ValidationError('Ese movimiento ya esta vinculado a otro pago de esta deuda: evita el doble conteo.');
+        throw new ValidationError('Ese movimiento ya está vinculado a otro pago de esta deuda: evita el doble conteo.');
       }
       // Se ajusta ANTES de crear el pago: si el importe no coincide (o el movimiento no es
       // vinculable), se rechaza el vinculo entero en vez de dejar un pago creado a medias.

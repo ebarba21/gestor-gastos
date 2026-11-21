@@ -389,7 +389,7 @@ export const importService = {
     // aislamiento no depende solo de que el llamante haya filtrado las cuentas.
     assert(
       accounts.every((a) => a.profileId === profileId),
-      'Se han pasado cuentas de otro perfil a la importacion.',
+      'Se han pasado cuentas de otro perfil a la importación.',
     );
     // La cuenta destino debe pertenecer al perfil (aislamiento).
     const defaultAccount = accounts.find((a) => a.id === config.defaultAccountId);
@@ -435,7 +435,7 @@ export const importService = {
       for (const row of rows) {
         if (!row.unmatchedAccountName) continue;
         row.errors.push(
-          `La cuenta "${row.unmatchedAccountName}" no existe en este perfil. Creala en Cuentas o corrige el fichero.`,
+          `La cuenta "${row.unmatchedAccountName}" no existe en este perfil. Créala en Cuentas o corrige el fichero.`,
         );
         row.status = 'error';
         row.include = false;
@@ -630,7 +630,7 @@ export const importService = {
     for (const r of linkRows) {
       assert(
         r.bestCandidateId !== null && !isBatchCandidateId(r.bestCandidateId),
-        `La fila ${r.rowIndex + 1} tiene la decision "vincular" pero no hay ningun movimiento existente al que vincularla.`,
+        `La fila ${r.rowIndex + 1} tiene la decisión "vincular" pero no hay ningún movimiento existente al que vincularla.`,
       );
     }
     // Dos filas del mismo fichero no pueden vincularse al MISMO movimiento existente: la
@@ -651,7 +651,7 @@ export const importService = {
       if (r.decision !== 'replacePending') continue;
       assert(
         r.bestCandidateId !== null && !isBatchCandidateId(r.bestCandidateId),
-        `La fila ${r.rowIndex + 1} tiene la decision "sustituir pendiente" pero no hay ningun pendiente existente al que sustituir.`,
+        `La fila ${r.rowIndex + 1} tiene la decisión "sustituir pendiente" pero no hay ningún pendiente existente al que sustituir.`,
       );
     }
 
@@ -903,13 +903,13 @@ function buildPreviewRow(
   try {
     date = parseDateToIso(cellAt(raw, cm.date), config.dateFormat);
   } catch (e) {
-    errors.push(messageOf(e, 'Fecha invalida.'));
+    errors.push(messageOf(e, 'Fecha inválida.'));
   }
 
   let concept: string | null = null;
   const rawConcept = normalizeImportConcept(cellToString(cellAt(raw, cm.concept)));
   if (rawConcept.length === 0) {
-    errors.push('Concepto vacio.');
+    errors.push('Concepto vacío.');
   } else {
     concept = rawConcept;
   }
@@ -925,7 +925,7 @@ function buildPreviewRow(
       amountCents = null;
     }
   } catch (e) {
-    errors.push(messageOf(e, 'Importe invalido.'));
+    errors.push(messageOf(e, 'Importe inválido.'));
   }
 
   // Cuenta: si hay columna de cuenta mapeada y su texto coincide con una cuenta del perfil,

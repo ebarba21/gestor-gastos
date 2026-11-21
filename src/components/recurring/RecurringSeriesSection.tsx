@@ -131,13 +131,13 @@ export function RecurringSeriesSection() {
         <div>
           <h2 className="text-xl font-semibold text-slate-100">Recurrencias</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Series confirmables detectadas por comercio/concepto, direccion y cuenta. Ninguna
+            Series confirmables detectadas por comercio/concepto, dirección y cuenta. Ninguna
             sugerencia se confirma sola.
           </p>
         </div>
         <div className="flex gap-2">
           <button type="button" className={btnClass} onClick={() => setShowAddForm((v) => !v)}>
-            {showAddForm ? 'Cancelar' : 'Anadir manualmente'}
+            {showAddForm ? 'Cancelar' : 'Añadir manualmente'}
           </button>
           <button type="button" disabled={detecting} onClick={() => void runDetection()} className={btnPrimaryClass}>
             {detecting ? 'Buscando...' : 'Buscar recurrencias'}
@@ -170,7 +170,7 @@ export function RecurringSeriesSection() {
             ))}
           </select>
           <select
-            aria-label="Direccion (gasto o ingreso)"
+            aria-label="Dirección (gasto o ingreso)"
             value={addDraft.direction}
             onChange={(e) => setAddDraft((d) => ({ ...d, direction: e.target.value as RecurringDirection }))}
             className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-100"
@@ -190,7 +190,7 @@ export function RecurringSeriesSection() {
             <option value="yearly">Anual</option>
           </select>
           <input
-            aria-label="Cada cuantos periodos"
+            aria-label="Cada cuántos periodos"
             type="number"
             min={1}
             placeholder="Cada N"
@@ -217,16 +217,16 @@ export function RecurringSeriesSection() {
             className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-100"
           />
           <input
-            aria-label="Tolerancia de fecha en dias"
+            aria-label="Tolerancia de fecha en días"
             type="number"
             min={0}
-            placeholder="Tolerancia dias"
+            placeholder="Tolerancia días"
             value={addDraft.dateToleranceDays}
             onChange={(e) => setAddDraft((d) => ({ ...d, dateToleranceDays: e.target.value }))}
             className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-100"
           />
           <input
-            aria-label="Proxima fecha esperada"
+            aria-label="Próxima fecha esperada"
             type="date"
             value={addDraft.nextExpectedDate}
             onChange={(e) => setAddDraft((d) => ({ ...d, nextExpectedDate: e.target.value }))}
@@ -253,10 +253,10 @@ export function RecurringSeriesSection() {
                     dateToleranceDays: Number(addDraft.dateToleranceDays) || 0,
                     nextExpectedDate: addDraft.nextExpectedDate,
                   });
-                  showToast('Recurrencia anadida.', 'success');
+                  showToast('Recurrencia añadida.', 'success');
                   setShowAddForm(false);
                 } catch (e) {
-                  showToast(e instanceof Error ? e.message : 'No se pudo anadir la recurrencia.', 'error');
+                  showToast(e instanceof Error ? e.message : 'No se pudo añadir la recurrencia.', 'error');
                 }
               })()
             }
@@ -323,7 +323,7 @@ export function RecurringSeriesSection() {
                   <button
                     type="button"
                     className={btnPrimaryClass}
-                    title="Marcar que esta recurrencia sigue cobrandose con normalidad"
+                    title="Marcar que esta recurrencia sigue cobrándose con normalidad"
                     onClick={() => void withToast(() => resume(s.id), 'Serie reactivada.')}
                   >
                     No, sigue activa
@@ -334,7 +334,7 @@ export function RecurringSeriesSection() {
                     title="Confirmar que esta recurrencia ha terminado"
                     onClick={() => void withToast(() => cancel(s.id), 'Serie cancelada.')}
                   >
-                    Si, cancelar
+                    Sí, cancelar
                   </button>
                 </div>
               </li>
@@ -350,7 +350,7 @@ export function RecurringSeriesSection() {
           <EmptyState
             icon="🔁"
             title="Sin recurrencias activas"
-            description="Confirma una candidata detectada o anade una recurrencia manualmente."
+            description="Confirma una candidata detectada o añade una recurrencia manualmente."
           />
         ) : (
           <ul className="divide-y divide-slate-800 rounded-xl border border-slate-800">
@@ -363,7 +363,7 @@ export function RecurringSeriesSection() {
                     </p>
                     <p className="text-xs text-slate-500">
                       {frequencyLabel(s)} · {formatCents(s.expectedAmountCents)} (±{formatCents(s.amountToleranceCents)}) ·
-                      proximo {s.nextExpectedDate ?? 'sin fecha'}
+                      próximo {s.nextExpectedDate ?? 'sin fecha'}
                       {s.accountId && ` · ${accountNames.get(s.accountId) ?? ''}`}
                     </p>
                   </button>
@@ -432,12 +432,12 @@ export function RecurringSeriesSection() {
                       className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-100"
                     />
                     <input
-                      aria-label="Tolerancia de fecha en dias"
+                      aria-label="Tolerancia de fecha en días"
                       type="number"
                       min={0}
                       value={editDraft.dateToleranceDays}
                       onChange={(e) => setEditDraft((d) => ({ ...d, dateToleranceDays: e.target.value }))}
-                      placeholder="Tolerancia dias"
+                      placeholder="Tolerancia días"
                       className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-100"
                     />
                     <button
@@ -474,7 +474,7 @@ export function RecurringSeriesSection() {
                         Historial de ocurrencias
                       </p>
                       {expandedOccurrences.length === 0 ? (
-                        <p className="text-xs text-slate-500">Sin ocurrencias todavia.</p>
+                        <p className="text-xs text-slate-500">Sin ocurrencias todavía.</p>
                       ) : (
                         <ul className="space-y-1">
                           {expandedOccurrences.map((o) => (
@@ -644,9 +644,9 @@ export function RecurringSeriesSection() {
 
       {/* Proximos cobros, agrupados por mes (agenda/calendario). */}
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-300">Proximos cobros e ingresos</h3>
+        <h3 className="text-sm font-semibold text-slate-300">Próximos cobros e ingresos</h3>
         {upcomingCharges.length === 0 ? (
-          <p className="text-xs text-slate-500">No hay cobros previstos en los proximos meses.</p>
+          <p className="text-xs text-slate-500">No hay cobros previstos en los próximos meses.</p>
         ) : (
           <UpcomingChargesCalendar charges={upcomingCharges} accountNames={accountNames} categoryNames={categoryNames} />
         )}
@@ -694,7 +694,7 @@ function UpcomingChargesCalendar({
                   </p>
                   {c.lastAmountCents !== null && (
                     <p className="text-xs text-slate-500">
-                      Ultimo {formatCents(c.lastAmountCents)}
+                      Último {formatCents(c.lastAmountCents)}
                       {c.variationCents !== null && c.variationCents !== 0 && (
                         <span className={c.variationCents > 0 ? 'text-amber-400' : 'text-emerald-400'}>
                           {' '}

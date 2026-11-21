@@ -74,7 +74,7 @@ export function customRange(from: string, to: string): DateRange {
   requireAccountingDate(from);
   requireAccountingDate(to);
   if (from > to) {
-    throw new Error(`Rango personalizado invalido: la fecha inicial (${from}) es posterior a la final (${to}).`);
+    throw new Error(`Rango personalizado inválido: la fecha inicial (${from}) es posterior a la final (${to}).`);
   }
   return { from, to };
 }
@@ -126,7 +126,7 @@ export function payDateInMonth(y: number, m: number, payDay: number): string {
 // hasta el dia anterior al siguiente cobro.
 export function payCycleRange(refISO: string, payDay: number): DateRange {
   if (!Number.isInteger(payDay) || payDay < 1 || payDay > 31) {
-    throw new Error(`Dia de cobro invalido: ${payDay}.`);
+    throw new Error(`Día de cobro inválido: ${payDay}.`);
   }
   const { y, m } = parseISO(refISO);
   const thisMonthPay = payDateInMonth(y, m, payDay);

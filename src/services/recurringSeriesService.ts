@@ -258,13 +258,13 @@ function validateSeriesFields(fields: Partial<CreateManualSeriesInput | Editable
     fields.expectedAmountCents !== undefined &&
     (!Number.isInteger(fields.expectedAmountCents) || fields.expectedAmountCents < 0)
   ) {
-    throw new ValidationError('expectedAmountCents debe ser un entero en centimos no negativo.');
+    throw new ValidationError('expectedAmountCents debe ser un entero en céntimos no negativo.');
   }
   if (
     fields.amountToleranceCents !== undefined &&
     (!Number.isInteger(fields.amountToleranceCents) || fields.amountToleranceCents < 0)
   ) {
-    throw new ValidationError('amountToleranceCents debe ser un entero en centimos no negativo.');
+    throw new ValidationError('amountToleranceCents debe ser un entero en céntimos no negativo.');
   }
   if (
     fields.amountTolerancePpm !== undefined &&
@@ -276,7 +276,7 @@ function validateSeriesFields(fields: Partial<CreateManualSeriesInput | Editable
     fields.dateToleranceDays !== undefined &&
     (!Number.isInteger(fields.dateToleranceDays) || fields.dateToleranceDays < 0)
   ) {
-    throw new ValidationError('dateToleranceDays debe ser un entero de dias no negativo.');
+    throw new ValidationError('dateToleranceDays debe ser un entero de días no negativo.');
   }
   if (
     fields.expectedDayOfWeek !== undefined &&

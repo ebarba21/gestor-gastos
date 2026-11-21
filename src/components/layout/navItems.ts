@@ -12,28 +12,28 @@ export interface NavGroup {
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    title: 'Dia a dia',
+    title: 'Día a día',
     items: [
       { to: '/', label: 'Dashboard', end: true },
       { to: '/patrimonio', label: 'Patrimonio' },
       { to: '/movimientos', label: 'Movimientos' },
       { to: '/importar', label: 'Importar' },
-      { to: '/bandeja', label: 'Bandeja de revision' },
+      { to: '/bandeja', label: 'Bandeja de revisión' },
       { to: '/presupuestos', label: 'Presupuestos' },
     ],
   },
   {
-    title: 'Analisis y planificacion',
+    title: 'Análisis y planificación',
     items: [
       { to: '/recurrencias', label: 'Recurrencias' },
       { to: '/deudas', label: 'Deudas' },
-      { to: '/conciliacion', label: 'Conciliacion' },
+      { to: '/conciliacion', label: 'Conciliación' },
     ],
   },
   {
-    title: 'Organizacion',
+    title: 'Organización',
     items: [
-      { to: '/categorias', label: 'Categorias' },
+      { to: '/categorias', label: 'Categorías' },
       { to: '/cuentas', label: 'Cuentas' },
       { to: '/reglas', label: 'Reglas' },
       { to: '/comercios', label: 'Comercios' },
@@ -44,7 +44,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/exportar', label: 'Exportar' },
       { to: '/cuenta', label: 'Cuenta' },
-      { to: '/sincronizacion', label: 'Sincronizacion' },
+      { to: '/sincronizacion', label: 'Sincronización' },
       { to: '/ajustes', label: 'Ajustes' },
       { to: '/ajustes/seguridad', label: 'Seguridad' },
     ],
@@ -59,16 +59,16 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/importar', label: 'Importar' },
   { to: '/reglas', label: 'Reglas' },
   { to: '/comercios', label: 'Comercios' },
-  { to: '/bandeja', label: 'Bandeja de revision' },
-  { to: '/conciliacion', label: 'Conciliacion' },
+  { to: '/bandeja', label: 'Bandeja de revisión' },
+  { to: '/conciliacion', label: 'Conciliación' },
   { to: '/recurrencias', label: 'Recurrencias' },
   { to: '/deudas', label: 'Deudas' },
-  { to: '/categorias', label: 'Categorias' },
+  { to: '/categorias', label: 'Categorías' },
   { to: '/cuentas', label: 'Cuentas' },
   { to: '/presupuestos', label: 'Presupuestos' },
   { to: '/exportar', label: 'Exportar' },
   { to: '/cuenta', label: 'Cuenta' },
-  { to: '/sincronizacion', label: 'Sincronizacion' },
+  { to: '/sincronizacion', label: 'Sincronización' },
   { to: '/ajustes', label: 'Ajustes' },
   { to: '/ajustes/seguridad', label: 'Seguridad' },
 ];

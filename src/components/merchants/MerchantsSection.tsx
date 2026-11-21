@@ -119,7 +119,7 @@ export function MerchantsSection() {
           title={showArchived ? 'Sin comercios archivados' : 'Sin comercios'}
           description={
             showArchived
-              ? 'Los comercios que archives apareceran aqui.'
+              ? 'Los comercios que archives aparecerán aquí.'
               : 'Crea un comercio o revisa los candidatos detectados a partir de tus movimientos.'
           }
         />
@@ -228,7 +228,7 @@ export function MerchantsSection() {
               {archivingOrUnarchiving.archivedAt === null ? (
                 <>
                   Vas a archivar <strong className="text-slate-100">{archivingOrUnarchiving.canonicalName}</strong>.
-                  Los movimientos ya asociados conservan la asociacion; dejara de sugerirse para
+                  Los movimientos ya asociados conservan la asociación; dejará de sugerirse para
                   movimientos nuevos.
                 </>
               ) : (

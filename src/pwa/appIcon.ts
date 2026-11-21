@@ -13,10 +13,10 @@ export interface AppIconOption {
 }
 
 export const APP_ICONS: readonly AppIconOption[] = [
-  { id: 'clasico', name: 'Cartera clasica' },
+  { id: 'clasico', name: 'Cartera clásica' },
   { id: 'hucha', name: 'Hucha' },
   { id: 'euro', name: 'Moneda' },
-  { id: 'barras', name: 'Grafico' },
+  { id: 'barras', name: 'Gráfico' },
   { id: 'donut', name: 'Donut' },
   { id: 'cartera', name: 'Cartera coral' },
   { id: 'ticket', name: 'Ticket' },

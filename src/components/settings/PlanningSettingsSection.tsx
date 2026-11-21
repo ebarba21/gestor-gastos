@@ -31,7 +31,7 @@ export function PlanningSettingsSection() {
         setPayDay(s.payDay === null ? '' : String(s.payDay));
         setBuffer(String(centsToEuros(s.safetyBufferCents)));
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'No se pudo cargar la configuracion.'));
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'No se pudo cargar la configuración.'));
     return () => {
       cancelled = true;
     };
@@ -46,7 +46,7 @@ export function PlanningSettingsSection() {
     setSaving(true);
     try {
       const bufferEuros = buffer.trim() === '' ? 0 : Number(buffer.replace(',', '.'));
-      if (!Number.isFinite(bufferEuros) || bufferEuros < 0) throw new Error('El colchon debe ser un importe valido.');
+      if (!Number.isFinite(bufferEuros) || bufferEuros < 0) throw new Error('El colchón debe ser un importe válido.');
       const updated = await planningSettingsService.update(profileId, {
         payDay: payDay === '' ? null : Number(payDay),
         safetyBufferCents: eurosToCents(bufferEuros),
@@ -55,7 +55,7 @@ export function PlanningSettingsSection() {
         reserveExtraPay: settings.reserveExtraPay,
       });
       setSettings(updated);
-      showToast('Planificacion guardada.', 'success');
+      showToast('Planificación guardada.', 'success');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar.');
     } finally {
@@ -78,27 +78,27 @@ export function PlanningSettingsSection() {
 
   return (
     <form onSubmit={save} className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Planificacion</h3>
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Planificación</h3>
       <p className="mt-2 text-sm text-slate-400">
-        Con tu dia de cobro y tu colchon, la portada calcula cuanto puedes gastar hasta la siguiente nomina.
+        Con tu día de cobro y tu colchón, la portada calcula cuánto puedes gastar hasta la siguiente nómina.
       </p>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="plan-payday" className="block text-sm font-medium text-slate-300">
-            Dia de cobro
+            Día de cobro
           </label>
           <select id="plan-payday" value={payDay} onChange={(e) => setPayDay(e.target.value)} className={inputClass}>
-            <option value="">Automatico (por tu nomina)</option>
+            <option value="">Automático (por tu nómina)</option>
             {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
               <option key={d} value={d}>
-                Dia {d}
+                Día {d}
               </option>
             ))}
           </select>
         </div>
         <div>
           <label htmlFor="plan-buffer" className="block text-sm font-medium text-slate-300">
-            Colchon minimo (EUR)
+            Colchón mínimo (EUR)
           </label>
           <input
             id="plan-buffer"
@@ -111,7 +111,7 @@ export function PlanningSettingsSection() {
         </div>
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        El colchon es lo que nunca se cuenta como disponible: la portada te avisa si la prevision baja de ahi.
+        El colchón es lo que nunca se cuenta como disponible: la portada te avisa si la previsión baja de ahí.
       </p>
 
       <fieldset className="mt-4">
@@ -130,12 +130,12 @@ export function PlanningSettingsSection() {
                   : 'border-slate-700 text-slate-300',
               ].join(' ')}
             >
-              {c === 'calendar' ? 'Mes natural' : 'De nomina a nomina'}
+              {c === 'calendar' ? 'Mes natural' : 'De nómina a nómina'}
             </button>
           ))}
         </div>
         {settings.budgetCycle === 'payday' && payDay === '' && (
-          <p className="mt-1 text-xs text-amber-300">Indica tu dia de cobro para usar este periodo.</p>
+          <p className="mt-1 text-xs text-amber-300">Indica tu día de cobro para usar este periodo.</p>
         )}
       </fieldset>
 

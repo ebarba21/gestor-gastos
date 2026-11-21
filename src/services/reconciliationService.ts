@@ -37,7 +37,7 @@ export async function computeBalance(
   requireProfileId(profileId);
   requireId(accountId);
   if (!isValidAccountingDate(statementDate)) {
-    throw new ValidationError('La fecha de extracto no es una fecha YYYY-MM-DD valida.');
+    throw new ValidationError('La fecha de extracto no es una fecha YYYY-MM-DD válida.');
   }
   const account = await accountsRepo.getById(profileId, accountId);
   if (!account) {

@@ -5,7 +5,7 @@ import { ValidationError } from './validation';
 // Comprueba que un valor es un importe valido en centimos (entero finito).
 export function assertCents(cents: number): void {
   if (!Number.isInteger(cents)) {
-    throw new ValidationError('Los importes en centimos deben ser enteros.');
+    throw new ValidationError('Los importes en céntimos deben ser enteros.');
   }
 }
 
@@ -19,7 +19,7 @@ export function isValidCents(cents: number): boolean {
 // IEEE-754 recibido; no intenta adivinar terceros decimales que el float ya no guarda.
 export function eurosToCents(euros: number): number {
   if (!Number.isFinite(euros)) {
-    throw new ValidationError('Importe en euros invalido: debe ser un numero finito.');
+    throw new ValidationError('Importe en euros inválido: debe ser un número finito.');
   }
   return Math.round(euros * 100);
 }

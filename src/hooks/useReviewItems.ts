@@ -44,7 +44,7 @@ export function useReviewItems(): UseReviewItems {
       setCounts(countsResult);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cargar la bandeja de revision.');
+      setError(e instanceof Error ? e.message : 'No se pudo cargar la bandeja de revisión.');
     } finally {
       setLoading(false);
     }

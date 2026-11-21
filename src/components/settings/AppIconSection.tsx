@@ -31,9 +31,9 @@ export function AppIconSection() {
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(installUrl);
-      showToast('Enlace copiado. Pegalo en Safari.', 'success');
+      showToast('Enlace copiado. Pégalo en Safari.', 'success');
     } catch {
-      showToast('No se pudo copiar. Manten pulsado el enlace para copiarlo.', 'error');
+      showToast('No se pudo copiar. Mantén pulsado el enlace para copiarlo.', 'error');
     }
   }
 
@@ -79,7 +79,7 @@ export function AppIconSection() {
       {(changed || standalone) && (
         <div className="mt-5 rounded-xl border border-slate-700 bg-slate-950/40 p-4">
           <p className="text-sm font-medium text-slate-200">
-            Para ver el icono nuevo en el iPhone hay que volver a anadir la app:
+            Para ver el icono nuevo en el iPhone hay que volver a añadir la app:
           </p>
           <div className="mt-3 rounded-lg border border-amber-800/60 bg-amber-950/30 p-3 text-sm text-amber-200">
             En iPhone, al quitar la app de la pantalla de inicio se borran sus datos de este
@@ -87,19 +87,19 @@ export function AppIconSection() {
             <Link to="/cuenta" className="font-medium underline">
               cuenta
             </Link>{' '}
-            esta sincronizada o descarga un backup en{' '}
+            está sincronizada o descarga un backup en{' '}
             <Link to="/exportar" className="font-medium underline">
               Exportar
             </Link>
             .
           </div>
           <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-300">
-            <li>Copia el enlace de instalacion de abajo.</li>
-            <li>Manten pulsada la app en la pantalla de inicio y elige Eliminar app.</li>
+            <li>Copia el enlace de instalación de abajo.</li>
+            <li>Mantén pulsada la app en la pantalla de inicio y elige Eliminar app.</li>
             <li>
-              Abre Safari, pega el enlace y pulsa Compartir, luego Anadir a pantalla de inicio.
+              Abre Safari, pega el enlace y pulsa Compartir, luego Añadir a pantalla de inicio.
             </li>
-            <li>Abre la app nueva e inicia sesion en tu cuenta (o restaura el backup).</li>
+            <li>Abre la app nueva e inicia sesión en tu cuenta (o restaura el backup).</li>
           </ol>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
@@ -107,14 +107,14 @@ export function AppIconSection() {
               onClick={() => void copyLink()}
               className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
             >
-              Copiar enlace de instalacion
+              Copiar enlace de instalación
             </button>
             <code className="min-w-0 break-all text-xs text-slate-500">{installUrl}</code>
           </div>
           {!standalone && (
             <p className="mt-3 text-xs text-slate-500">
-              Si ahora mismo estas en Safari, ya puedes anadir la app a la pantalla de inicio
-              directamente: usara este icono.
+              Si ahora mismo estás en Safari, ya puedes añadir la app a la pantalla de inicio
+              directamente: usará este icono.
             </p>
           )}
         </div>

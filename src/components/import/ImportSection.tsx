@@ -213,7 +213,7 @@ export function ImportSection() {
       setStep('summary');
       await reload();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'No se pudo completar la importacion.', 'error');
+      showToast(e instanceof Error ? e.message : 'No se pudo completar la importación.', 'error');
     } finally {
       setBusy(false);
     }
@@ -244,16 +244,16 @@ export function ImportSection() {
     ? [
         { label: 'Cancelar', variant: 'ghost' },
         {
-          label: 'Deshacer importacion',
+          label: 'Deshacer importación',
           variant: 'danger',
           onClick: async () => {
             try {
               const removed = await importService.undo(profileId, undoTarget.id);
-              showToast(`Importacion deshecha: ${removed} movimiento(s) borrados.`, 'success');
+              showToast(`Importación deshecha: ${removed} movimiento(s) borrados.`, 'success');
               await reload();
             } catch (e) {
               showToast(
-                e instanceof Error ? e.message : 'No se pudo deshacer la importacion.',
+                e instanceof Error ? e.message : 'No se pudo deshacer la importación.',
                 'error',
               );
             }
@@ -289,7 +289,7 @@ export function ImportSection() {
         <h2 className="text-xl font-semibold text-slate-100">Importar datos</h2>
         <p className="mt-1 text-sm text-slate-400">
           Sube un extracto CSV o XLSX. El fichero se procesa por completo en tu dispositivo y
-          nunca se sube: solo su hash y tamano se guardan para detectar reimportaciones. Si
+          nunca se sube: solo su hash y tamaño se guardan para detectar reimportaciones. Si
           tienes una cuenta vinculada, los movimientos procesados se sincronizan de forma
           privada con tu proyecto Supabase.
         </p>
@@ -299,7 +299,7 @@ export function ImportSection() {
         <EmptyState
           icon="🏦"
           title="Necesitas una cuenta"
-          description="Crea al menos una cuenta antes de importar movimientos: sera el destino de la importacion."
+          description="Crea al menos una cuenta antes de importar movimientos: será el destino de la importación."
         />
       ) : (
         <>
@@ -419,14 +419,14 @@ export function ImportSection() {
       <ConfirmDialog
         open={undoTarget !== null}
         onClose={() => setUndoTarget(null)}
-        title="Deshacer importacion"
+        title="Deshacer importación"
         message={
           undoTarget ? (
             <span>
-              Se borraran los <strong className="text-slate-100">{undoTarget.rowsImported}</strong>{' '}
+              Se borrarán los <strong className="text-slate-100">{undoTarget.rowsImported}</strong>{' '}
               movimientos importados desde{' '}
-              <strong className="text-slate-100">{undoTarget.fileName}</strong>. Esta accion no
-              afecta a movimientos creados o editados despues.
+              <strong className="text-slate-100">{undoTarget.fileName}</strong>. Esta acción no
+              afecta a movimientos creados o editados después.
             </span>
           ) : null
         }
@@ -439,11 +439,11 @@ export function ImportSection() {
           setRepeatedBatches([]);
           setPendingFile(null);
         }}
-        title="Este fichero ya se importo antes"
+        title="Este fichero ya se importó antes"
         message={
           <div className="space-y-2">
             <p>
-              Este mismo fichero (mismo contenido, aunque el nombre pueda variar) ya se importo
+              Este mismo fichero (mismo contenido, aunque el nombre pueda variar) ya se importó
               anteriormente:
             </p>
             <ul className="list-inside list-disc text-slate-300">
@@ -457,7 +457,7 @@ export function ImportSection() {
             </ul>
             <p>
               Puedes cancelar, o continuar de todos modos: el detector de duplicados fila a fila
-              seguira avisando de cualquier movimiento repetido.
+              seguirá avisando de cualquier movimiento repetido.
             </p>
           </div>
         }

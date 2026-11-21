@@ -47,19 +47,19 @@ export function toAuthError(error: unknown): AuthError {
     if (message.includes('email not confirmed') || code === 'email_not_confirmed') {
       return new AuthError(
         'AUTH_EMAIL_NOT_CONFIRMED',
-        'Tu correo aun no esta verificado. Revisa tu bandeja de entrada.',
+        'Tu correo aún no está verificado. Revisa tu bandeja de entrada.',
       );
     }
     if (message.includes('weak password') || code === 'weak_password') {
       return new AuthError(
         'AUTH_WEAK_PASSWORD',
-        'La contrasena es demasiado debil. Usa al menos 8 caracteres.',
+        'La contraseña es demasiado débil. Usa al menos 8 caracteres.',
       );
     }
     if (status === 429 || code === 'over_request_rate_limit' || message.includes('rate limit')) {
       return new AuthError(
         'AUTH_RATE_LIMITED',
-        'Demasiados intentos. Espera un momento e intentalo de nuevo.',
+        'Demasiados intentos. Espera un momento e inténtalo de nuevo.',
       );
     }
     // Registro con un correo ya usado. Con la confirmacion por email desactivada Supabase ya lo
@@ -68,16 +68,16 @@ export function toAuthError(error: unknown): AuthError {
     if (code === 'user_already_exists' || message.includes('user already registered')) {
       return new AuthError(
         'AUTH_ALREADY_REGISTERED',
-        'Ese correo ya tiene una cuenta. Usa "Iniciar sesion" (o "He olvidado mi contrasena").',
+        'Ese correo ya tiene una cuenta. Usa "Iniciar sesión" (o "He olvidado mi contraseña").',
       );
     }
     if (message.includes('invalid login credentials') || code === 'invalid_credentials') {
-      return new AuthError('AUTH_INVALID_CREDENTIALS', 'Correo o contrasena incorrectos.');
+      return new AuthError('AUTH_INVALID_CREDENTIALS', 'Correo o contraseña incorrectos.');
     }
   }
 
   if (error instanceof TypeError) {
     return new AuthError('AUTH_NETWORK', 'No se pudo conectar con el servidor de cuentas.');
   }
-  return new AuthError('AUTH_UNKNOWN', 'No se pudo completar la operacion. Intentalo de nuevo.');
+  return new AuthError('AUTH_UNKNOWN', 'No se pudo completar la operación. Inténtalo de nuevo.');
 }

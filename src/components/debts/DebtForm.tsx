@@ -8,7 +8,7 @@ import type { CreateDebtInput } from '../../services/debtsService';
 import { eurosToCents, centsToEuros } from '../../lib/money';
 
 const TYPE_OPTIONS: { value: DebtType; label: string }[] = [
-  { value: 'personalLoan', label: 'Prestamo personal' },
+  { value: 'personalLoan', label: 'Préstamo personal' },
   { value: 'mortgageFixed', label: 'Hipoteca fija' },
   { value: 'card', label: 'Tarjeta (sin calendario en esta fase)' },
   { value: 'other', label: 'Otra deuda amortizable' },
@@ -120,7 +120,7 @@ export function DebtForm({ initial = null, accounts, categories, onSubmit, onCan
           />
         </label>
         <label className={labelClass}>
-          Tipo de interes anual (%)
+          Tipo de interés anual (%)
           <input
             required
             type="number"
@@ -132,7 +132,7 @@ export function DebtForm({ initial = null, accounts, categories, onSubmit, onCan
           />
         </label>
         <label className={labelClass}>
-          Cuota / pago minimo (EUR)
+          Cuota / pago mínimo (EUR)
           <input
             required
             type="number"
@@ -144,7 +144,7 @@ export function DebtForm({ initial = null, accounts, categories, onSubmit, onCan
           />
         </label>
         <label className={labelClass}>
-          Proxima fecha de pago
+          Próxima fecha de pago
           <input
             type="date"
             value={nextPaymentDate}
@@ -176,7 +176,7 @@ export function DebtForm({ initial = null, accounts, categories, onSubmit, onCan
           </select>
         </label>
         <label className={labelClass}>
-          Categoria vinculada
+          Categoría vinculada
           <select value={linkedCategoryId} onChange={(e) => setLinkedCategoryId(e.target.value)} className={inputClass}>
             <option value="">Sin vincular</option>
             {categories.map((c) => (

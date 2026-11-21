@@ -26,14 +26,14 @@ export function assert(condition: unknown, message: string): asserts condition {
 // profileId es obligatorio en toda la capa de datos: primer parametro no vacio.
 export function requireProfileId(profileId: string): void {
   if (typeof profileId !== 'string' || profileId.length === 0) {
-    throw new ValidationError('profileId es obligatorio y no puede estar vacio.');
+    throw new ValidationError('profileId es obligatorio y no puede estar vacío.');
   }
 }
 
 // id de entidad obligatorio y no vacio.
 export function requireId(id: string, label = 'id'): void {
   if (typeof id !== 'string' || id.length === 0) {
-    throw new ValidationError(`${label} es obligatorio y no puede estar vacio.`);
+    throw new ValidationError(`${label} es obligatorio y no puede estar vacío.`);
   }
 }
 
@@ -50,6 +50,6 @@ export function isValidAccountingDate(date: string): boolean {
 
 export function requireAccountingDate(date: string): void {
   if (!isValidAccountingDate(date)) {
-    throw new ValidationError(`Fecha invalida "${date}": se espera YYYY-MM-DD real.`);
+    throw new ValidationError(`Fecha inválida "${date}": se espera YYYY-MM-DD real.`);
   }
 }

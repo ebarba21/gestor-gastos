@@ -21,7 +21,7 @@ export function VarianceCard({
       <p className="text-sm text-slate-200">
         {d === 0
           ? `Llevas lo mismo que en ${prevName} a estas alturas.`
-          : `Llevas ${formatCents(Math.abs(d))} ${d > 0 ? 'mas' : 'menos'} que en ${prevName} a estas alturas`}
+          : `Llevas ${formatCents(Math.abs(d))} ${d > 0 ? 'más' : 'menos'} que en ${prevName} a estas alturas`}
         {d !== 0 && <span className="text-slate-500"> ({formatCents(variance.currentCents)} frente a {formatCents(variance.previousCents)})</span>}
       </p>
       {variance.items.length > 0 && (

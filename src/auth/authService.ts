@@ -73,7 +73,7 @@ export function createAuthService(client: AppSupabaseClient): AuthService {
       const { data, error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw toAuthError(error);
       if (!data.session) {
-        throw new AuthError('AUTH_UNKNOWN', 'No se pudo iniciar sesion.');
+        throw new AuthError('AUTH_UNKNOWN', 'No se pudo iniciar sesión.');
       }
       return data.session;
     },
@@ -121,7 +121,7 @@ export function createAuthService(client: AppSupabaseClient): AuthService {
       if (userError) throw toAuthError(userError);
       const email = userData.user?.email;
       if (!email) {
-        throw new AuthError('AUTH_UNKNOWN', 'No hay una sesion activa que reautenticar.');
+        throw new AuthError('AUTH_UNKNOWN', 'No hay una sesión activa que reautenticar.');
       }
       const { data, error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw toAuthError(error);
@@ -134,7 +134,7 @@ export function createAuthService(client: AppSupabaseClient): AuthService {
     async updatePassword(newPassword) {
       const { data, error } = await client.auth.updateUser({ password: newPassword });
       if (error) throw toAuthError(error);
-      if (!data.user) throw new AuthError('AUTH_UNKNOWN', 'No se pudo actualizar la contrasena.');
+      if (!data.user) throw new AuthError('AUTH_UNKNOWN', 'No se pudo actualizar la contraseña.');
       return data.user;
     },
 
@@ -163,7 +163,7 @@ function requireClient(): AppSupabaseClient {
   if (!client) {
     throw new AuthError(
       'AUTH_NOT_CONFIGURED',
-      'La sincronizacion con cuenta no esta configurada en esta instalacion.',
+      'La sincronización con cuenta no está configurada en esta instalación.',
     );
   }
   return client;
