@@ -49,7 +49,9 @@ function AppLayout() {
             en PC vuelven a apilarse en la barra lateral. */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate whitespace-nowrap text-base font-bold md:text-lg">Gestor de Gastos</span>
+            {/* En movil el nombre de la app se oculta: cada pantalla ya lleva su titulo y asi caben
+                los avisos y los botones de privacidad y tema sin apretarse. */}
+            <span className="hidden truncate whitespace-nowrap text-base font-bold sm:inline md:text-lg">Gestor de Gastos</span>
             {/* Insignia de estado de sincronizacion (solo con cuenta activa). */}
             <SyncBadge />
             {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). */}

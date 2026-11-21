@@ -149,6 +149,27 @@ Nota de estado: la app funciona 100% en local sin cuenta. La ampliacion (cuenta 
 - **Portada movil Hoy/Analisis**, boton + para anadir un gasto y regla sugerida al corregir una categoria.
 - Ajustes > Planificacion: dia de cobro, colchon, presupuestos de nomina a nomina y pagas extra.
 
+## 9 ter. Mejoras del benchmark de apps (noviembre 2026)
+
+Todo gratuito y local, sin servicios nuevos.
+
+- **Modo privado**: boton de ojo en la cabecera que oculta todos los importes (los graficos conservan sus proporciones). Se recuerda en el dispositivo.
+- **Ritmo en los presupuestos**: cada limite de gasto marca en su barra lo que llevarias gastado hoy a ritmo constante y dice si vas por encima o por debajo.
+- **Frente al mes pasado, con causa**: cada categoria que sube o baja indica el comercio que lo explica ("el 51 % viene de Glovo") y se compara tambien con el mismo mes del ano anterior a estas alturas.
+- **Cargo anomalo de un comercio habitual**: aviso si un cargo supera en un 30 % y 15 EUR la mediana de los cargos de ese comercio en los 12 meses anteriores (p. ej. un recibo de la luz).
+- **Indicadores nuevos**: variabilidad del gasto variable mensual y concentracion en los 3 comercios principales.
+- **Bizum de reparto**: un Bizum recibido que es el gasto entre 2 a 6 personas (o el gasto entero) en los 10 dias siguientes se propone en la bandeja para enlazarlo como reembolso.
+- **Como se calcula** en los KPIs del periodo.
+- **Gestos en el movil**: en Movimientos, deslizar a la derecha abre la ficha para categorizar y a la izquierda las acciones; en la Bandeja, derecha resuelve e izquierda descarta, con Deshacer. Los botones siguen visibles.
+- **Alcance al corregir una categoria**: Solo esta, Esta y las futuras, o Todas, pasadas y futuras.
+- **Alta rapida**: foco en el importe, ultima cuenta usada, chips de categorias recientes y Guardar y anadir otro.
+- **Busqueda con sintaxis** en Movimientos: "mercadona octubre", ">100 restaurantes", "sin categoria", "#viaje lisboa", "revolut 2025". Muestra como la ha entendido.
+- **Cierre de mes guiado** (Cierre de mes): importar cada cuenta, categorizar, bandeja a cero y conciliar, con el resumen del mes y la racha de meses cerrados. Se deduce de los datos.
+- **Informe por etiqueta**: coste neto de un viaje o proyecto por categoria, subcategoria y comercio, dias y coste por dia.
+- **Presupuestos sugeridos** a partir del gasto variable medio de 3 meses, y **primeros pasos** para perfiles nuevos.
+- **Saldo actual por cuenta** y total en Cuentas (mismo criterio que Patrimonio).
+- Un flujo programado de GitHub mantiene activo el proyecto Supabase del plan gratuito.
+
 ## 10. Exportaciones y backup
 
 - **Exportar a Excel (XLSX)**: todos los movimientos o solo los filtrados, cuentas con saldos, categorias, reglas, presupuestos y un resumen completo del dashboard en hojas separadas.

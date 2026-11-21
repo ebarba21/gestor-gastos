@@ -12,8 +12,14 @@ import { categoryService } from '../../services/categoryService';
 
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
+// "Octubre de 2026" (solo la primera letra en mayuscula).
 function monthLabel(month: string): string {
-  return `${MONTHS[Number(month.slice(5, 7)) - 1]} de ${month.slice(0, 4)}`;
+  const name = MONTHS[Number(month.slice(5, 7)) - 1]!;
+  return `${name[0]!.toUpperCase()}${name.slice(1)} de ${month.slice(0, 4)}`;
+}
+
+function percentLabel(perMille: number): string {
+  return `${(perMille / 10).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
 }
 
 function Step({
@@ -102,7 +108,7 @@ export function MonthCloseSection() {
         >
           ‹
         </button>
-        <span className="text-sm font-semibold capitalize text-slate-100">{monthLabel(month)}</span>
+        <span className="text-sm font-semibold text-slate-100">{monthLabel(month)}</span>
         <button
           type="button"
           onClick={() => setMonth(shiftMonths(`${month}-01`, 1).slice(0, 7))}
@@ -212,7 +218,7 @@ export function MonthCloseSection() {
 
       {insights && summary && (
         <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="text-sm font-semibold capitalize text-slate-200">Resumen de {monthLabel(month)}</h3>
+          <h3 className="text-sm font-semibold text-slate-200">Resumen de {monthLabel(month).toLowerCase()}</h3>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-lg border border-slate-800 p-2">
               <p className="text-[11px] text-slate-500">Ingresos</p>
@@ -225,7 +231,7 @@ export function MonthCloseSection() {
             <div className="rounded-lg border border-slate-800 p-2">
               <p className="text-[11px] text-slate-500">Tasa de ahorro</p>
               <p className="text-sm font-semibold tabular-nums text-slate-100">
-                {summary.savingsRatePerMille === null ? 'Sin ingresos' : `${(summary.savingsRatePerMille / 10).toFixed(1)} %`}
+                {summary.savingsRatePerMille === null ? 'Sin ingresos' : percentLabel(summary.savingsRatePerMille)}
               </p>
             </div>
           </div>

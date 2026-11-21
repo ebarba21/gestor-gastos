@@ -80,7 +80,9 @@ describe('ReviewItemRow: teclado y accesibilidad', () => {
     );
     expect(screen.getByText('Posible duplicado')).toBeInTheDocument();
     expect(screen.getByText('85%')).toBeInTheDocument();
-    expect(screen.getByText(/sameAccountAmountCurrency/)).toBeInTheDocument();
+    // Los motivos se muestran con su etiqueta, no con el codigo interno.
+    expect(screen.queryByText(/sameAccountAmountCurrency/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Mismo comercio/)).toBeInTheDocument();
   });
 
   it('en una regla de baja confianza muestra el concepto y la categoria propuesta', () => {

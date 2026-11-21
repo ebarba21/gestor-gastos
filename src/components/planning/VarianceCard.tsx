@@ -52,9 +52,12 @@ export function VarianceCard({
               </button>
               {i.driver && (
                 <p className="pl-3 text-xs text-slate-500">
-                  {i.driver.sharePerMille >= 1000
-                    ? `Todo viene de ${driverLabel(i.driver, merchantNames)}`
-                    : `El ${Math.round(i.driver.sharePerMille / 10)} % viene de ${driverLabel(i.driver, merchantNames)}`}{' '}
+                  {i.driver.sharePerMille > 1050
+                    ? // Un comercio mueve mas que la categoria entera (otros compensan en contra).
+                      `Sobre todo por ${driverLabel(i.driver, merchantNames)}`
+                    : i.driver.sharePerMille >= 950
+                      ? `Todo viene de ${driverLabel(i.driver, merchantNames)}`
+                      : `El ${Math.round(i.driver.sharePerMille / 10)} % viene de ${driverLabel(i.driver, merchantNames)}`}{' '}
                   ({i.driver.deltaCents > 0 ? '+' : ''}
                   {formatCents(i.driver.deltaCents)})
                 </p>
