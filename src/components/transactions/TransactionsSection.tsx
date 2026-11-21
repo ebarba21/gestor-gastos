@@ -63,9 +63,12 @@ export function TransactionsSection() {
   // arranca ya filtrada por ese lote (ampliacion fase 6, "enlace a dashboard filtrado").
   const [searchParams, setSearchParams] = useSearchParams();
   const initialImportBatchId = searchParams.get('importBatchId') ?? undefined;
+  // ?q=...: busqueda con sintaxis precargada (enlaces desde el cierre de mes o los informes).
+  const initialQuery = searchParams.get('q') ?? undefined;
   const [filter, setFilter] = useState<TxFilter>({
     hideSplitChildren: true,
     importBatchId: initialImportBatchId,
+    search: initialQuery,
   });
   const [sort, setSort] = useState<TxSort>({ field: 'date', dir: 'desc' });
   const [selected, setSelected] = useState<Set<string>>(new Set());

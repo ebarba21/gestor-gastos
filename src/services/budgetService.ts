@@ -14,6 +14,7 @@ import type {
   BudgetKind,
   BudgetPeriod,
   BudgetScope,
+  Category,
   Transaction,
 } from '../db/schema';
 import { budgetsRepo } from '../db/budgetsRepo';
@@ -28,6 +29,7 @@ import {
   buildStatsContext,
   computeBudgetConsumption,
   computeConsumption,
+  netExpenseContribution as netExpenseContributionForBudget,
   type Consumption,
   type StatsContext,
 } from './statsService';
@@ -187,6 +189,58 @@ export function periodElapsedPerMille(range: DateRange, today: string): number |
 // Gasto que llevarias a ritmo constante: limite efectivo x fraccion transcurrida. Centimos.
 export function paceTargetCents(effectiveLimitCents: number, elapsedPerMille: number): number {
   return Math.round((effectiveLimitCents * elapsedPerMille) / 1000);
+}
+
+// Presupuestos sugeridos para empezar (noviembre 2026): las categorias raiz con mas gasto neto
+// variable de media en los ultimos 3 meses completos que aun no tienen limite, redondeadas hacia
+// arriba a 10 EUR. Excluye gasto fijo (recurrencias confirmadas): un limite al alquiler no
+// ayuda a decidir nada. Pura.
+export interface BudgetSuggestion {
+  categoryId: string;
+  name: string;
+  averageCents: number;
+  limitCents: number;
+}
+
+export function suggestStarterBudgets(args: {
+  transactions: Transaction[];
+  categories: Category[];
+  budgets: Budget[];
+  fixedIds: ReadonlySet<string>;
+  today: string;
+  count?: number;
+}): BudgetSuggestion[] {
+  const count = args.count ?? 3;
+  const ctx = buildStatsContext(args.categories, args.transactions);
+  const thisMonth = monthRange(args.today);
+  const from = shiftMonths(thisMonth.from, -3);
+  const to = shiftDays(thisMonth.from, -1);
+  const budgeted = new Set(
+    args.budgets
+      .filter((b) => b.archivedAt === null && b.direction === 'expense' && (b.scope === 'category' || b.scope === 'subcategory'))
+      .map((b) => b.scopeId),
+  );
+  const totals = new Map<string, number>();
+  const activeMonths = new Set<string>();
+  for (const t of args.transactions) {
+    if (t.date < from || t.date > to) continue;
+    if (isFixedTransaction(t, args.fixedIds)) continue;
+    const c = netExpenseContributionForBudget(t, ctx);
+    if (!c) continue;
+    activeMonths.add(t.date.slice(0, 7));
+    if (c.rootCategoryId === null) continue;
+    totals.set(c.rootCategoryId, (totals.get(c.rootCategoryId) ?? 0) + c.cents);
+  }
+  const months = Math.max(1, activeMonths.size);
+  const names = new Map(args.categories.map((c) => [c.id, c]));
+  return [...totals.entries()]
+    .filter(([id, cents]) => cents > 0 && !budgeted.has(id) && names.get(id)?.archivedAt === null)
+    .map(([id, cents]) => {
+      const avg = Math.round(cents / months);
+      return { categoryId: id, name: names.get(id)!.name, averageCents: avg, limitCents: Math.ceil(avg / 1000) * 1000 };
+    })
+    .sort((a, b) => b.averageCents - a.averageCents || a.name.localeCompare(b.name))
+    .slice(0, count);
 }
 
 export function normalizeBudgetName(name: string): string {
@@ -373,6 +427,25 @@ export const budgetService = {
 
   getById(profileId: string, id: string): Promise<Budget | undefined> {
     return budgetsRepo.getById(profileId, id);
+  },
+
+  // Calcula los presupuestos sugeridos del perfil (ver suggestStarterBudgets).
+  async suggestStarters(profileId: string, today: string = todayISO()): Promise<BudgetSuggestion[]> {
+    requireProfileId(profileId);
+    const [transactions, categories, budgets, series, matched] = await Promise.all([
+      transactionsRepo.list(profileId),
+      categoriesRepo.list(profileId),
+      budgetsRepo.list(profileId),
+      recurringSeriesRepo.list(profileId),
+      recurringOccurrencesRepo.listByStatus(profileId, 'matched'),
+    ]);
+    return suggestStarterBudgets({
+      transactions,
+      categories,
+      budgets,
+      fixedIds: fixedTransactionIdsFrom(series, matched),
+      today,
+    });
   },
 
   async create(profileId: string, input: BudgetInput): Promise<Budget> {

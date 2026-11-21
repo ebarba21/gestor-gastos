@@ -6,3 +6,4 @@ export { HeatmapCard } from './HeatmapCard';
 export { MoneyFlowCard } from './MoneyFlowCard';
 export { DataHealthCard } from './DataHealthCard';
 export { NetWorthMiniCard } from './NetWorthMiniCard';
+export { GettingStartedCard } from './GettingStartedCard';

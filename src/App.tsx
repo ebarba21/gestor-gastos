@@ -17,6 +17,8 @@ import SettingsPage from './pages/SettingsPage';
 import SecurityPage from './pages/SecurityPage';
 import AccountPage from './pages/AccountPage';
 import SyncPage from './pages/SyncPage';
+import MonthClosePage from './pages/MonthClosePage';
+import TagReportPage from './pages/TagReportPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
 import { PrivacyToggle, ThemeToggle } from './components/common';
 import { usePrivacy } from './context/PrivacyContext';
@@ -93,6 +95,8 @@ function AppLayout() {
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/cuentas" element={<AccountsPage />} />
           <Route path="/presupuestos" element={<BudgetsPage />} />
+          <Route path="/cierre" element={<MonthClosePage />} />
+          <Route path="/etiquetas" element={<TagReportPage />} />
           <Route path="/exportar" element={<ExportPage />} />
           <Route path="/cuenta" element={<AccountPage />} />
           <Route path="/sincronizacion" element={<SyncPage />} />

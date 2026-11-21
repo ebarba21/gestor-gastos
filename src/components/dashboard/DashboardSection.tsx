@@ -29,6 +29,7 @@ import {
   AlertsCard,
   CategoryBulletsCard,
   DataHealthCard,
+  GettingStartedCard,
   HeatmapCard,
   MoneyFlowCard,
   NetWorthMiniCard,
@@ -153,6 +154,7 @@ export function DashboardSection() {
 
       {showToday && (
         <div className="mt-4 space-y-4">
+          <GettingStartedCard />
           {planning ? (
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="lg:col-span-2">

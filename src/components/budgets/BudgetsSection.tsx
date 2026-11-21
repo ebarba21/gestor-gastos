@@ -1,10 +1,10 @@
 // Seccion Presupuestos y metas: navegacion por periodo, lista de presupuestos evaluados
 // con su barra de progreso, y CRUD (crear, editar, eliminar). La logica de calculo vive en
 // budgetService (reutilizando statsService); aqui solo hay presentacion e interaccion.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Budget, BudgetKind } from '../../db/schema';
 import { useBudgets } from '../../hooks/useBudgets';
-import { budgetService } from '../../services/budgetService';
+import { budgetService, type BudgetSuggestion } from '../../services/budgetService';
 import { formatCents } from '../../lib/money';
 import { EmptyState, ConfirmDialog, type DialogButton } from '../common';
 import { useToast } from '../../context/ToastContext';
@@ -50,6 +50,50 @@ export function BudgetsSection() {
   );
   const [editing, setEditing] = useState<Budget | null>(null);
   const [deleting, setDeleting] = useState<Budget | null>(null);
+  // Presupuestos sugeridos (las categorias con mas gasto variable sin limite). Se proponen
+  // mientras haya pocos limites; crearlos es un toque.
+  const [suggestions, setSuggestions] = useState<BudgetSuggestion[]>([]);
+  const [creatingSuggested, setCreatingSuggested] = useState(false);
+  const limitCount = evaluations.filter((e) => e.kind === 'limit').length;
+  useEffect(() => {
+    if (loading || limitCount >= 3) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    budgetService
+      .suggestStarters(profileId)
+      .then((s) => !cancelled && setSuggestions(s))
+      .catch(() => !cancelled && setSuggestions([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, loading, limitCount]);
+
+  async function createSuggested() {
+    if (creatingSuggested || suggestions.length === 0) return;
+    setCreatingSuggested(true);
+    try {
+      for (const s of suggestions) {
+        await budgetService.create(profileId, {
+          name: s.name,
+          scope: 'category',
+          scopeId: s.categoryId,
+          direction: 'expense',
+          limitCents: s.limitCents,
+          period: 'monthly',
+          rollover: true,
+          kind: 'limit',
+        });
+      }
+      showToast(`${suggestions.length} presupuestos creados. Puedes ajustarlos cuando quieras.`, 'success');
+      await reload();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudieron crear los presupuestos.', 'error');
+    } finally {
+      setCreatingSuggested(false);
+    }
+  }
 
   // Resumen agregado: cuantos superados y cuantos objetivos alcanzados.
   const summary = useMemo(() => {
@@ -182,6 +226,35 @@ export function BudgetsSection() {
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
+
+      {suggestions.length > 0 && (
+        <div className="mb-4 rounded-xl border border-indigo-800/50 bg-indigo-950/30 p-4">
+          <h3 className="text-sm font-semibold text-slate-100">Presupuestos sugeridos</h3>
+          <p className="mt-1 text-xs text-slate-400">
+            Tus categorías con más gasto variable de los últimos 3 meses, con un límite mensual igual a tu media
+            (redondeada a 10 €) y acumulando lo que sobre de un mes a otro.
+          </p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {suggestions.map((s) => (
+              <li key={s.categoryId} className="flex justify-between gap-3">
+                <span className="text-slate-300">{s.name}</span>
+                <span className="tabular-nums text-slate-100">
+                  {formatCents(s.limitCents)}/mes
+                  <span className="ml-1 text-xs text-slate-500">(media {formatCents(s.averageCents)})</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => void createSuggested()}
+            disabled={creatingSuggested}
+            className="mt-3 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {creatingSuggested ? 'Creando...' : `Crear ${suggestions.length === 1 ? 'este presupuesto' : `estos ${suggestions.length} presupuestos`}`}
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-sm text-slate-500">Cargando...</p>
