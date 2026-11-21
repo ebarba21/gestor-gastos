@@ -65,7 +65,7 @@ const TX_STATUS_LABELS: Record<TransactionStatus, string> = {
 const CATEGORIZED_BY_LABELS: Record<CategorizedBy, string> = {
   manual: 'Manual',
   rule: 'Regla',
-  import: 'Importacion',
+  import: 'Importación',
   none: 'Sin categorizar',
 };
 
@@ -108,14 +108,14 @@ const TX_HEADER: ExportCell[] = [
   'Concepto original',
   'Importe (EUR)',
   'Tipo',
-  'Categoria',
-  'Subcategoria',
+  'Categoría',
+  'Subcategoría',
   'Cuenta',
   'Comercio',
   'Etiquetas',
   'Estado',
   'Notas',
-  'Excluido de estadisticas',
+  'Excluido de estadísticas',
   'Categorizado por',
 ];
 
@@ -133,7 +133,7 @@ function txRow(t: Transaction, names: NameLookups): ExportCell[] {
     t.tagIds.map((id) => nameOf(names.tagNames, id)).join(', '),
     TX_STATUS_LABELS[t.status],
     t.notes ?? '',
-    t.excludedFromStats ? 'Si' : 'No',
+    t.excludedFromStats ? 'Sí' : 'No',
     CATEGORIZED_BY_LABELS[t.categorizedBy],
   ];
 }
@@ -184,14 +184,14 @@ export function buildAccountsSheet(
     a.currency,
     eur(a.openingBalanceCents),
     eur(balances.get(a.id) ?? a.openingBalanceCents),
-    a.archivedAt === null ? 'No' : 'Si',
+    a.archivedAt === null ? 'No' : 'Sí',
   ]);
   return { name: 'Cuentas', rows: [header, ...rows] };
 }
 
 export function buildCategoriesSheet(categories: Category[]): SheetSpec {
   const nameById = new Map(categories.map((c) => [c.id, c.name]));
-  const header: ExportCell[] = ['Nombre', 'Tipo', 'Categoria padre', 'Icono', 'Orden', 'Archivada'];
+  const header: ExportCell[] = ['Nombre', 'Tipo', 'Categoría padre', 'Icono', 'Orden', 'Archivada'];
   const kindLabel: Record<Category['kind'], string> = {
     expense: 'Gasto',
     income: 'Ingreso',
@@ -203,9 +203,9 @@ export function buildCategoriesSheet(categories: Category[]): SheetSpec {
     c.parentId === null ? '' : nameById.get(c.parentId) ?? c.parentId,
     c.icon ?? '',
     c.sortOrder,
-    c.archivedAt === null ? 'No' : 'Si',
+    c.archivedAt === null ? 'No' : 'Sí',
   ]);
-  return { name: 'Categorias', rows: [header, ...rows] };
+  return { name: 'Categorías', rows: [header, ...rows] };
 }
 
 // Descripcion legible de una condicion de regla (para la columna de la hoja de reglas).
@@ -232,8 +232,8 @@ const MATCH_TYPE_LABELS: Record<MerchantAlias['matchType'], string> = {
 export function buildMerchantsSheet(merchants: Merchant[], names: NameLookups): SheetSpec {
   const header: ExportCell[] = [
     'Nombre',
-    'Categoria por defecto',
-    'Subcategoria por defecto',
+    'Categoría por defecto',
+    'Subcategoría por defecto',
     'Etiquetas por defecto',
     'Notas',
     'Archivado',
@@ -244,7 +244,7 @@ export function buildMerchantsSheet(merchants: Merchant[], names: NameLookups): 
     nameOf(names.categoryNames, m.defaultSubcategoryId),
     m.defaultTagIds.map((id) => nameOf(names.tagNames, id)).join(', '),
     m.notes ?? '',
-    m.archivedAt === null ? 'No' : 'Si',
+    m.archivedAt === null ? 'No' : 'Sí',
   ]);
   return { name: 'Comercios', rows: [header, ...rows] };
 }
@@ -259,7 +259,7 @@ export function buildMerchantAliasesSheet(
     a.rawAlias,
     MATCH_TYPE_LABELS[a.matchType],
     a.priority,
-    a.enabled ? 'Si' : 'No',
+    a.enabled ? 'Sí' : 'No',
   ]);
   return { name: 'Alias de comercio', rows: [header, ...rows] };
 }
@@ -267,7 +267,7 @@ export function buildMerchantAliasesSheet(
 // --- Deudas (fase 8) ---
 
 const DEBT_TYPE_LABELS: Record<Debt['type'], string> = {
-  personalLoan: 'Prestamo personal',
+  personalLoan: 'Préstamo personal',
   mortgageFixed: 'Hipoteca fija',
   card: 'Tarjeta',
   other: 'Otra',
@@ -295,12 +295,12 @@ export function buildDebtsSheet(
     'Moneda',
     'Principal original (EUR)',
     'Principal pendiente (EUR)',
-    'Tipo de interes anual',
-    'Cuota / pago minimo (EUR)',
-    'Proxima fecha de pago',
+    'Tipo de interés anual',
+    'Cuota / pago mínimo (EUR)',
+    'Próxima fecha de pago',
     'Plazo restante (meses)',
     'Cuenta vinculada',
-    'Categoria vinculada',
+    'Categoría vinculada',
     'Estado',
   ];
   const rows = debts.map((d) => [
@@ -326,9 +326,9 @@ export function buildDebtPaymentsSheet(payments: DebtPayment[], debtNames: Map<s
     'Fecha',
     'Total (EUR)',
     'Principal (EUR)',
-    'Interes (EUR)',
+    'Interés (EUR)',
     'Comisiones (EUR)',
-    'Amortizacion extraordinaria (EUR)',
+    'Amortización extraordinaria (EUR)',
     'Movimiento vinculado',
   ];
   const rows = payments.map((p) => [
@@ -339,7 +339,7 @@ export function buildDebtPaymentsSheet(payments: DebtPayment[], debtNames: Map<s
     eur(p.interestCents),
     eur(p.feesCents),
     eur(p.extraPrincipalCents),
-    p.transactionId === null ? 'No' : 'Si',
+    p.transactionId === null ? 'No' : 'Sí',
   ]);
   return { name: 'Pagos de deuda', rows: [header, ...rows] };
 }
@@ -349,9 +349,9 @@ export function buildDebtPaymentsSheet(payments: DebtPayment[], debtNames: Map<s
 // reimplementa el calculo (mismo principio que el resto de exportaciones).
 export function buildAmortizationScheduleSheet(
   rows: { period: number; date: string; paymentCents: number; interestCents: number; principalCents: number; balanceCents: number }[],
-  sheetName = 'Calendario de amortizacion',
+  sheetName = 'Calendario de amortización',
 ): SheetSpec {
-  const header: ExportCell[] = ['Periodo', 'Fecha', 'Cuota (EUR)', 'Interes (EUR)', 'Principal (EUR)', 'Saldo (EUR)'];
+  const header: ExportCell[] = ['Periodo', 'Fecha', 'Cuota (EUR)', 'Interés (EUR)', 'Principal (EUR)', 'Saldo (EUR)'];
   const dataRows = rows.map((r) => [r.period, r.date, eur(r.paymentCents), eur(r.interestCents), eur(r.principalCents), eur(r.balanceCents)]);
   return { name: sheetName, rows: [header, ...dataRows] };
 }
@@ -363,23 +363,23 @@ export function buildRulesSheet(rules: Rule[], names: NameLookups): SheetSpec {
     'Prioridad',
     'Modo',
     'Condiciones',
-    'Asignar categoria',
-    'Asignar subcategoria',
-    'Anadir etiquetas',
-    'Excluir de estadisticas',
+    'Asignar categoría',
+    'Asignar subcategoría',
+    'Añadir etiquetas',
+    'Excluir de estadísticas',
     'Detener al casar',
   ];
   const rows = rules.map((r) => [
     r.name,
-    r.enabled ? 'Si' : 'No',
+    r.enabled ? 'Sí' : 'No',
     r.priority,
     r.matchMode === 'all' ? 'Todas' : 'Alguna',
     r.conditions.map((c) => describeCondition(c, names)).join(' | '),
     nameOf(names.categoryNames, r.action.setCategoryId),
     nameOf(names.categoryNames, r.action.setSubcategoryId),
     r.action.addTagIds.map((id) => nameOf(names.tagNames, id)).join(', '),
-    r.action.setExcludedFromStats === null ? '' : r.action.setExcludedFromStats ? 'Si' : 'No',
-    r.stopOnMatch ? 'Si' : 'No',
+    r.action.setExcludedFromStats === null ? '' : r.action.setExcludedFromStats ? 'Sí' : 'No',
+    r.stopOnMatch ? 'Sí' : 'No',
   ]);
   return { name: 'Reglas', rows: [header, ...rows] };
 }
@@ -394,12 +394,12 @@ export function buildImportableRulesSheet(rules: Rule[], names: NameLookups): Sh
     'Campo',
     'Operador',
     'Valor',
-    'Sensible a mayusculas',
+    'Sensible a mayúsculas',
     'Modo',
-    'Categoria',
-    'Subcategoria',
+    'Categoría',
+    'Subcategoría',
     'Etiquetas',
-    'Excluir de estadisticas',
+    'Excluir de estadísticas',
     'Activa',
     'Detener al casar',
   ];
@@ -412,14 +412,14 @@ export function buildImportableRulesSheet(rules: Rule[], names: NameLookups): Sh
         'concept',
         c.operator,
         String(c.value),
-        c.caseSensitive ? 'Si' : 'No',
+        c.caseSensitive ? 'Sí' : 'No',
         r.matchMode === 'all' ? 'all' : 'any',
         nameOf(names.categoryNames, r.action.setCategoryId),
         nameOf(names.categoryNames, r.action.setSubcategoryId),
         r.action.addTagIds.map((id) => nameOf(names.tagNames, id)).join('; '),
-        r.action.setExcludedFromStats === null ? '' : r.action.setExcludedFromStats ? 'Si' : 'No',
-        r.enabled ? 'Si' : 'No',
-        r.stopOnMatch ? 'Si' : 'No',
+        r.action.setExcludedFromStats === null ? '' : r.action.setExcludedFromStats ? 'Sí' : 'No',
+        r.enabled ? 'Sí' : 'No',
+        r.stopOnMatch ? 'Sí' : 'No',
       ];
     });
   return { name: 'Reglas reimportables', rows: [header, ...rows] };
@@ -427,7 +427,7 @@ export function buildImportableRulesSheet(rules: Rule[], names: NameLookups): Sh
 
 const BUDGET_STATUS_LABELS: Record<BudgetEvaluation['status'], string> = {
   ok: 'En rango',
-  warning: 'Cerca del limite',
+  warning: 'Cerca del límite',
   exceeded: 'Superado',
   met: 'Objetivo alcanzado',
 };
@@ -440,13 +440,13 @@ export function buildBudgetsSheet(
 ): SheetSpec {
   const header: ExportCell[] = [
     'Nombre',
-    'Ambito',
+    'Ámbito',
     'Objetivo',
-    'Direccion',
+    'Dirección',
     'Periodo',
     'Desde',
     'Hasta',
-    'Limite (EUR)',
+    'Límite (EUR)',
     'Consumido (EUR)',
     'Restante (EUR)',
     'Porcentaje',
@@ -485,7 +485,7 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
       ['Periodo hasta', data.range.to],
       ['Mes de referencia', data.anchorMonth],
       [],
-      ['Metrica', 'Valor (EUR)'],
+      ['Métrica', 'Valor (EUR)'],
       ['Ingresos', eur(s.incomeCents)],
       ['Gasto bruto', eur(s.expenseGrossCents)],
       ['Reembolsos', eur(s.refundCents)],
@@ -499,11 +499,11 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   };
 
   const porCategoria: SheetSpec = {
-    name: 'Gasto por categoria',
+    name: 'Gasto por categoría',
     rows: [
-      ['Categoria', 'Gasto bruto (EUR)', 'Reembolsos (EUR)', 'Gastos positivos (EUR)', 'Gasto neto (EUR)'],
+      ['Categoría', 'Gasto bruto (EUR)', 'Reembolsos (EUR)', 'Gastos positivos (EUR)', 'Gasto neto (EUR)'],
       ...data.byCategory.map((c) => [
-        c.categoryId === null ? 'Sin categoria' : nameOf(names.categoryNames, c.categoryId),
+        c.categoryId === null ? 'Sin categoría' : nameOf(names.categoryNames, c.categoryId),
         eur(c.grossCents),
         eur(c.refundCents),
         eur(c.positiveCents),
@@ -513,7 +513,7 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   };
 
   const evolucion: SheetSpec = {
-    name: 'Evolucion mensual',
+    name: 'Evolución mensual',
     rows: [
       ['Mes', 'Ingresos (EUR)', 'Gasto neto (EUR)', 'Ahorro neto (EUR)'],
       ...data.monthly.map((m) => [
@@ -528,12 +528,12 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   const topGastos: SheetSpec = {
     name: 'Top gastos',
     rows: [
-      ['Fecha', 'Concepto', 'Importe (EUR)', 'Categoria', 'Cuenta'],
+      ['Fecha', 'Concepto', 'Importe (EUR)', 'Categoría', 'Cuenta'],
       ...data.topExpenses.map((t) => [
         t.date,
         t.concept,
         eur(t.amountCents),
-        t.categoryId === null ? 'Sin categoria' : nameOf(names.categoryNames, t.categoryId),
+        t.categoryId === null ? 'Sin categoría' : nameOf(names.categoryNames, t.categoryId),
         nameOf(names.accountNames, t.accountId),
       ]),
     ],
@@ -542,7 +542,7 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   const recurrentes: SheetSpec = {
     name: 'Recurrentes',
     rows: [
-      ['Concepto', 'Ocurrencias', 'Meses', 'Total (EUR)', 'Media (EUR)', 'Ultima fecha'],
+      ['Concepto', 'Ocurrencias', 'Meses', 'Total (EUR)', 'Media (EUR)', 'Última fecha'],
       ...data.recurring.map((r) => [
         r.label,
         r.occurrences,
@@ -558,12 +558,12 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   const comparativa: SheetSpec = {
     name: 'Comparativa',
     rows: [
-      ['Metrica', 'Valor'],
+      ['Métrica', 'Valor'],
       ['Gasto neto del mes (EUR)', eur(comp.currentExpenseNetCents)],
       ['Media meses previos (EUR)', eur(comp.averageExpenseNetCents)],
       ['Meses comparados', comp.monthsCompared],
       ['Diferencia (EUR)', eur(comp.deltaCents)],
-      ['Variacion', comp.deltaPerMille === null ? '' : `${(comp.deltaPerMille / 10).toFixed(1)}%`],
+      ['Variación', comp.deltaPerMille === null ? '' : `${(comp.deltaPerMille / 10).toFixed(1)}%`],
     ],
   };
 
@@ -571,12 +571,12 @@ export function buildDashboardSheets(data: DashboardData, names: NameLookups): S
   const forecast: SheetSpec = {
     name: 'Forecast',
     rows: [
-      ['Metrica', 'Valor'],
-      ['Aplicable (mes en curso)', fc.applicable ? 'Si' : 'No'],
+      ['Métrica', 'Valor'],
+      ['Aplicable (mes en curso)', fc.applicable ? 'Sí' : 'No'],
       ['Gasto hasta hoy (EUR)', eur(fc.spentSoFarCents)],
-      ['Proyeccion fin de mes (EUR)', eur(fc.projectedExpenseCents)],
-      ['Dias transcurridos', fc.daysElapsed],
-      ['Dias del mes', fc.daysInMonth],
+      ['Proyección fin de mes (EUR)', eur(fc.projectedExpenseCents)],
+      ['Días transcurridos', fc.daysElapsed],
+      ['Días del mes', fc.daysInMonth],
     ],
   };
 

@@ -21,7 +21,7 @@ interface BudgetCardProps {
 // Estilos de la barra y de la insignia de estado.
 const STATUS_STYLES: Record<BudgetStatus, { bar: string; badge: string; label: string }> = {
   ok: { bar: 'bg-emerald-500', badge: 'bg-emerald-900/40 text-emerald-300', label: 'En curso' },
-  warning: { bar: 'bg-amber-500', badge: 'bg-amber-900/40 text-amber-300', label: 'Cerca del limite' },
+  warning: { bar: 'bg-amber-500', badge: 'bg-amber-900/40 text-amber-300', label: 'Cerca del límite' },
   exceeded: { bar: 'bg-red-500', badge: 'bg-red-900/50 text-red-300', label: 'Superado' },
   met: { bar: 'bg-emerald-500', badge: 'bg-emerald-900/40 text-emerald-300', label: 'Objetivo alcanzado' },
 };
@@ -30,7 +30,7 @@ const GOAL_STATUS: Record<GoalStatus, { label: string; badge: string }> = {
   met: { label: 'Conseguido', badge: 'bg-emerald-900/40 text-emerald-300' },
   onTrack: { label: 'Vas a tiempo', badge: 'bg-emerald-900/40 text-emerald-300' },
   behind: { label: 'Vas con retraso', badge: 'bg-amber-900/40 text-amber-300' },
-  noPace: { label: 'Sin aportaciones aun', badge: 'bg-slate-800 text-slate-300' },
+  noPace: { label: 'Sin aportaciones aún', badge: 'bg-slate-800 text-slate-300' },
   overdue: { label: 'Fecha pasada', badge: 'bg-amber-900/40 text-amber-300' },
 };
 
@@ -133,12 +133,12 @@ export function BudgetCard({
           {g.status === 'met'
             ? 'Objetivo conseguido.'
             : g.status === 'overdue'
-              ? `La fecha ya paso; faltan ${formatCents(g.remainingCents)}.`
+              ? `La fecha ya pasó; faltan ${formatCents(g.remainingCents)}.`
               : g.etaISO !== null
-                ? `A tu ritmo (${formatCents(g.paceMonthlyCents ?? 0)}/mes) llegaras en ${monthYear(g.etaISO)}${
-                    g.status === 'onTrack' ? ', a tiempo.' : ', despues de la fecha objetivo.'
+                ? `A tu ritmo (${formatCents(g.paceMonthlyCents ?? 0)}/mes) llegarás en ${monthYear(g.etaISO)}${
+                    g.status === 'onTrack' ? ', a tiempo.' : ', después de la fecha objetivo.'
                   }`
-                : 'Aun no hay aportaciones desde el inicio.'}
+                : 'Aún no hay aportaciones desde el inicio.'}
         </p>
         {g.status !== 'met' && g.status !== 'overdue' && (
           <p className="mt-1 text-xs text-slate-500">
@@ -198,7 +198,7 @@ export function BudgetCard({
           <p className="mt-0.5 truncate text-xs text-slate-500">
             {evaluation.kind === 'flex'
               ? 'Gasto variable (sin recibos fijos)'
-              : `${describeScope(evaluation, categoryNames, accountNames)} · ${isExpense ? 'Limite de gasto' : 'Objetivo de ingreso'}`}{' '}
+              : `${describeScope(evaluation, categoryNames, accountNames)} · ${isExpense ? 'Límite de gasto' : 'Objetivo de ingreso'}`}{' '}
             · {BUDGET_PERIOD_LABELS[budget.period]}
             {budget.rollover ? ' · acumula' : ''}
           </p>
@@ -242,8 +242,8 @@ export function BudgetCard({
       {evaluation.carryCents !== 0 && (
         <p className="mt-1 text-xs text-slate-500">
           {evaluation.carryCents > 0
-            ? `Incluye ${formatCents(evaluation.carryCents)} que sobraron de periodos anteriores (limite base ${formatCents(limitCents)}).`
-            : `Se descuentan ${formatCents(-evaluation.carryCents)} que te pasaste en periodos anteriores (limite base ${formatCents(limitCents)}).`}
+            ? `Incluye ${formatCents(evaluation.carryCents)} que sobraron de periodos anteriores (límite base ${formatCents(limitCents)}).`
+            : `Se descuentan ${formatCents(-evaluation.carryCents)} que te pasaste en periodos anteriores (límite base ${formatCents(limitCents)}).`}
         </p>
       )}
       <p className="mt-1 text-[11px] text-slate-600">

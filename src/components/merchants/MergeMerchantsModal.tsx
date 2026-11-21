@@ -82,12 +82,12 @@ export function MergeMerchantsModal({
     setBusy(true);
     try {
       await merchantService.undoMerge(profileId, done.snapshot);
-      showToast('Fusion deshecha.', 'success');
+      showToast('Fusión deshecha.', 'success');
       await onMerged();
       setDone(null);
       onClose();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'No se pudo deshacer la fusion.', 'error');
+      showToast(e instanceof Error ? e.message : 'No se pudo deshacer la fusión.', 'error');
     } finally {
       setBusy(false);
     }
@@ -98,7 +98,7 @@ export function MergeMerchantsModal({
       {done ? (
         <div className="space-y-4">
           <p className="text-sm text-slate-300">
-            <strong className="text-slate-100">{source.canonicalName}</strong> se fusiono en{' '}
+            <strong className="text-slate-100">{source.canonicalName}</strong> se fusionó en{' '}
             <strong className="text-slate-100">{done.targetName}</strong>: se movieron{' '}
             {done.movedAliases} alias y {done.movedTransactions} movimiento(s). El comercio original
             queda archivado (no se borra).
@@ -125,14 +125,14 @@ export function MergeMerchantsModal({
         <div className="space-y-4">
           <p className="text-sm text-slate-300">
             Vas a fusionar <strong className="text-slate-100">{source.canonicalName}</strong> dentro
-            de otro comercio. Sus alias y movimientos pasaran al destino; el origen quedara
-            archivado (reversible justo despues de confirmar).
+            de otro comercio. Sus alias y movimientos pasarán al destino; el origen quedará
+            archivado (reversible justo después de confirmar).
           </p>
 
           {preview && (
             <p className="text-xs text-slate-500">
               {source.canonicalName} tiene {preview.aliases} alias y {preview.transactions}{' '}
-              movimiento(s) que se moverian.
+              movimiento(s) que se moverían.
             </p>
           )}
 

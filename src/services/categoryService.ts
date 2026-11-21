@@ -24,7 +24,7 @@ const STATS_ROLES: readonly CategoryStatsRole[] = ['savings', 'investment', 'non
 
 function assertStatsRole(role: CategoryStatsRole | null | undefined): void {
   if (role === undefined || role === null) return;
-  if (!STATS_ROLES.includes(role)) throw new ValidationError('Papel en estadisticas no valido.');
+  if (!STATS_ROLES.includes(role)) throw new ValidationError('Papel en estadísticas no válido.');
 }
 
 // Categoria raiz con sus subcategorias, para pintar el arbol en la UI.
@@ -42,11 +42,11 @@ export interface CategoryUsage {
 export function normalizeCategoryName(name: string): string {
   const trimmed = (name ?? '').trim().replace(/\s+/g, ' ');
   if (trimmed.length === 0) {
-    throw new ValidationError('El nombre de la categoria no puede estar vacio.');
+    throw new ValidationError('El nombre de la categoría no puede estar vacío.');
   }
   if (trimmed.length > MAX_CATEGORY_NAME_LENGTH) {
     throw new ValidationError(
-      `El nombre de la categoria no puede superar ${MAX_CATEGORY_NAME_LENGTH} caracteres.`,
+      `El nombre de la categoría no puede superar ${MAX_CATEGORY_NAME_LENGTH} caracteres.`,
     );
   }
   return trimmed;
@@ -171,11 +171,11 @@ export const categoryService = {
     const usage = await categoryService.getUsage(profileId, id);
     assert(
       usage.children === 0,
-      'La categoria tiene subcategorias. Borra o mueve primero sus subcategorias, o archivala.',
+      'La categoría tiene subcategorías. Borra o mueve primero sus subcategorías, o archívala.',
     );
     assert(
       usage.transactions === 0,
-      'La categoria esta en uso por movimientos. Archivala en su lugar para conservar el historico.',
+      'La categoría está en uso por movimientos. Archívala en su lugar para conservar el histórico.',
     );
     await categoriesRepo.remove(profileId, id);
   },
@@ -206,7 +206,7 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
     children: [{ name: 'Alquiler o hipoteca' }, { name: 'Suministros' }, { name: 'Comunidad' }],
   },
   {
-    name: 'Alimentacion',
+    name: 'Alimentación',
     kind: 'expense',
     icon: '🍽️',
     children: [{ name: 'Supermercado' }, { name: 'Restaurantes' }],
@@ -215,21 +215,21 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
     name: 'Transporte',
     kind: 'expense',
     icon: '🚗',
-    children: [{ name: 'Combustible' }, { name: 'Transporte publico' }, { name: 'Parking' }],
+    children: [{ name: 'Combustible' }, { name: 'Transporte público' }, { name: 'Parking' }],
   },
   { name: 'Salud', kind: 'expense', icon: '🩺' },
   { name: 'Ocio', kind: 'expense', icon: '🎬' },
   { name: 'Compras', kind: 'expense', icon: '🛍️' },
-  { name: 'Educacion', kind: 'expense', icon: '🎓' },
+  { name: 'Educación', kind: 'expense', icon: '🎓' },
   {
     name: 'Servicios',
     kind: 'expense',
     icon: '📱',
-    children: [{ name: 'Telefono e internet' }, { name: 'Suscripciones' }],
+    children: [{ name: 'Teléfono e internet' }, { name: 'Suscripciones' }],
   },
   // Solo el rendimiento del trabajo es ingreso (ver statsService.computeIncomeCategoryIds).
-  { name: 'Nomina', kind: 'income', icon: '💼' },
-  { name: 'Prestacion por desempleo', kind: 'income', icon: '🏛️' },
+  { name: 'Nómina', kind: 'income', icon: '💼' },
+  { name: 'Prestación por desempleo', kind: 'income', icon: '🏛️' },
   // Otros cobros (Bizum recibidos, ventas...) son gastos positivos, no ingresos.
   { name: 'Otros cobros', kind: 'both', icon: '💰' },
 ];

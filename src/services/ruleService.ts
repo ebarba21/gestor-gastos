@@ -129,7 +129,7 @@ export function compileRuleRegex(pattern: string, caseSensitive: boolean): RegEx
     return new RegExp(pattern, caseSensitive ? '' : 'i');
   } catch (e) {
     throw new ValidationError(
-      `Expresion regular invalida: ${e instanceof Error ? e.message : String(e)}.`,
+      `Expresión regular inválida: ${e instanceof Error ? e.message : String(e)}.`,
     );
   }
 }
@@ -606,7 +606,7 @@ export interface RuleInput {
 function normalizeRuleName(name: string): string {
   const trimmed = (name ?? '').trim().replace(/\s+/g, ' ');
   if (trimmed.length === 0) {
-    throw new ValidationError('El nombre de la regla no puede estar vacio.');
+    throw new ValidationError('El nombre de la regla no puede estar vacío.');
   }
   if (trimmed.length > MAX_RULE_NAME_LENGTH) {
     throw new ValidationError(
@@ -619,16 +619,16 @@ function normalizeRuleName(name: string): string {
 // Valida una condicion segun su campo y operador. Lanza ValidationError con el motivo.
 export function validateCondition(condition: RuleCondition): void {
   const validOps = OPERATORS_BY_FIELD[condition.field];
-  assert(validOps !== undefined, `Campo de condicion invalido: "${condition.field}".`);
+  assert(validOps !== undefined, `Campo de condición inválido: "${condition.field}".`);
   assert(
     validOps.includes(condition.operator),
-    `El operador "${condition.operator}" no es valido para el campo "${condition.field}".`,
+    `El operador "${condition.operator}" no es válido para el campo "${condition.field}".`,
   );
   switch (condition.field) {
     case 'concept': {
       assert(
         typeof condition.value === 'string' && condition.value.length > 0,
-        'La condicion de texto necesita un valor.',
+        'La condición de texto necesita un valor.',
       );
       if (condition.operator === 'regex') {
         // Compila para validar: una regex invalida se rechaza al guardar (no en el motor).
@@ -639,12 +639,12 @@ export function validateCondition(condition: RuleCondition): void {
     case 'amount': {
       assert(
         typeof condition.value === 'number' && Number.isInteger(condition.value),
-        'La condicion de importe necesita un valor en centimos (entero).',
+        'La condición de importe necesita un valor en céntimos (entero).',
       );
       if (condition.operator === 'between') {
         assert(
           typeof condition.value2 === 'number' && Number.isInteger(condition.value2),
-          'El rango de importe necesita un segundo valor en centimos (entero).',
+          'El rango de importe necesita un segundo valor en céntimos (entero).',
         );
       }
       break;
@@ -652,12 +652,12 @@ export function validateCondition(condition: RuleCondition): void {
     case 'date': {
       assert(
         isValidAccountingDate(String(condition.value)),
-        'La condicion de fecha necesita una fecha YYYY-MM-DD valida.',
+        'La condición de fecha necesita una fecha YYYY-MM-DD válida.',
       );
       if (condition.operator === 'between') {
         assert(
           isValidAccountingDate(String(condition.value2 ?? '')),
-          'El rango de fechas necesita una segunda fecha YYYY-MM-DD valida.',
+          'El rango de fechas necesita una segunda fecha YYYY-MM-DD válida.',
         );
       }
       break;
@@ -665,26 +665,26 @@ export function validateCondition(condition: RuleCondition): void {
     case 'account': {
       assert(
         typeof condition.value === 'string' && condition.value.length > 0,
-        'La condicion de cuenta necesita una cuenta.',
+        'La condición de cuenta necesita una cuenta.',
       );
       break;
     }
     case 'merchant': {
       assert(
         typeof condition.value === 'string' && condition.value.length > 0,
-        'La condicion de comercio necesita un comercio.',
+        'La condición de comercio necesita un comercio.',
       );
       break;
     }
     case 'type': {
       assert(
         VALID_TX_TYPES.includes(String(condition.value) as TransactionType),
-        'La condicion de tipo necesita un tipo de movimiento valido.',
+        'La condición de tipo necesita un tipo de movimiento válido.',
       );
       break;
     }
     default:
-      throw new ValidationError(`Campo de condicion invalido: "${condition.field}".`);
+      throw new ValidationError(`Campo de condición inválido: "${condition.field}".`);
   }
 }
 
@@ -696,12 +696,12 @@ export function validateAction(action: RuleAction): void {
   const hasExclusion = action.setExcludedFromStats !== null;
   assert(
     hasCategory || hasTags || hasExclusion,
-    'La regla debe tener al menos una accion: asignar categoria, anadir etiquetas o forzar exclusion.',
+    'La regla debe tener al menos una acción: asignar categoría, añadir etiquetas o forzar exclusión.',
   );
   if (action.setSubcategoryId !== null) {
     assert(
       action.setCategoryId !== null,
-      'Para asignar una subcategoria hay que asignar tambien su categoria raiz.',
+      'Para asignar una subcategoría hay que asignar también su categoría raíz.',
     );
   }
 }
@@ -713,7 +713,7 @@ export function validateRuleInput(input: RuleInput): RuleInput {
     input.matchMode === 'all' || input.matchMode === 'any',
     'El modo de coincidencia debe ser "all" o "any".',
   );
-  assert(input.conditions.length >= 1, 'La regla necesita al menos una condicion.');
+  assert(input.conditions.length >= 1, 'La regla necesita al menos una condición.');
   for (const condition of input.conditions) validateCondition(condition);
   validateAction(input.action);
   return {

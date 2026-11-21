@@ -155,7 +155,7 @@ export function createRemoteRepo<T extends RemoteTableName>(
   options: RemoteRepoOptions = {},
 ): RemoteRepo<T> {
   if (!ownerUserId) {
-    throw new RemoteError('REMOTE_AUTH', 'Falta el usuario de la sesion para operar en remoto.');
+    throw new RemoteError('REMOTE_AUTH', 'Falta el usuario de la sesión para operar en remoto.');
   }
   const hasProfileId = options.hasProfileId ?? true;
 
@@ -190,7 +190,7 @@ export function createRemoteRepo<T extends RemoteTableName>(
     async insert(profileId, values) {
       const row = buildInsertRow(ownerUserId, profileId, values);
       const { data, error } = await q().insert(row).select().single();
-      if (error) throw toRemoteError(error, 'creacion');
+      if (error) throw toRemoteError(error, 'creación');
       return data as RowOf<T>;
     },
 
@@ -203,7 +203,7 @@ export function createRemoteRepo<T extends RemoteTableName>(
         .eq('id', id)
         .select()
         .single();
-      if (error) throw toRemoteError(error, 'actualizacion');
+      if (error) throw toRemoteError(error, 'actualización');
       return data as RowOf<T>;
     },
 
@@ -233,7 +233,7 @@ export function createRemoteRepo<T extends RemoteTableName>(
       const { data, error } = await q()
         .upsert(insertRow, { onConflict: 'id', ignoreDuplicates: true })
         .select();
-      if (error) throw toRemoteError(error, 'creacion');
+      if (error) throw toRemoteError(error, 'creación');
       const rows = (data ?? []) as RowOf<T>[];
       // ignoreDuplicates: la reejecucion de un insert ya aplicado no devuelve fila.
       return rows.length > 0 ? rows[0] : null;
@@ -245,7 +245,7 @@ export function createRemoteRepo<T extends RemoteTableName>(
         .eq('id', id)
         .eq('revision', baseRevision)
         .select();
-      if (error) throw toRemoteError(error, 'actualizacion');
+      if (error) throw toRemoteError(error, 'actualización');
       const rows = (data ?? []) as RowOf<T>[];
       // 0 filas: revision remota distinta de baseRevision (conflicto) o reejecucion ya aplicada.
       return rows.length > 0 ? rows[0] : null;

@@ -52,16 +52,16 @@ const DEFAULT_AUTO_LOCK_MS = 5 * 60_000;
 
 function assertValidPinFormat(pin: string): void {
   if (pin.length < MIN_PIN_LENGTH) {
-    throw new SecurityError('PIN_TOO_SHORT', `El PIN debe tener al menos ${MIN_PIN_LENGTH} digitos.`);
+    throw new SecurityError('PIN_TOO_SHORT', `El PIN debe tener al menos ${MIN_PIN_LENGTH} dígitos.`);
   }
   if (!DIGITS_ONLY.test(pin)) {
-    throw new SecurityError('PIN_NOT_DIGITS', 'El PIN solo puede contener digitos (0-9).');
+    throw new SecurityError('PIN_NOT_DIGITS', 'El PIN solo puede contener dígitos (0-9).');
   }
 }
 
 function assertConfirmed(pin: string, confirmPin: string): void {
   if (pin !== confirmPin) {
-    throw new SecurityError('PIN_MISMATCH', 'La confirmacion no coincide con el PIN.');
+    throw new SecurityError('PIN_MISMATCH', 'La confirmación no coincide con el PIN.');
   }
 }
 
@@ -130,7 +130,7 @@ export const pinService = {
   async enablePin(pin: string, confirmPin: string): Promise<void> {
     const current = await deviceSecurityRepo.get();
     if (current.pinEnabled) {
-      throw new SecurityError('PIN_ALREADY_ENABLED', 'Ya hay un PIN activo. Cambialo en su lugar.');
+      throw new SecurityError('PIN_ALREADY_ENABLED', 'Ya hay un PIN activo. Cámbialo en su lugar.');
     }
     assertValidPinFormat(pin);
     assertConfirmed(pin, confirmPin);
@@ -158,7 +158,7 @@ export const pinService = {
   async disablePin(pin: string): Promise<void> {
     const current = await deviceSecurityRepo.get();
     if (!current.pinEnabled) {
-      throw new SecurityError('PIN_NOT_ENABLED', 'No hay ningun PIN activo.');
+      throw new SecurityError('PIN_NOT_ENABLED', 'No hay ningún PIN activo.');
     }
     const { encryptionKey } = await verifyPinWithBackoff(current, pin);
 
@@ -184,7 +184,7 @@ export const pinService = {
   async changePin(currentPin: string, newPin: string, confirmNewPin: string): Promise<void> {
     const current = await deviceSecurityRepo.get();
     if (!current.pinEnabled) {
-      throw new SecurityError('PIN_NOT_ENABLED', 'No hay ningun PIN activo.');
+      throw new SecurityError('PIN_NOT_ENABLED', 'No hay ningún PIN activo.');
     }
     const { encryptionKey: oldKey } = await verifyPinWithBackoff(current, currentPin);
 
@@ -217,7 +217,7 @@ export const pinService = {
   async verifyPin(pin: string): Promise<void> {
     const current = await deviceSecurityRepo.get();
     if (!current.pinEnabled) {
-      throw new SecurityError('PIN_NOT_ENABLED', 'No hay ningun PIN activo.');
+      throw new SecurityError('PIN_NOT_ENABLED', 'No hay ningún PIN activo.');
     }
     const { encryptionKey } = await verifyPinWithBackoff(current, pin);
     setPinActive(true);
@@ -234,12 +234,12 @@ export const pinService = {
     if (!AUTO_LOCK_OPTIONS_MS.includes(autoLockMs as AutoLockOptionMs)) {
       throw new SecurityError(
         'AUTO_LOCK_INVALID',
-        `Valor de bloqueo automatico no valido: ${autoLockMs}.`,
+        `Valor de bloqueo automático no válido: ${autoLockMs}.`,
       );
     }
     const current = await deviceSecurityRepo.get();
     if (!current.pinEnabled) {
-      throw new SecurityError('PIN_NOT_ENABLED', 'Activa el PIN para configurar el bloqueo automatico.');
+      throw new SecurityError('PIN_NOT_ENABLED', 'Activa el PIN para configurar el bloqueo automático.');
     }
     await deviceSecurityRepo.put({ autoLockMs });
   },
@@ -249,7 +249,7 @@ export const pinService = {
   async enableBiometricUnlock(pin: string, deps: BiometricDeps = browserBiometricDeps()): Promise<void> {
     const current = await deviceSecurityRepo.get();
     if (!current.pinEnabled) {
-      throw new SecurityError('PIN_NOT_ENABLED', 'Activa primero un PIN: es la via de respaldo.');
+      throw new SecurityError('PIN_NOT_ENABLED', 'Activa primero un PIN: es la vía de respaldo.');
     }
     await verifyPinWithBackoff(current, pin);
     await clearBiometric();
@@ -265,7 +265,7 @@ export const pinService = {
   async unlockWithBiometrics(deps: BiometricDeps = browserBiometricDeps()): Promise<void> {
     const current = await deviceSecurityRepo.get();
     if (!current.pinEnabled || !current.biometricUnlock) {
-      throw new SecurityError('BIOMETRIC_NOT_ENABLED', 'El desbloqueo con biometria no esta activado.');
+      throw new SecurityError('BIOMETRIC_NOT_ENABLED', 'El desbloqueo con biometría no está activado.');
     }
     const pin = await unlockWithBiometrics(current.biometricUnlock, deps);
     try {
@@ -277,7 +277,7 @@ export const pinService = {
         await clearBiometric();
         throw new SecurityError(
           'BIOMETRIC_INVALID',
-          'El acceso con biometria ya no es valido. Entra con tu PIN y vuelve a activarlo.',
+          'El acceso con biometría ya no es válido. Entra con tu PIN y vuelve a activarlo.',
         );
       }
       throw error;
@@ -325,7 +325,7 @@ export const pinService = {
       await deviceSecurityRepo.clearAllEncryptedSessions();
       throw new SecurityError(
         'ACCOUNT_NOT_LINKED_TO_DEVICE',
-        'Esta cuenta no esta vinculada a los datos de este dispositivo.',
+        'Esta cuenta no está vinculada a los datos de este dispositivo.',
       );
     }
 
@@ -400,7 +400,7 @@ async function assertPinCorrectAndConsume(
   candidatePin: string,
 ): Promise<{ encryptionKey: CryptoKey }> {
   if (!security.pinSalt || !security.pinVerifier || !security.pinKdfParams) {
-    throw new SecurityError('PIN_NOT_ENABLED', 'No hay ningun PIN activo.');
+    throw new SecurityError('PIN_NOT_ENABLED', 'No hay ningún PIN activo.');
   }
   const { verifier, encryptionKey } = await derivePinKeys(candidatePin, security.pinSalt, security.pinKdfParams);
   if (!constantTimeEqual(verifier, security.pinVerifier)) {

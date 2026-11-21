@@ -36,7 +36,7 @@ export function isBlankCell(value: CellValue): boolean {
 // de quien llama para decidir el 'type'; aqui se respeta el signo textual del importe.
 export function parseAmountToCents(value: CellValue, format: AmountFormat): number {
   if (isBlankCell(value)) {
-    throw new ValidationError('Importe vacio.');
+    throw new ValidationError('Importe vacío.');
   }
   if (value instanceof Date) {
     throw new ValidationError('Se esperaba un importe pero la celda es una fecha.');
@@ -48,7 +48,7 @@ export function parseAmountToCents(value: CellValue, format: AmountFormat): numb
   // separadores configurados aplican solo al texto, por eso aqui no intervienen.
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
-      throw new ValidationError('Importe numerico no finito.');
+      throw new ValidationError('Importe numérico no finito.');
     }
     return centsFromEuros(value, value);
   }
@@ -72,13 +72,13 @@ export function parseAmountToCents(value: CellValue, format: AmountFormat): numb
   // signos y espacios (incluido el espacio fino U+00A0 usado como separador de miles).
   const cleaned = str.replace(/[^0-9.,]/g, '');
   if (cleaned.length === 0) {
-    throw new ValidationError(`Importe no numerico: "${value}".`);
+    throw new ValidationError(`Importe no numérico: "${value}".`);
   }
 
   const normalized = normalizeDecimalString(cleaned, format.decimalSeparator);
   const num = Number(normalized);
   if (!Number.isFinite(num)) {
-    throw new ValidationError(`Importe no numerico: "${value}".`);
+    throw new ValidationError(`Importe no numérico: "${value}".`);
   }
   const cents = centsFromEuros(Math.abs(num), value);
   return negative ? -cents : cents;
@@ -94,7 +94,7 @@ function centsFromEuros(euros: number, original: CellValue): number {
   const scaled = euros * 100;
   const rounded = Math.round(scaled);
   if (Math.abs(scaled - rounded) > 1e-6) {
-    throw new ValidationError(`El importe tiene mas de dos decimales: "${String(original)}".`);
+    throw new ValidationError(`El importe tiene más de dos decimales: "${String(original)}".`);
   }
   return rounded;
 }
@@ -172,7 +172,7 @@ function excelSerialToIso(serial: number): string {
 // Lanza ValidationError si no se obtiene una fecha de calendario valida.
 export function parseDateToIso(value: CellValue, dateFormat: string): string {
   if (isBlankCell(value)) {
-    throw new ValidationError('Fecha vacia.');
+    throw new ValidationError('Fecha vacía.');
   }
   if (value instanceof Date) {
     const iso = toIso(value.getFullYear(), value.getMonth() + 1, value.getDate());
@@ -210,7 +210,7 @@ export function parseDateToIso(value: CellValue, dateFormat: string): string {
 
 function assertIso(iso: string, original: CellValue): void {
   if (!isValidAccountingDate(iso)) {
-    throw new ValidationError(`Fecha invalida "${String(original)}" -> "${iso}".`);
+    throw new ValidationError(`Fecha inválida "${String(original)}" -> "${iso}".`);
   }
 }
 

@@ -134,7 +134,7 @@ export function MerchantDetailModal({
       await load();
       await onChanged();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'No se pudo aplicar la asociacion.', 'error');
+      showToast(e instanceof Error ? e.message : 'No se pudo aplicar la asociación.', 'error');
     } finally {
       setApplying(false);
     }
@@ -164,8 +164,8 @@ export function MerchantDetailModal({
         <section>
           <h4 className="text-sm font-semibold text-slate-200">Alias</h4>
           <p className="mt-0.5 text-xs text-slate-500">
-            Textos bancarios que se reconocen como este comercio. Se evaluan por prioridad (menor
-            numero = mayor prioridad); el exacto siempre tiene preferencia sobre el resto.
+            Textos bancarios que se reconocen como este comercio. Se evalúan por prioridad (menor
+            número = mayor prioridad); el exacto siempre tiene preferencia sobre el resto.
           </p>
 
           <div className="mt-2 flex flex-wrap items-end gap-2">
@@ -192,7 +192,7 @@ export function MerchantDetailModal({
                 type="button"
                 onClick={() => setPriority((p) => p - 1)}
                 aria-label="Menos prioridad"
-                title="Menos prioridad (se evalua mas tarde)"
+                title="Menos prioridad (se evalúa más tarde)"
                 className="px-1 text-slate-400 hover:text-slate-100"
               >
                 ▼
@@ -201,8 +201,8 @@ export function MerchantDetailModal({
               <button
                 type="button"
                 onClick={() => setPriority((p) => p + 1)}
-                aria-label="Mas prioridad"
-                title="Mas prioridad (se evalua antes)"
+                aria-label="Más prioridad"
+                title="Más prioridad (se evalúa antes)"
                 className="px-1 text-slate-400 hover:text-slate-100"
               >
                 ▲
@@ -214,12 +214,12 @@ export function MerchantDetailModal({
               disabled={savingAlias || rawAlias.trim().length === 0}
               className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
             >
-              Anadir
+              Añadir
             </button>
           </div>
           {matchType === 'regex' && (
             <p className="mt-1 text-xs text-amber-300/80">
-              Avanzado: expresion regular (patron de texto para programadores). Si no estas
+              Avanzado: expresión regular (patrón de texto para programadores). Si no estás
               seguro, usa "Contiene" o "Empieza por" en su lugar.
             </p>
           )}
@@ -227,7 +227,7 @@ export function MerchantDetailModal({
 
           <div className="mt-3 space-y-1.5">
             {aliases.length === 0 ? (
-              <p className="text-xs text-slate-500">Sin alias todavia.</p>
+              <p className="text-xs text-slate-500">Sin alias todavía.</p>
             ) : (
               aliases.map((a) => (
                 <div
@@ -246,7 +246,7 @@ export function MerchantDetailModal({
                       type="button"
                       onClick={() => void adjustPriority(a, -1)}
                       aria-label="Menos prioridad"
-                      title="Menos prioridad (se evalua mas tarde)"
+                      title="Menos prioridad (se evalúa más tarde)"
                       className="px-1 hover:text-slate-100"
                     >
                       ▼
@@ -255,8 +255,8 @@ export function MerchantDetailModal({
                     <button
                       type="button"
                       onClick={() => void adjustPriority(a, 1)}
-                      aria-label="Mas prioridad"
-                      title="Mas prioridad (se evalua antes)"
+                      aria-label="Más prioridad"
+                      title="Más prioridad (se evalúa antes)"
                       className="px-1 hover:text-slate-100"
                     >
                       ▲
@@ -300,12 +300,12 @@ export function MerchantDetailModal({
           </div>
           <p className="mt-1 text-xs text-slate-500">
             Revisa TODOS los movimientos del perfil (no solo los de este comercio) y vincula los
-            que casen con algun alias activo. Respeta las asociaciones hechas a mano.
+            que casen con algún alias activo. Respeta las asociaciones hechas a mano.
           </p>
           {loading ? (
             <p className="mt-2 text-xs text-slate-500">Cargando...</p>
           ) : transactions.length === 0 ? (
-            <p className="mt-2 text-xs text-slate-500">Sin movimientos asociados todavia.</p>
+            <p className="mt-2 text-xs text-slate-500">Sin movimientos asociados todavía.</p>
           ) : (
             <div className="mt-2 space-y-1.5">
               {transactions.slice(0, 100).map((t) => (
@@ -333,7 +333,7 @@ export function MerchantDetailModal({
               ))}
               {transactions.length > 100 && (
                 <p className="text-xs text-slate-500">
-                  Mostrando los 100 mas recientes de {transactions.length}.
+                  Mostrando los 100 más recientes de {transactions.length}.
                 </p>
               )}
             </div>
@@ -349,7 +349,7 @@ export function MerchantDetailModal({
           deletingAlias ? (
             <span>
               Vas a eliminar el alias <strong className="text-slate-100">{deletingAlias.rawAlias}</strong>.
-              Los movimientos ya asociados no se desvinculan automaticamente.
+              Los movimientos ya asociados no se desvinculan automáticamente.
             </span>
           ) : null
         }

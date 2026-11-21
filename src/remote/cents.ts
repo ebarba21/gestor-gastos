@@ -42,12 +42,12 @@ export function serializeCentsNullable(cents: number | null): number | null {
 // centimos pueden ser negativos (gasto) o positivos (ingreso); solo se exige integridad entera.
 export function assertIntegerCents(value: number): asserts value is number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new RemoteError('REMOTE_CONSTRAINT', 'Importe no numerico: se esperan centimos enteros.');
+    throw new RemoteError('REMOTE_CONSTRAINT', 'Importe no numérico: se esperan céntimos enteros.');
   }
   if (!Number.isInteger(value)) {
     throw new RemoteError(
       'REMOTE_CONSTRAINT',
-      `Importe con decimales (${value}): el dinero solo se representa en centimos enteros.`,
+      `Importe con decimales (${value}): el dinero solo se representa en céntimos enteros.`,
     );
   }
   if (!Number.isSafeInteger(value)) {

@@ -132,7 +132,7 @@ export function MobileNav() {
       )}
 
       <nav
-        aria-label="Navegacion principal"
+        aria-label="Navegación principal"
         className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-800 bg-slate-900/95 backdrop-blur"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
@@ -145,7 +145,7 @@ export function MobileNav() {
         {/* Alta rapida: efectivo, Bizum o cualquier gasto en dos toques. */}
         <Link
           to="/movimientos?nuevo=1"
-          aria-label="Anadir movimiento"
+          aria-label="Añadir movimiento"
           className="flex flex-1 flex-col items-center justify-center py-1.5"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg">
@@ -167,7 +167,7 @@ export function MobileNav() {
           className={tabClass({ isActive: moreOpen })}
         >
           <Icon d="M5 12h.01M12 12h.01M19 12h.01" />
-          <span>Mas</span>
+          <span>Más</span>
         </button>
       </nav>
     </>

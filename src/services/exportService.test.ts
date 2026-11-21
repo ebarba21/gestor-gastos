@@ -279,8 +279,8 @@ describe('buildDashboardSheets', () => {
     const sheets = buildDashboardSheets(data, names);
     const sheetNames = sheets.map((s) => s.name);
     expect(sheetNames).toContain('Resumen');
-    expect(sheetNames).toContain('Gasto por categoria');
-    expect(sheetNames).toContain('Evolucion mensual');
+    expect(sheetNames).toContain('Gasto por categoría');
+    expect(sheetNames).toContain('Evolución mensual');
 
     // El resumen refleja los importes en euros (ingresos 2000, gasto neto 500).
     const resumen = sheets.find((s) => s.name === 'Resumen')!;

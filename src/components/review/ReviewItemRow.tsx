@@ -71,11 +71,11 @@ export function ReviewItemRow({ item, selected, onToggleSelect, onOpen, proposal
                 className="shrink-0 rounded-md bg-amber-950 px-1.5 py-0.5 font-medium text-amber-200"
                 data-testid="review-proposed-category"
               >
-                <span className="sr-only">Categoria propuesta: </span>
+                <span className="sr-only">Categoría propuesta: </span>
                 {proposal.categoryLabel}
               </span>
             ) : (
-              <span className="shrink-0 text-slate-500">Sin categoria</span>
+              <span className="shrink-0 text-slate-500">Sin categoría</span>
             )}
           </span>
         )}

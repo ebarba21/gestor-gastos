@@ -42,7 +42,7 @@ export function BudgetsSection() {
   const hasFlex = evaluations.some((e) => e.kind === 'flex');
   const groups = useMemo(
     () => [
-      { title: 'Gasto flexible y limites', items: evaluations.filter((e) => e.kind === 'flex' || e.kind === 'limit') },
+      { title: 'Gasto flexible y límites', items: evaluations.filter((e) => e.kind === 'flex' || e.kind === 'limit') },
       { title: 'Objetivos de ahorro', items: evaluations.filter((e) => e.kind === 'goal') },
       { title: 'Fondos para gastos no mensuales', items: evaluations.filter((e) => e.kind === 'fund') },
     ],
@@ -141,7 +141,7 @@ export function BudgetsSection() {
             </button>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            Ingreso habitual: mediana de tus nominas de los ultimos 6 meses. Recibos fijos: recurrencias confirmadas
+            Ingreso habitual: mediana de tus nóminas de los últimos 6 meses. Recibos fijos: recurrencias confirmadas
             (las anuales, divididas entre 12).
           </p>
         </div>
@@ -189,7 +189,7 @@ export function BudgetsSection() {
         <EmptyState
           icon="🎯"
           title="Sin presupuestos, objetivos ni fondos"
-          description="Empieza por un presupuesto flexible para tu gasto variable; anade objetivos con fecha y fondos para los gastos que no son mensuales."
+          description="Empieza por un presupuesto flexible para tu gasto variable; añade objetivos con fecha y fondos para los gastos que no son mensuales."
           action={
             <button
               type="button"
@@ -267,8 +267,8 @@ export function BudgetsSection() {
           deleting ? (
             <span>
               Vas a eliminar el presupuesto{' '}
-              <strong className="text-slate-100">{deleting.name}</strong>. Esta accion no borra
-              ningun movimiento; solo el presupuesto ({formatCents(deleting.limitCents)}).
+              <strong className="text-slate-100">{deleting.name}</strong>. Esta acción no borra
+              ningún movimiento; solo el presupuesto ({formatCents(deleting.limitCents)}).
             </span>
           ) : null
         }

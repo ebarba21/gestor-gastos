@@ -27,7 +27,7 @@ export function ProfileSelectScreen() {
           <p className="mt-2 text-sm text-slate-400">
             {hasProfiles
               ? 'Elige un perfil para continuar. Cada perfil guarda sus datos por separado en este dispositivo.'
-              : 'Crea tu primer perfil para empezar. Tus datos se guardan en este dispositivo; la sincronizacion con cuenta es opcional.'}
+              : 'Crea tu primer perfil para empezar. Tus datos se guardan en este dispositivo; la sincronización con cuenta es opcional.'}
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export function ProfileSelectScreen() {
             <span className="text-4xl" aria-hidden>
               👤
             </span>
-            <p className="mt-4 text-sm text-slate-400">Aun no hay ningun perfil.</p>
+            <p className="mt-4 text-sm text-slate-400">Aún no hay ningún perfil.</p>
           </div>
         )}
 

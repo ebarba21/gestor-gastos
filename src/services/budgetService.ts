@@ -64,7 +64,7 @@ export const BUDGET_DIRECTIONS: readonly BudgetDirection[] = ['expense', 'income
 export const BUDGET_KINDS: readonly BudgetKind[] = ['limit', 'flex', 'goal', 'fund'];
 
 export const BUDGET_KIND_LABELS: Record<BudgetKind, string> = {
-  limit: 'Limite',
+  limit: 'Límite',
   flex: 'Gasto flexible',
   goal: 'Objetivo de ahorro',
   fund: 'Fondo para gasto no mensual',
@@ -80,8 +80,8 @@ export function budgetKindOf(b: Pick<Budget, 'kind'>): BudgetKind {
 
 export const BUDGET_SCOPE_LABELS: Record<BudgetScope, string> = {
   overall: 'Global',
-  category: 'Categoria',
-  subcategory: 'Subcategoria',
+  category: 'Categoría',
+  subcategory: 'Subcategoría',
   account: 'Cuenta',
 };
 
@@ -93,7 +93,7 @@ export const BUDGET_PERIOD_LABELS: Record<BudgetPeriod, string> = {
 };
 
 export const BUDGET_DIRECTION_LABELS: Record<BudgetDirection, string> = {
-  expense: 'Limite de gasto',
+  expense: 'Límite de gasto',
   income: 'Objetivo de ingreso/ahorro',
 };
 
@@ -174,7 +174,7 @@ export interface BudgetInput {
 
 export function normalizeBudgetName(name: string): string {
   const trimmed = (name ?? '').trim().replace(/\s+/g, ' ');
-  assert(trimmed.length > 0, 'El nombre del presupuesto no puede estar vacio.');
+  assert(trimmed.length > 0, 'El nombre del presupuesto no puede estar vacío.');
   assert(
     trimmed.length <= MAX_BUDGET_NAME_LENGTH,
     `El nombre del presupuesto no puede superar ${MAX_BUDGET_NAME_LENGTH} caracteres.`,
@@ -256,50 +256,50 @@ function buildEvaluation(
 async function validateInput(profileId: string, input: BudgetInput): Promise<void> {
   assertCents(input.limitCents);
   assert(input.limitCents > 0, 'El importe del presupuesto debe ser mayor que cero.');
-  assert(BUDGET_SCOPES.includes(input.scope), 'Ambito de presupuesto no valido.');
-  assert(BUDGET_PERIODS.includes(input.period), 'Periodo de presupuesto no valido.');
-  assert(BUDGET_DIRECTIONS.includes(input.direction), 'Direccion de presupuesto no valida.');
+  assert(BUDGET_SCOPES.includes(input.scope), 'Ámbito de presupuesto no válido.');
+  assert(BUDGET_PERIODS.includes(input.period), 'Periodo de presupuesto no válido.');
+  assert(BUDGET_DIRECTIONS.includes(input.direction), 'Dirección de presupuesto no válida.');
   const kind = input.kind ?? 'limit';
-  assert(BUDGET_KINDS.includes(kind), 'Tipo de presupuesto no valido.');
+  assert(BUDGET_KINDS.includes(kind), 'Tipo de presupuesto no válido.');
   if (kind === 'flex') {
-    assert(input.scope === 'overall', 'El presupuesto flexible abarca todo tu gasto variable (ambito global).');
-    assert(input.direction === 'expense', 'El presupuesto flexible es un limite de gasto.');
+    assert(input.scope === 'overall', 'El presupuesto flexible abarca todo tu gasto variable (ámbito global).');
+    assert(input.direction === 'expense', 'El presupuesto flexible es un límite de gasto.');
     assert(input.period !== 'custom', 'El presupuesto flexible es mensual, trimestral o anual.');
   } else if (kind === 'goal') {
     assert(input.period === 'custom', 'Un objetivo necesita fecha de inicio y fecha objetivo.');
-    assert(input.direction === 'income', 'Un objetivo de ahorro se registra como objetivo, no como limite de gasto.');
+    assert(input.direction === 'income', 'Un objetivo de ahorro se registra como objetivo, no como límite de gasto.');
   } else if (kind === 'fund') {
     assert(input.period === 'custom', 'Un fondo necesita fecha de inicio y fecha de vencimiento.');
     assert(input.direction === 'expense', 'Un fondo reserva dinero para un gasto.');
     assert(
       input.scope === 'category' || input.scope === 'subcategory',
-      'Un fondo se vincula a la categoria o subcategoria donde se registrara el gasto.',
+      'Un fondo se vincula a la categoría o subcategoría donde se registrará el gasto.',
     );
   }
   if (input.rollover) {
-    assert(kind === 'limit' || kind === 'flex', 'Solo los limites de gasto acumulan lo que sobra.');
-    assert(input.direction === 'expense', 'Solo los limites de gasto acumulan lo que sobra.');
+    assert(kind === 'limit' || kind === 'flex', 'Solo los límites de gasto acumulan lo que sobra.');
+    assert(input.direction === 'expense', 'Solo los límites de gasto acumulan lo que sobra.');
     assert(input.period !== 'custom', 'Un periodo personalizado no se repite: no puede acumular lo que sobra.');
   }
 
   // Coherencia ambito <-> scopeId y existencia de la entidad referenciada en el perfil.
   if (input.scope === 'overall') {
-    assert(input.scopeId === null, 'Un presupuesto global no lleva ambito concreto (scopeId).');
+    assert(input.scopeId === null, 'Un presupuesto global no lleva ámbito concreto (scopeId).');
   } else {
     assert(
       typeof input.scopeId === 'string' && input.scopeId.length > 0,
-      'Este ambito de presupuesto requiere seleccionar la categoria, subcategoria o cuenta.',
+      'Este ámbito de presupuesto requiere seleccionar la categoría, subcategoría o cuenta.',
     );
     if (input.scope === 'account') {
       const acc = await accountsRepo.getById(profileId, input.scopeId);
       assert(acc !== undefined, 'La cuenta del presupuesto no existe en el perfil.');
     } else {
       const cat = await categoriesRepo.getById(profileId, input.scopeId);
-      assert(cat !== undefined, 'La categoria del presupuesto no existe en el perfil.');
+      assert(cat !== undefined, 'La categoría del presupuesto no existe en el perfil.');
       if (input.scope === 'subcategory') {
-        assert(cat!.parentId !== null, 'El ambito de subcategoria requiere una subcategoria (no una categoria raiz).');
+        assert(cat!.parentId !== null, 'El ámbito de subcategoría requiere una subcategoría (no una categoría raíz).');
       } else {
-        assert(cat!.parentId === null, 'El ambito de categoria requiere una categoria raiz (para una subcategoria usa el ambito subcategoria).');
+        assert(cat!.parentId === null, 'El ámbito de categoría requiere una categoría raíz (para una subcategoría usa el ámbito subcategoría).');
       }
     }
   }

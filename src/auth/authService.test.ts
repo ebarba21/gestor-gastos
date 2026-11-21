@@ -191,6 +191,6 @@ describe('toAuthError: registro con un correo ya usado', () => {
     const { toAuthError } = await import('./errors');
     const err = toAuthError({ message: 'User already registered', code: 'user_already_exists', status: 422 });
     expect(err.code).toBe('AUTH_ALREADY_REGISTERED');
-    expect(err.message).toMatch(/Iniciar sesion/);
+    expect(err.message).toMatch(/Iniciar sesión/);
   });
 });

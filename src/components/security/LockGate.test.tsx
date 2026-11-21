@@ -129,7 +129,7 @@ describe('LockGate — con PIN activo y bloqueada', () => {
     await setUpLockedApp();
     renderApp();
 
-    expect(screen.getByRole('button', { name: /cerrar sesion de cuenta/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cerrar sesión de cuenta/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /he olvidado mi pin/i })).toBeInTheDocument();
   });
 });

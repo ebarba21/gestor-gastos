@@ -78,7 +78,7 @@ export function RowActionsModal({
       await onChanged();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'La operacion ha fallado.');
+      setError(err instanceof Error ? err.message : 'La operación ha fallado.');
       setBusy(false);
     }
   }
@@ -105,9 +105,9 @@ export function RowActionsModal({
             type="button"
             className={actionClass}
             disabled={busy}
-            onClick={() => run(() => transactionService.unsplitTransaction(profileId, tx.id), 'Division deshecha.')}
+            onClick={() => run(() => transactionService.unsplitTransaction(profileId, tx.id), 'División deshecha.')}
           >
-            Deshacer division
+            Deshacer división
           </button>
         )}
 
@@ -231,11 +231,11 @@ export function RowActionsModal({
             onClick={() =>
               run(
                 () => transactionService.setExcludedFromStats(profileId, tx.id, !tx.excludedFromStats),
-                tx.excludedFromStats ? 'Incluido en estadisticas.' : 'Excluido de estadisticas.',
+                tx.excludedFromStats ? 'Incluido en estadísticas.' : 'Excluido de estadísticas.',
               )
             }
           >
-            {tx.excludedFromStats ? 'Incluir en estadisticas' : 'Excluir de estadisticas'}
+            {tx.excludedFromStats ? 'Incluir en estadísticas' : 'Excluir de estadísticas'}
           </button>
         )}
 

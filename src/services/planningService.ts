@@ -556,7 +556,7 @@ export function computeBalanceForecast(params: {
     incomeAssumed = 'payDay';
     let d = nextPayDate(params.asOf, params.planning.payDay);
     while (d <= end) {
-      events.push({ date: d, name: 'Nomina (estimada)', amountCents: params.typicalIncome, kind: 'income', estimated: true });
+      events.push({ date: d, name: 'Nómina (estimada)', amountCents: params.typicalIncome, kind: 'income', estimated: true });
       d = nextPayDate(d, params.planning.payDay);
     }
   }
@@ -671,11 +671,11 @@ export function planningAlerts(p: PlanningResult): InsightAlert[] {
       severity: f.risk === 'negative' ? 'critical' : 'action',
       title:
         f.risk === 'negative'
-          ? `Tu saldo podria quedar en ${formatCents(balance)} el ${shortDate(date)}`
-          : `Tu saldo bajara a ${formatCents(f.min.centralCents)} el ${shortDate(f.min.date)}, por debajo de tu colchon`,
+          ? `Tu saldo podría quedar en ${formatCents(balance)} el ${shortDate(date)}`
+          : `Tu saldo bajará a ${formatCents(f.min.centralCents)} el ${shortDate(f.min.date)}, por debajo de tu colchón`,
       detail:
         (cause ? `Antes llega ${cause.name} (${formatCents(-cause.amountCents)}). ` : '') +
-        'Puedes mover dinero desde otra cuenta o revisar los proximos cargos.',
+        'Puedes mover dinero desde otra cuenta o revisar los próximos cargos.',
       route: '/recurrencias',
       impactCents: Math.max(0, -balance),
       dueDate: date,
@@ -685,8 +685,8 @@ export function planningAlerts(p: PlanningResult): InsightAlert[] {
     alerts.push({
       id: `income-overdue-${p.safe.nextIncomeDate}`,
       severity: 'info',
-      title: `${p.safe.nextIncomeName ?? 'Tu nomina'} se esperaba el ${shortDate(p.safe.nextIncomeDate)}`,
-      detail: 'Aun no esta registrada. Si ya la cobraste, importa el extracto para que el disponible sea correcto.',
+      title: `${p.safe.nextIncomeName ?? 'Tu nómina'} se esperaba el ${shortDate(p.safe.nextIncomeDate)}`,
+      detail: 'Aún no está registrada. Si ya la cobraste, importa el extracto para que el disponible sea correcto.',
       route: '/importar',
     });
   }
@@ -694,10 +694,10 @@ export function planningAlerts(p: PlanningResult): InsightAlert[] {
     alerts.push({
       id: `extra-pay-${p.extraPay.cycleFrom}`,
       severity: 'action',
-      title: `Has cobrado unos ${formatCents(p.extraPay.excessCents)} mas de lo habitual`,
+      title: `Has cobrado unos ${formatCents(p.extraPay.excessCents)} más de lo habitual`,
       detail:
         p.safe.extraPayReservedCents > 0
-          ? 'Parece una paga extra: no cuenta en tu disponible hasta el proximo cobro. Asignala a un objetivo o a un fondo.'
+          ? 'Parece una paga extra: no cuenta en tu disponible hasta el próximo cobro. Asígnala a un objetivo o a un fondo.'
           : 'Parece una paga extra. Puedes asignarla a un objetivo o a un fondo para que no se diluya en el mes.',
       route: '/presupuestos',
       impactCents: p.extraPay.excessCents,
@@ -710,7 +710,7 @@ export function planningAlerts(p: PlanningResult): InsightAlert[] {
       title: `Te deben ${formatCents(p.kpis.reimbursablePendingCents)} de ${p.kpis.reimbursablePendingCount} ${
         p.kpis.reimbursablePendingCount === 1 ? 'gasto compartido' : 'gastos compartidos'
       }`,
-      detail: 'Cuando llegue el Bizum o la transferencia, enlazalo como reembolso al gasto original.',
+      detail: 'Cuando llegue el Bizum o la transferencia, enlázalo como reembolso al gasto original.',
       route: '/movimientos',
       impactCents: p.kpis.reimbursablePendingCents,
     });

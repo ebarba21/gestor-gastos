@@ -67,19 +67,19 @@ function toSecurityError(error: unknown): SecurityError {
   };
   const mapped = map[code];
   const MESSAGES: Record<SecurityErrorCode, string> = {
-    WEBAUTHN_CANCELLED: 'Has cancelado la verificacion del passkey.',
-    WEBAUTHN_NOT_REGISTERED: 'Esa credencial no esta registrada.',
+    WEBAUTHN_CANCELLED: 'Has cancelado la verificación del passkey.',
+    WEBAUTHN_NOT_REGISTERED: 'Esa credencial no está registrada.',
     WEBAUTHN_ALREADY_REGISTERED: 'Este autenticador ya tiene un passkey registrado.',
-    WEBAUTHN_DISABLED: 'Los passkeys no estan activados en esta instalacion.',
+    WEBAUTHN_DISABLED: 'Los passkeys no están activados en esta instalación.',
   } as Record<SecurityErrorCode, string>;
   if (mapped) return new SecurityError(mapped, MESSAGES[mapped]);
 
   // NotAllowedError es el error DOM estandar cuando el usuario cancela el dialogo del
   // autenticador o este expira; el SDK lo puede propagar tal cual en vez de envolverlo.
   if (name === 'NotAllowedError') {
-    return new SecurityError('WEBAUTHN_CANCELLED', 'Has cancelado la verificacion del passkey.');
+    return new SecurityError('WEBAUTHN_CANCELLED', 'Has cancelado la verificación del passkey.');
   }
-  return new SecurityError('WEBAUTHN_UNKNOWN', 'No se pudo completar la operacion con el passkey.');
+  return new SecurityError('WEBAUTHN_UNKNOWN', 'No se pudo completar la operación con el passkey.');
 }
 
 // Nucleo puro sobre un cliente concreto (ya configurado con auth.experimental.passkey: true).
@@ -132,7 +132,7 @@ export function createWebAuthnService(client: AppSupabaseClient): WebAuthnServic
 // navegador (sin flag/soporte, no se toca el SDK ni navigator.credentials en absoluto).
 function requireService(): WebAuthnService {
   if (!isPasskeysFeatureEnabled()) {
-    throw new SecurityError('WEBAUTHN_DISABLED', 'Los passkeys no estan activados en esta instalacion.');
+    throw new SecurityError('WEBAUTHN_DISABLED', 'Los passkeys no están activados en esta instalación.');
   }
   if (!isWebAuthnSupported()) {
     throw new SecurityError('WEBAUTHN_UNSUPPORTED', 'Este navegador no soporta passkeys (WebAuthn).');
@@ -141,7 +141,7 @@ function requireService(): WebAuthnService {
   if (!client || !isSupabaseConfigured()) {
     throw new SecurityError(
       'WEBAUTHN_DISABLED',
-      'Los passkeys requieren una cuenta configurada en esta instalacion.',
+      'Los passkeys requieren una cuenta configurada en esta instalación.',
     );
   }
   return createWebAuthnService(client);

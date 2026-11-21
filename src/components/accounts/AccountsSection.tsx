@@ -183,7 +183,7 @@ export function AccountsSection() {
           deleting ? (
             <span>
               Vas a eliminar la cuenta <strong className="text-slate-100">{deleting.name}</strong>.
-              Si tiene movimientos no se podra eliminar: archivala para conservar el historico.
+              Si tiene movimientos no se podrá eliminar: archívala para conservar el histórico.
             </span>
           ) : null
         }

@@ -39,7 +39,7 @@ const OPERATOR_LABELS: Record<RuleCondition['operator'], string> = {
   eq: '=',
   between: 'entre',
   before: 'antes de',
-  after: 'despues de',
+  after: 'después de',
 };
 const TYPE_LABELS: Record<string, string> = {
   expense: 'Gasto',
@@ -84,7 +84,7 @@ function formatCondition(c: RuleCondition, maps: NameMaps): string {
 function formatAction(rule: Rule, maps: NameMaps): string {
   const parts: string[] = [];
   if (rule.action.setCategoryId) {
-    const cat = maps.categoryNames.get(rule.action.setCategoryId) ?? '(categoria)';
+    const cat = maps.categoryNames.get(rule.action.setCategoryId) ?? '(categoría)';
     const sub = rule.action.setSubcategoryId
       ? ` / ${maps.categoryNames.get(rule.action.setSubcategoryId) ?? '(sub)'}`
       : '';
@@ -94,9 +94,9 @@ function formatAction(rule: Rule, maps: NameMaps): string {
     const names = rule.action.addTagIds.map((id) => maps.tagNames.get(id) ?? '(etiqueta)');
     parts.push(`etiquetas: ${names.join(', ')}`);
   }
-  if (rule.action.setExcludedFromStats === true) parts.push('excluir de estadisticas');
-  if (rule.action.setExcludedFromStats === false) parts.push('incluir en estadisticas');
-  return parts.length > 0 ? parts.join(' · ') : '(sin accion)';
+  if (rule.action.setExcludedFromStats === true) parts.push('excluir de estadísticas');
+  if (rule.action.setExcludedFromStats === false) parts.push('incluir en estadísticas');
+  return parts.length > 0 ? parts.join(' · ') : '(sin acción)';
 }
 
 export function RulesSection() {
@@ -213,7 +213,7 @@ export function RulesSection() {
         <div>
           <h2 className="text-xl font-semibold text-slate-100">Reglas</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Autocategoriza tus movimientos. Se evaluan por prioridad (arriba = primero).
+            Autocategoriza tus movimientos. Se evalúan por prioridad (arriba = primero).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -250,7 +250,7 @@ export function RulesSection() {
         <EmptyState
           icon="⚙️"
           title="Sin reglas"
-          description="Crea una regla para categorizar automaticamente tus movimientos, o importalas desde un fichero."
+          description="Crea una regla para categorizar automáticamente tus movimientos, o impórtalas desde un fichero."
         />
       ) : (
         <div className="space-y-2">
@@ -373,7 +373,7 @@ export function RulesSection() {
           deleting ? (
             <span>
               Vas a eliminar la regla <strong className="text-slate-100">{deleting.name}</strong>.
-              Los movimientos que categorizo conservan su categoria actual (no se recalculan).
+              Los movimientos que categorizó conservan su categoría actual (no se recalculan).
             </span>
           ) : null
         }
@@ -390,7 +390,7 @@ export function RulesSection() {
         <div className="space-y-4">
           <p className="text-sm text-slate-300">
             Aplica todas las reglas activas a los movimientos ya existentes. Primero simula para
-            ver cuantos se veran afectados; nada se cambia hasta que confirmes.
+            ver cuántos se verán afectados; nada se cambia hasta que confirmes.
           </p>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
@@ -401,7 +401,7 @@ export function RulesSection() {
                 setSimulation(null);
               }}
             />
-            Recategorizar tambien los movimientos categorizados a mano
+            Recategorizar también los movimientos categorizados a mano
           </label>
           {!applyOverrideManual && (
             <p className="text-xs text-slate-500">
@@ -412,7 +412,7 @@ export function RulesSection() {
           {simulation && (
             <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 text-sm text-slate-300">
               <p>
-                Afectaria a <strong className="text-indigo-300">{simulation.changed}</strong> de{' '}
+                Afectaría a <strong className="text-indigo-300">{simulation.changed}</strong> de{' '}
                 {simulation.eligible} movimiento(s) elegibles.
               </p>
               {simulation.skippedManual > 0 && (

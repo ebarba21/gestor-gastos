@@ -70,7 +70,7 @@ describe('proyeccion de cierre', () => {
     const ins = computeInsights(input(txs));
     const alert = ins.alerts.find((a) => a.id === 'category-over-rest')!;
     // Llevas 250 (media a estas alturas 100) + lo que sueles gastar el resto del mes (100) = 350.
-    expect(alert.detail).toContain('cerraras el mes en unos 350,00');
+    expect(alert.detail).toContain('cerrarás el mes en unos 350,00');
     expect(alert.impactCents).toBe(15000);
     expect(ins.pace.projectedEndCents).not.toBeNull();
   });
@@ -81,7 +81,7 @@ describe('recordatorio de importacion', () => {
     const txs = [...monthlyHistory()];
     const ins = computeInsights(input(txs, { anchorISO: '2026-11-25', today: '2026-11-25' }));
     const alert = ins.alerts.find((a) => a.id === 'import-stale');
-    expect(alert?.title).toBe('Hace 36 dias que no importas Ibercaja');
+    expect(alert?.title).toBe('Hace 36 días que no importas Ibercaja');
     expect(alert?.route).toBe('/importar');
   });
 });

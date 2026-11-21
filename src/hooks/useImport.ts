@@ -40,7 +40,7 @@ export function useImport(): UseImport {
       setBatches(bts);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cargar la importacion.');
+      setError(e instanceof Error ? e.message : 'No se pudo cargar la importación.');
     } finally {
       setLoading(false);
     }

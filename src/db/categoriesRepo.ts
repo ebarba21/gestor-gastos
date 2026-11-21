@@ -15,11 +15,11 @@ async function assertValidParent(profileId: string, parentId: string | null): Pr
   const parent = await db.categories.get(parentId);
   assert(
     parent !== undefined && parent.profileId === profileId && isAlive(parent),
-    `La categoria padre ${parentId} no existe en el perfil.`,
+    `La categoría padre ${parentId} no existe en el perfil.`,
   );
   assert(
     parent!.parentId === null,
-    'Una subcategoria no puede colgar de otra subcategoria (un unico nivel en el MVP).',
+    'Una subcategoría no puede colgar de otra subcategoría (un único nivel en el MVP).',
   );
 }
 

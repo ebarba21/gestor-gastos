@@ -68,7 +68,7 @@ export function useDebts(): UseDebts {
         await fn(profileId, ...args);
         await reload();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'No se pudo completar la accion.');
+        setError(e instanceof Error ? e.message : 'No se pudo completar la acción.');
         throw e;
       }
     };

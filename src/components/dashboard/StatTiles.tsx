@@ -165,7 +165,7 @@ function NetSavingsBreakdown({ summary }: { summary: IncomeExpenseSummary }) {
           />
         ) : (
           <p className="rounded-lg border border-amber-900/50 bg-amber-950/30 px-2.5 py-2 text-[11px] leading-snug text-amber-200/90">
-            Este periodo invertiste {formatCents(investment)}, mas que tu ahorro neto
+            Este periodo invertiste {formatCents(investment)}, más que tu ahorro neto
             ({formatCents(netSavingsCents)}). La diferencia ({formatCents(investment - netSavingsCents)})
             sale de tu saldo de periodos anteriores.
           </p>
@@ -173,7 +173,7 @@ function NetSavingsBreakdown({ summary }: { summary: IncomeExpenseSummary }) {
         <LegendRow
           slice="investment"
           label="Invertido"
-          hint="Aportado a Inversion (sigue siendo tuyo)"
+          hint="Aportado a Inversión (sigue siendo tuyo)"
           cents={investment}
           share={shareOf(investment)}
         />
@@ -206,7 +206,7 @@ export function StatTiles({ summary, onOpenIncome, onOpenExpenses }: StatTilesPr
           label="Ingresos"
           value={formatCents(summary.incomeCents)}
           valueClass="text-emerald-400"
-          hint="Rendimiento del trabajo (nomina, paro)"
+          hint="Rendimiento del trabajo (nómina, paro)"
           onClick={onOpenIncome}
         />
         <Tile

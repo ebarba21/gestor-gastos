@@ -94,7 +94,7 @@ export function SavingsCumulativeChart({ months, onSelectMonth, activeMonth }: S
         />
         <Area
           type="monotone"
-          dataKey="Inversion"
+          dataKey="Inversión"
           name="Inversión"
           stackId="cum"
           stroke={colors.invested}

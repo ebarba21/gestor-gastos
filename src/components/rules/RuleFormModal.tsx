@@ -37,11 +37,11 @@ export function describeReprocess(
   result: { changed: number; blockedByPriority: number; skippedManual: number },
   enabled: boolean,
 ): string {
-  if (!enabled) return 'Regla creada (inactiva: no se ha aplicado a ningun movimiento).';
+  if (!enabled) return 'Regla creada (inactiva: no se ha aplicado a ningún movimiento).';
   const parts = [`Regla creada. ${result.changed} movimiento(s) recategorizados.`];
   if (result.blockedByPriority > 0) {
     parts.push(
-      `${result.blockedByPriority} casan pero los categoriza antes otra regla con mas prioridad.`,
+      `${result.blockedByPriority} casan pero los categoriza antes otra regla con más prioridad.`,
     );
   }
   if (result.skippedManual > 0) {
@@ -75,7 +75,7 @@ const OPERATOR_LABELS: Record<RuleConditionOperator, string> = {
   eq: 'igual a',
   between: 'entre',
   before: 'antes de',
-  after: 'despues de',
+  after: 'después de',
 };
 
 const TYPE_LABELS: Record<TransactionType, string> = {
@@ -369,7 +369,7 @@ export function RuleFormModal({
               enabledRules,
             );
           } catch {
-            showToast('Regla aplicada, pero no se pudieron generar las tareas de revision.', 'error');
+            showToast('Regla aplicada, pero no se pudieron generar las tareas de revisión.', 'error');
           }
         }
       }
@@ -505,7 +505,7 @@ export function RuleFormModal({
         <input
           type="text"
           value={c.value}
-          placeholder={c.operator === 'regex' ? 'patron regex' : 'texto'}
+          placeholder={c.operator === 'regex' ? 'patrón regex' : 'texto'}
           onChange={(e) => updateCondition(index, { value: e.target.value })}
           className={`${smallSelect} min-w-[8rem] flex-1`}
         />
@@ -620,21 +620,21 @@ export function RuleFormModal({
             onClick={addCondition}
             className="mt-2 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
           >
-            + Anadir condicion
+            + Añadir condición
           </button>
           {conditions.some((c) => c.field === 'amount') && (
             <p className="mt-1 text-[11px] text-slate-500">
-              Importes en euros. Los gastos son negativos (p. ej. -50 para un gasto de 50 euros). En el movil, usa el boton ± para poner el menos.
+              Importes en euros. Los gastos son negativos (p. ej. -50 para un gasto de 50 euros). En el móvil, usa el botón ± para poner el menos.
             </p>
           )}
         </div>
 
         {/* Accion */}
         <div className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-          <span className="text-sm font-medium text-slate-300">Accion</span>
+          <span className="text-sm font-medium text-slate-300">Acción</span>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs text-slate-400">Categoria</label>
+              <label className="block text-xs text-slate-400">Categoría</label>
               <select
                 value={categoryId}
                 onChange={(e) => {
@@ -644,7 +644,7 @@ export function RuleFormModal({
                 }}
                 className={inputClass}
               >
-                <option value="">Sin categoria</option>
+                <option value="">Sin categoría</option>
                 {rootCategories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -653,7 +653,7 @@ export function RuleFormModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-400">Subcategoria</label>
+              <label className="block text-xs text-slate-400">Subcategoría</label>
               <select
                 value={subcategoryId}
                 onChange={(e) => setSubcategoryId(e.target.value)}
@@ -672,7 +672,7 @@ export function RuleFormModal({
 
           {tags.length > 0 && (
             <div>
-              <span className="block text-xs text-slate-400">Anadir etiquetas</span>
+              <span className="block text-xs text-slate-400">Añadir etiquetas</span>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {tags.map((t) => (
                   <button
@@ -695,15 +695,15 @@ export function RuleFormModal({
           )}
 
           <div>
-            <label className="block text-xs text-slate-400">Exclusion de estadisticas</label>
+            <label className="block text-xs text-slate-400">Exclusión de estadísticas</label>
             <select
               value={excludeMode}
               onChange={(e) => setExcludeMode(e.target.value as ExcludeMode)}
               className={inputClass}
             >
               <option value="keep">No cambiar</option>
-              <option value="exclude">Excluir de estadisticas</option>
-              <option value="include">Incluir en estadisticas</option>
+              <option value="exclude">Excluir de estadísticas</option>
+              <option value="include">Incluir en estadísticas</option>
             </select>
           </div>
         </div>
@@ -749,7 +749,7 @@ export function RuleFormModal({
           </div>
           {simCount !== null && (
             <p className="mt-2 text-sm text-slate-300">
-              Afectaria a <strong className="text-indigo-300">{simCount}</strong> movimiento(s)
+              Afectaría a <strong className="text-indigo-300">{simCount}</strong> movimiento(s)
               existentes.
             </p>
           )}

@@ -94,7 +94,7 @@ function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
 // Firma ECDSA en DER (lo que devuelve WebAuthn) -> r||s de 64 bytes (lo que espera WebCrypto).
 export function derEcdsaToRaw(der: Uint8Array): Uint8Array {
   const fail = (): never => {
-    throw new SecurityError('BIOMETRIC_INVALID', 'La firma del autenticador no es valida.');
+    throw new SecurityError('BIOMETRIC_INVALID', 'La firma del autenticador no es válida.');
   };
   if (der[0] !== 0x30) fail();
   let offset = 2;
@@ -121,13 +121,13 @@ function mapCeremonyError(error: unknown): SecurityError {
   if (name === 'NotAllowedError' || name === 'AbortError') {
     return new SecurityError(
       'BIOMETRIC_CANCELLED',
-      'No se completo la verificacion. Vuelve a intentarlo o usa tu PIN.',
+      'No se completó la verificación. Vuelve a intentarlo o usa tu PIN.',
     );
   }
   if (name === 'SecurityError') {
     return new SecurityError(
       'BIOMETRIC_UNAVAILABLE',
-      'Este navegador no permite la biometria en esta direccion.',
+      'Este navegador no permite la biometría en esta dirección.',
     );
   }
   if (name === 'NotSupportedError') {
@@ -136,7 +136,7 @@ function mapCeremonyError(error: unknown): SecurityError {
       'Este dispositivo no ofrece Face ID, huella ni Windows Hello para la web.',
     );
   }
-  return new SecurityError('BIOMETRIC_INVALID', 'No se pudo completar la verificacion biometrica.');
+  return new SecurityError('BIOMETRIC_INVALID', 'No se pudo completar la verificación biométrica.');
 }
 
 async function deriveKeyFromPrf(subtle: SubtleCrypto, prfOutput: Uint8Array, salt: Uint8Array): Promise<CryptoKey> {
@@ -166,7 +166,7 @@ async function decryptPin(subtle: SubtleCrypto, key: CryptoKey, config: Biometri
   } catch {
     throw new SecurityError(
       'BIOMETRIC_INVALID',
-      'No se pudo recuperar el acceso con biometria. Usa tu PIN y vuelve a activarla.',
+      'No se pudo recuperar el acceso con biometría. Usa tu PIN y vuelve a activarla.',
     );
   }
 }
@@ -180,7 +180,7 @@ async function verifyAssertion(
   challenge: Uint8Array,
 ): Promise<void> {
   const invalid = (detail: string): never => {
-    throw new SecurityError('BIOMETRIC_INVALID', `Verificacion biometrica no valida (${detail}).`);
+    throw new SecurityError('BIOMETRIC_INVALID', `Verificación biométrica no válida (${detail}).`);
   };
   if (!bytesEqual(toBytes(credential.rawId), base64ToBytes(config.credentialId))) invalid('credencial');
 
@@ -203,7 +203,7 @@ async function verifyAssertion(
   );
   if (!bytesEqual(authData.slice(0, 32), rpIdHash)) invalid('dominio');
   const flags = authData[32];
-  if ((flags & UP_FLAG) === 0 || (flags & UV_FLAG) === 0) invalid('sin verificacion de usuario');
+  if ((flags & UP_FLAG) === 0 || (flags & UV_FLAG) === 0) invalid('sin verificación de usuario');
 
   if (config.publicKeySpki && (config.publicKeyAlg === -7 || config.publicKeyAlg === -257)) {
     const clientHash = new Uint8Array(await deps.subtle.digest('SHA-256', clientDataBytes as BufferSource));
@@ -242,7 +242,7 @@ async function assert(
           : {}),
       },
     });
-    if (!result) throw new SecurityError('BIOMETRIC_CANCELLED', 'No se completo la verificacion.');
+    if (!result) throw new SecurityError('BIOMETRIC_CANCELLED', 'No se completó la verificación.');
     credential = result as PublicKeyCredential;
   } catch (error) {
     throw mapCeremonyError(error);
@@ -282,7 +282,7 @@ export async function enrollBiometricUnlock(pin: string, deps: BiometricDeps): P
         extensions: { prf: { eval: { first: prfSalt as BufferSource } } } as AuthenticationExtensionsClientInputs,
       },
     });
-    if (!result) throw new SecurityError('BIOMETRIC_CANCELLED', 'No se completo la verificacion.');
+    if (!result) throw new SecurityError('BIOMETRIC_CANCELLED', 'No se completó la verificación.');
     credential = result as PublicKeyCredential;
   } catch (error) {
     throw mapCeremonyError(error);
@@ -343,7 +343,7 @@ export async function unlockWithBiometrics(config: BiometricUnlockConfig, deps: 
   if (config.rpId !== deps.rpId) {
     throw new SecurityError(
       'BIOMETRIC_INVALID',
-      'La biometria se activo en otra direccion de la app. Usa tu PIN y vuelve a activarla.',
+      'La biometría se activo en otra dirección de la app. Usa tu PIN y vuelve a activarla.',
     );
   }
   const { prfOutput } = await assert(deps, config, config.mode === 'prf');
@@ -352,7 +352,7 @@ export async function unlockWithBiometrics(config: BiometricUnlockConfig, deps: 
     if (!prfOutput) {
       throw new SecurityError(
         'BIOMETRIC_INVALID',
-        'El autenticador no devolvio la clave de desbloqueo. Usa tu PIN y vuelve a activar la biometria.',
+        'El autenticador no devolvió la clave de desbloqueo. Usa tu PIN y vuelve a activar la biometría.',
       );
     }
     key = await deriveKeyFromPrf(deps.subtle, prfOutput, base64ToBytes(config.prfSalt));
@@ -361,7 +361,7 @@ export async function unlockWithBiometrics(config: BiometricUnlockConfig, deps: 
     if (!key) {
       throw new SecurityError(
         'BIOMETRIC_INVALID',
-        'Falta la clave local de desbloqueo. Usa tu PIN y vuelve a activar la biometria.',
+        'Falta la clave local de desbloqueo. Usa tu PIN y vuelve a activar la biometría.',
       );
     }
   }
@@ -374,5 +374,5 @@ export function biometricLabel(userAgent: string = typeof navigator !== 'undefin
   if (/Macintosh|Mac OS X/i.test(userAgent)) return 'Touch ID';
   if (/Windows/i.test(userAgent)) return 'Windows Hello';
   if (/Android/i.test(userAgent)) return 'huella o cara';
-  return 'biometria';
+  return 'biometría';
 }

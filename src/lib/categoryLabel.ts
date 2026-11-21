@@ -2,7 +2,7 @@
 // datos: recibe las categorias del perfil ya cargadas, indexadas por id.
 import type { Category } from '../db/schema';
 
-export const DELETED_CATEGORY_LABEL = 'Categoria eliminada';
+export const DELETED_CATEGORY_LABEL = 'Categoría eliminada';
 
 // Devuelve "Raiz / Subcategoria", "Raiz" o null si el movimiento no tiene categoria.
 // Tolera datos incoherentes: si categoryId apunta a una subcategoria se usa su padre como raiz,

@@ -36,7 +36,7 @@ describe('RequireAuth (proteccion de rutas privadas)', () => {
   it('muestra un estado de carga mientras se resuelve la sesion', () => {
     mockStatus = 'loading';
     renderGuarded();
-    expect(screen.getByText(/comprobando sesion/i)).toBeInTheDocument();
+    expect(screen.getByText(/comprobando sesión/i)).toBeInTheDocument();
   });
 
   it('renderiza el contenido cuando hay sesion', () => {

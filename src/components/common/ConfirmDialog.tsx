@@ -48,7 +48,7 @@ export function ConfirmDialog({ open, onClose, title, message, buttons }: Confir
       await button.onClick();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'La operacion ha fallado.');
+      setError(e instanceof Error ? e.message : 'La operación ha fallado.');
       setBusy(false);
     }
   }

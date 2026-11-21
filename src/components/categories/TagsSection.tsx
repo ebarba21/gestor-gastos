@@ -43,7 +43,7 @@ export function TagsSection() {
         <EmptyState
           icon="🏷️"
           title="Sin etiquetas"
-          description="Las etiquetas permiten clasificar movimientos de forma transversal a las categorias."
+          description="Las etiquetas permiten clasificar movimientos de forma transversal a las categorías."
         />
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -101,8 +101,8 @@ export function TagsSection() {
               {usage === null
                 ? '...'
                 : usage === 0
-                  ? '. No esta asignada a ningun movimiento.'
-                  : `. Se quitara de ${usage} movimiento${usage === 1 ? '' : 's'} (no se borran los movimientos).`}
+                  ? '. No está asignada a ningún movimiento.'
+                  : `. Se quitará de ${usage} movimiento${usage === 1 ? '' : 's'} (no se borran los movimientos).`}
             </span>
           ) : null
         }

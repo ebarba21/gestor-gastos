@@ -34,7 +34,7 @@ export function useReconciliation(): UseReconciliation {
       setHistory(recent);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cargar la conciliacion.');
+      setError(e instanceof Error ? e.message : 'No se pudo cargar la conciliación.');
     } finally {
       setLoading(false);
     }

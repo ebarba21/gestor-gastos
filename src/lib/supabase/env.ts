@@ -82,7 +82,7 @@ export function resolveSupabaseConfig(
   if (url.length === 0) {
     return {
       status: 'invalid',
-      reason: `Falta ${SUPABASE_URL_ENV}. Define tambien la URL del proyecto, no solo la clave.`,
+      reason: `Falta ${SUPABASE_URL_ENV}. Define también la URL del proyecto, no solo la clave.`,
     };
   }
   if (publishableKey.length === 0) {
@@ -94,7 +94,7 @@ export function resolveSupabaseConfig(
   if (!isValidUrl(url)) {
     return {
       status: 'invalid',
-      reason: `${SUPABASE_URL_ENV} no es una URL https valida: "${url}".`,
+      reason: `${SUPABASE_URL_ENV} no es una URL https válida: "${url}".`,
     };
   }
 

@@ -51,7 +51,7 @@ export function pickDefaultColor(existingCount: number): string {
 export function normalizeProfileName(name: string): string {
   const trimmed = (name ?? '').trim().replace(/\s+/g, ' ');
   if (trimmed.length === 0) {
-    throw new ValidationError('El nombre del perfil no puede estar vacio.');
+    throw new ValidationError('El nombre del perfil no puede estar vacío.');
   }
   if (trimmed.length > MAX_PROFILE_NAME_LENGTH) {
     throw new ValidationError(

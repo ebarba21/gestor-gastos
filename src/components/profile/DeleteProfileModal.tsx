@@ -53,10 +53,10 @@ export function DeleteProfileModal({ open, onClose, profile }: DeleteProfileModa
         <p className="text-sm text-slate-300">
           Vas a eliminar el perfil <strong className="text-slate-100">{profile.name}</strong>. Se
           borraran de forma permanente <strong>todos sus datos</strong>: movimientos, cuentas,
-          categorias, etiquetas, reglas, presupuestos e importaciones.
+          categorías, etiquetas, reglas, presupuestos e importaciones.
         </p>
         <p className="rounded-lg border border-red-900 bg-red-950/50 px-3 py-2 text-sm text-red-300">
-          Esta accion no se puede deshacer.
+          Esta acción no se puede deshacer.
         </p>
         <div>
           <label htmlFor="confirm-name" className="block text-sm text-slate-300">

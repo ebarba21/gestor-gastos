@@ -152,7 +152,7 @@ describe('ruleImportService.buildPreview', () => {
     );
     expect(preview.rows[0].status).toBe('error');
     expect(preview.rows[0].rule).toBeNull();
-    expect(preview.rows[0].errors.join(' ')).toMatch(/Categoria no encontrada/);
+    expect(preview.rows[0].errors.join(' ')).toMatch(/Categoría no encontrada/);
   });
 
   it('marca error si una etiqueta no existe', () => {

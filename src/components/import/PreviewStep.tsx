@@ -43,7 +43,7 @@ const STATUS_LABELS: Record<Exclude<PreviewRow['duplicateStatus'], 'unique'>, st
   exact: 'Coincidencia exacta',
   strongNormalized: 'Coincidencia probable',
   possible: 'Posible duplicado',
-  weak: 'Coincidencia debil',
+  weak: 'Coincidencia débil',
   pendingReplaced: 'Sustituye a un pendiente',
 };
 
@@ -75,7 +75,7 @@ export function PreviewStep({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold text-slate-100">Previsualizacion</h3>
+        <h3 className="text-lg font-semibold text-slate-100">Previsualización</h3>
         <button
           type="button"
           onClick={onBack}
@@ -95,13 +95,13 @@ export function PreviewStep({
       </div>
       {preview.categoriesToCreate && preview.categoriesToCreate.length > 0 && (
         <p className="rounded-lg border border-indigo-800/60 bg-indigo-950/20 px-3 py-2 text-xs text-indigo-300">
-          Al importar se crearan estas categorias que trae el fichero:{' '}
+          Al importar se crearán estas categorías que trae el fichero:{' '}
           {preview.categoriesToCreate.join(', ')}.
         </p>
       )}
       <p className="text-xs text-slate-500">
-        La confianza mostrada es orientativa (heuristica), no una probabilidad real. Nunca se
-        borra ni se sustituye nada sin tu confirmacion explicita.
+        La confianza mostrada es orientativa (heurística), no una probabilidad real. Nunca se
+        borra ni se sustituye nada sin tu confirmación explícita.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -110,7 +110,7 @@ export function PreviewStep({
           onClick={onIncludeAllValid}
           className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800"
         >
-          Seleccionar todas las validas
+          Seleccionar todas las válidas
         </button>
         <button
           type="button"
@@ -159,7 +159,7 @@ export function PreviewStep({
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <span className="text-sm text-slate-400">
-          Se aplicaran <strong className="text-slate-100">{selectedCount}</strong> filas.
+          Se aplicarán <strong className="text-slate-100">{selectedCount}</strong> filas.
         </span>
         <button
           type="button"
@@ -249,7 +249,7 @@ function PreviewRowView({
               value={row.decision ?? 'import'}
               onChange={(e) => onDecisionChange(row.rowIndex, e.target.value as DuplicateAction)}
               className="rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-xs text-slate-200"
-              aria-label={`Decision para la fila ${row.rowIndex + 1}`}
+              aria-label={`Decisión para la fila ${row.rowIndex + 1}`}
             >
               {row.availableDecisions.map((d) => (
                 <option key={d} value={d}>
@@ -261,7 +261,7 @@ function PreviewRowView({
               type="button"
               onClick={() => onApplyToEquivalents(row.rowIndex)}
               className="text-xs text-slate-500 underline decoration-dotted hover:text-slate-300"
-              title="Aplica esta seleccion e decision a todas las filas con el mismo nivel de coincidencia"
+              title="Aplica esta selección e decisión a todas las filas con el mismo nivel de coincidencia"
             >
               Aplicar a equivalentes
             </button>

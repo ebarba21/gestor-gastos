@@ -17,7 +17,7 @@ import './index.css';
 
 const rootElementOrNull = document.getElementById('root');
 if (!rootElementOrNull) {
-  throw new Error('No se encontro el elemento raiz #root en el DOM.');
+  throw new Error('No se encontró el elemento raíz #root en el DOM.');
 }
 const rootElement = rootElementOrNull;
 
@@ -69,10 +69,10 @@ function renderBootError(): void {
   createRoot(rootElement).render(
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617', color: '#f1f5f9', padding: '1.5rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
       <div style={{ maxWidth: '28rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>No se pudo iniciar la aplicacion</h1>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>No se pudo iniciar la aplicación</h1>
         <p style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#94a3b8' }}>
-          El almacenamiento local (IndexedDB) no esta disponible en este navegador o esta bloqueado
-          (por ejemplo, en algunos modos de navegacion privada). Prueba a recargar la pagina, salir
+          El almacenamiento local (IndexedDB) no está disponible en este navegador o está bloqueado
+          (por ejemplo, en algunos modos de navegación privada). Prueba a recargar la página, salir
           del modo privado, o usar otro navegador.
         </p>
       </div>
@@ -98,7 +98,7 @@ hydrateSecurityAtBoot()
     // Solo el mensaje corto, nunca el objeto de error completo (podria arrastrar detalles
     // internos innecesarios a la consola de produccion).
     console.error(
-      'No se pudo iniciar la aplicacion (hydrateSecurityAtBoot):',
+      'No se pudo iniciar la aplicación (hydrateSecurityAtBoot):',
       error instanceof Error ? error.message : 'error desconocido',
     );
     renderBootError();

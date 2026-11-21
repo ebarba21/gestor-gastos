@@ -164,7 +164,7 @@ export function SecurityProvider({ children }: { children: ReactNode }) {
     // (p. ej. desde la consola) con los passkeys desactivados para este dispositivo, se rechaza
     // aqui tambien, sin llegar a tocar el SDK/navigator.credentials.
     if (!security.passkeysEnabled || !isPasskeysFeatureEnabled() || !isWebAuthnSupported()) {
-      throw new SecurityError('WEBAUTHN_DISABLED', 'Los passkeys no estan habilitados para desbloquear.');
+      throw new SecurityError('WEBAUTHN_DISABLED', 'Los passkeys no están habilitados para desbloquear.');
     }
     const ok = await webauthnService.signInWithPasskey();
     if (ok) setLockStatus('unlocked');

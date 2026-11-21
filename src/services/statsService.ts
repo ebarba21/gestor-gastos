@@ -1325,7 +1325,7 @@ export function computeSavingsInvestment(
 ): SavingsInvestmentAnalysis {
   // Contrato explicito: la ventana necesita al menos un mes (sin errores silenciosos).
   if (monthsBack < 1) {
-    throw new Error(`La ventana de la analitica de ahorro requiere al menos 1 mes (recibido: ${monthsBack}).`);
+    throw new Error(`La ventana de la analítica de ahorro requiere al menos 1 mes (recibido: ${monthsBack}).`);
   }
   const keys = monthKeysEndingAt(anchorISO, monthsBack);
   const first = keys[0]!;

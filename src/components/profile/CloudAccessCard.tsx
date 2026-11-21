@@ -36,12 +36,12 @@ export function CloudAccessCard() {
       <section className={CARD} aria-label="Tu cuenta">
         <h2 className="text-base font-semibold text-slate-100">Tu cuenta</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Con cuenta, tus datos se guardan tambien en una copia privada en la nube y los ves en
-          todos tus dispositivos. Solo tu puedes verlos.
+          Con cuenta, tus datos se guardan también en una copia privada en la nube y los ves en
+          todos tus dispositivos. Solo tú puedes verlos.
         </p>
         {!showLogin ? (
           <button type="button" className={`${BTN_PRIMARY} mt-4`} onClick={() => setShowLogin(true)}>
-            Iniciar sesion o crear cuenta
+            Iniciar sesión o crear cuenta
           </button>
         ) : (
           <div className="mt-4">
@@ -65,12 +65,12 @@ export function CloudAccessCard() {
       await reload();
       setMessage(
         result.profiles === 0
-          ? 'Tu cuenta aun no tiene datos guardados. Crea tu perfil arriba: quedara vinculado a tu cuenta.'
+          ? 'Tu cuenta aún no tiene datos guardados. Crea tu perfil arriba: quedará vinculado a tu cuenta.'
           : `Listo: ${result.profiles} perfil(es) descargado(s). Elige uno arriba.`,
       );
     } catch (e) {
       setMessage(
-        `No se pudieron descargar tus datos: ${e instanceof Error ? e.message : 'error desconocido'}. Comprueba la conexion e intentalo de nuevo.`,
+        `No se pudieron descargar tus datos: ${e instanceof Error ? e.message : 'error desconocido'}. Comprueba la conexión e inténtalo de nuevo.`,
       );
     } finally {
       setBusy(false);
@@ -81,10 +81,10 @@ export function CloudAccessCard() {
     <section className={CARD} aria-label="Tu cuenta">
       <h2 className="text-base font-semibold text-slate-100">Tu cuenta</h2>
       <p className="mt-1 break-words text-sm text-slate-400">
-        Sesion iniciada como <span className="text-slate-200">{auth.user?.email ?? 'tu cuenta'}</span>.
+        Sesión iniciada como <span className="text-slate-200">{auth.user?.email ?? 'tu cuenta'}</span>.
         {hasCloudProfiles
           ? ' Tus perfiles sincronizados aparecen arriba.'
-          : ' Si ya usabas la app en otro dispositivo, descarga aqui tus datos. Si es tu primera vez, crea tu perfil arriba: quedara vinculado a tu cuenta.'}
+          : ' Si ya usabas la app en otro dispositivo, descarga aquí tus datos. Si es tu primera vez, crea tu perfil arriba: quedará vinculado a tu cuenta.'}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         {!hasCloudProfiles && (
@@ -98,7 +98,7 @@ export function CloudAccessCard() {
           disabled={busy}
           onClick={() => void auth.signOut()}
         >
-          Cerrar sesion
+          Cerrar sesión
         </button>
       </div>
       {message && <p className="mt-3 text-sm text-slate-300">{message}</p>}

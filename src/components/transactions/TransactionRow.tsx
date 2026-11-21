@@ -64,7 +64,7 @@ export function TransactionRow({
   // Un gasto normal no es una alarma: texto neutro con su signo. Las entradas, en verde. El
   // rojo se reserva para incidencias reales (exceso, saldo negativo, duplicados).
   const amountClass = tx.amountCents > 0 ? 'text-emerald-400' : 'text-slate-200';
-  const categoryLabel = tx.categoryId ? (categoryNames.get(tx.categoryId) ?? '—') : 'Sin categoria';
+  const categoryLabel = tx.categoryId ? (categoryNames.get(tx.categoryId) ?? '—') : 'Sin categoría';
   const subLabel = tx.subcategoryId ? categoryNames.get(tx.subcategoryId) : undefined;
   const accountLabel = accountNames.get(tx.accountId) ?? '—';
   const merchantLabel = tx.merchantId ? merchantNames.get(tx.merchantId) : undefined;

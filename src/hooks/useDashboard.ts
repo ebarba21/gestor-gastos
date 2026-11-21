@@ -124,7 +124,7 @@ export function useDashboard(): UseDashboard {
         setAccounts(accs);
         setMerchants(merchs);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'No se pudieron cargar las categorias.');
+        if (!cancelled) setError(e instanceof Error ? e.message : 'No se pudieron cargar las categorías.');
       }
     })();
     return () => {
@@ -140,7 +140,7 @@ export function useDashboard(): UseDashboard {
       if (period === null) {
         // Rango personalizado invalido: no se calcula nada, se avisa sin romper la vista.
         setData(null);
-        setError('El rango personalizado no es valido: la fecha inicial es posterior a la final.');
+        setError('El rango personalizado no es válido: la fecha inicial es posterior a la final.');
         return;
       }
       const dashboard = await statsService.computeDashboard(profileId, {

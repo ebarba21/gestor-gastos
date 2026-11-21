@@ -40,18 +40,18 @@ export function validatePlanningPatch(patch: Partial<PlanningSettings>): Partial
   const out: Partial<PlanningSettings> = {};
   if (patch.payDay !== undefined) {
     if (patch.payDay !== null && (!Number.isInteger(patch.payDay) || patch.payDay < 1 || patch.payDay > 31)) {
-      throw new ValidationError('El dia de cobro debe ser un numero entre 1 y 31.');
+      throw new ValidationError('El día de cobro debe ser un número entre 1 y 31.');
     }
     out.payDay = patch.payDay;
   }
   if (patch.safetyBufferCents !== undefined) {
     assertCents(patch.safetyBufferCents);
-    if (patch.safetyBufferCents < 0) throw new ValidationError('El colchon no puede ser negativo.');
+    if (patch.safetyBufferCents < 0) throw new ValidationError('El colchón no puede ser negativo.');
     out.safetyBufferCents = patch.safetyBufferCents;
   }
   if (patch.budgetCycle !== undefined) {
     if (patch.budgetCycle !== 'calendar' && patch.budgetCycle !== 'payday') {
-      throw new ValidationError('Periodo de presupuestos no valido.');
+      throw new ValidationError('Periodo de presupuestos no válido.');
     }
     out.budgetCycle = patch.budgetCycle;
   }
@@ -78,7 +78,7 @@ export const planningSettingsService = {
       const current = await planningSettingsService.get(profileId);
       const payDay = clean.payDay !== undefined ? clean.payDay : current.payDay;
       if (payDay === null) {
-        throw new ValidationError('Para usar el periodo de nomina a nomina indica antes tu dia de cobro.');
+        throw new ValidationError('Para usar el periodo de nómina a nómina indica antes tu día de cobro.');
       }
     }
     const updated = await settingsRepo.update(profileId, clean);

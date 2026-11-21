@@ -22,7 +22,7 @@ export function LockGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (lock?.decryptFailure && toast) {
       toast.showToast(
-        'No se pudo leer tu sesion de cuenta guardada en este dispositivo. Inicia sesion de nuevo si quieres sincronizar; tus datos locales estan intactos.',
+        'No se pudo leer tu sesión de cuenta guardada en este dispositivo. Inicia sesión de nuevo si quieres sincronizar; tus datos locales están intactos.',
         'error',
       );
       lock.clearDecryptFailure();

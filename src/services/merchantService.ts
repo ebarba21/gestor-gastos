@@ -53,7 +53,7 @@ export function compileAliasRegex(pattern: string): RegExp {
     return new RegExp(pattern, 'i');
   } catch (e) {
     throw new ValidationError(
-      `Expresion regular de alias invalida: ${e instanceof Error ? e.message : String(e)}.`,
+      `Expresión regular de alias inválida: ${e instanceof Error ? e.message : String(e)}.`,
     );
   }
 }
@@ -206,7 +206,7 @@ function patchFromMatch(tx: Transaction, result: MerchantMatchResult): Transacti
 export function normalizeMerchantName(name: string): string {
   const trimmed = (name ?? '').trim().replace(/\s+/g, ' ');
   if (trimmed.length === 0) {
-    throw new ValidationError('El nombre del comercio no puede estar vacio.');
+    throw new ValidationError('El nombre del comercio no puede estar vacío.');
   }
   if (trimmed.length > MAX_MERCHANT_NAME_LENGTH) {
     throw new ValidationError(
@@ -219,7 +219,7 @@ export function normalizeMerchantName(name: string): string {
 export function normalizeAliasText(raw: string): string {
   const trimmed = (raw ?? '').trim();
   if (trimmed.length === 0) {
-    throw new ValidationError('El alias no puede estar vacio.');
+    throw new ValidationError('El alias no puede estar vacío.');
   }
   if (trimmed.length > MAX_ALIAS_LENGTH) {
     throw new ValidationError(`El alias no puede superar ${MAX_ALIAS_LENGTH} caracteres.`);

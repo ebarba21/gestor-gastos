@@ -118,14 +118,14 @@ export function DashboardSection() {
     filter === null
       ? null
       : filter.categoryId === null
-        ? 'Sin categoria'
-        : categoryNames.get(filter.categoryId) ?? 'Categoria';
+        ? 'Sin categoría'
+        : categoryNames.get(filter.categoryId) ?? 'Categoría';
 
   // En el movil la portada se divide en "Hoy" (decidir) y "Analisis" (entender); en el PC se
   // muestran las dos, "Hoy" primero.
   const showToday = !isMobile || view === 'today';
   const showAnalysis = !isMobile || view === 'analysis';
-  const catName = (id: string | null) => (id === null ? 'Sin categoria' : categoryNames.get(id) ?? 'Categoria');
+  const catName = (id: string | null) => (id === null ? 'Sin categoría' : categoryNames.get(id) ?? 'Categoría');
   const atRisk = insights?.pace.isCurrentMonth ? insights.categories.filter((c) => c.status === 'over').slice(0, 3) : [];
   const usefulIds = new Set(feedback.filter((f) => f.useful === true).map((f) => f.alertId));
   const onFeedback = (id: string, kind: AlertFeedback) => void giveFeedback(id, kind);
@@ -145,7 +145,7 @@ export function DashboardSection() {
               onClick={() => setView(v)}
               className={`rounded-md py-1.5 font-medium ${view === v ? 'bg-slate-700 text-slate-100' : 'text-slate-400'}`}
             >
-              {v === 'today' ? 'Hoy' : 'Analisis'}
+              {v === 'today' ? 'Hoy' : 'Análisis'}
             </button>
           ))}
         </div>
@@ -165,7 +165,7 @@ export function DashboardSection() {
           )}
           <div className="grid gap-4 lg:grid-cols-2">
             <Card
-              title="Necesita atencion"
+              title="Necesita atención"
               subtitle={
                 insights && insights.health.openReviewCount > 0
                   ? `${insights.health.openReviewCount} tareas abiertas en la bandeja`
@@ -182,13 +182,13 @@ export function DashboardSection() {
               />
             </Card>
             {planning && (
-              <Card title="Proximos 14 dias" subtitle="Recibos e ingresos esperados y el saldo que quedara">
+              <Card title="Próximos 14 días" subtitle="Recibos e ingresos esperados y el saldo que quedará">
                 <UpcomingWithBalanceCard forecast={planning.forecast} bufferCents={planning.safe.bufferCents} />
               </Card>
             )}
           </div>
           {atRisk.length > 0 && (
-            <Card title="Categorias en riesgo" subtitle="Por encima de lo que sueles llevar a estas alturas">
+            <Card title="Categorías en riesgo" subtitle="Por encima de lo que sueles llevar a estas alturas">
               <CategoryBulletsCard
                 bullets={atRisk}
                 categoryNames={categoryNames}
@@ -203,7 +203,7 @@ export function DashboardSection() {
               onClick={() => setView('analysis')}
               className="w-full rounded-lg border border-slate-700 py-2 text-sm text-slate-300"
             >
-              Ver el analisis completo
+              Ver el análisis completo
             </button>
           )}
         </div>
@@ -211,11 +211,11 @@ export function DashboardSection() {
 
       {showAnalysis && (
       <>
-      {!isMobile && <h3 className="mt-8 text-lg font-semibold text-slate-100">Analisis</h3>}
+      {!isMobile && <h3 className="mt-8 text-lg font-semibold text-slate-100">Análisis</h3>}
       <p className="mt-1 hidden text-sm text-slate-400 sm:block">
-        Metricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
-        cuentan por sus lineas y los reembolsos reducen el gasto. Pulsa Ingresos o Gastos para ver
-        sus movimientos, una categoria para filtrar el resto, y un mes en los graficos para ver su
+        Métricas del perfil activo. Excluye transferencias y movimientos excluidos; los splits
+        cuentan por sus líneas y los reembolsos reducen el gasto. Pulsa Ingresos o Gastos para ver
+        sus movimientos, una categoría para filtrar el resto, y un mes en los gráficos para ver su
         resumen y filtrar el dashboard por ese mes.
       </p>
       <div className="mt-4">
@@ -271,7 +271,7 @@ export function DashboardSection() {
           <EmptyState
             icon="🗓️"
             title="Ajusta el periodo"
-            description="Selecciona un mes o un rango de fechas valido para ver tus metricas."
+            description="Selecciona un mes o un rango de fechas válido para ver tus métricas."
           />
         </div>
       ) : !data.hasData ? (
@@ -279,7 +279,7 @@ export function DashboardSection() {
           <EmptyState
             icon="📊"
             title="Sin datos en este periodo"
-            description="No hay movimientos que cuenten en estadisticas en el periodo seleccionado. Prueba otro mes o importa un extracto."
+            description="No hay movimientos que cuenten en estadísticas en el periodo seleccionado. Prueba otro mes o importa un extracto."
           />
         </div>
       ) : (
@@ -294,7 +294,7 @@ export function DashboardSection() {
               <div className="grid gap-6 lg:grid-cols-2">
                 <PaceCard pace={insights.pace} health={insights.health} onOpenWaterfall={scrollToWaterfall} />
                 {insights.variance ? (
-                  <Card title="Frente al mes pasado" subtitle="Que categorias explican la diferencia a estas alturas">
+                  <Card title="Frente al mes pasado" subtitle="Que categorías explican la diferencia a estas alturas">
                     <VarianceCard variance={insights.variance} catName={catName} onSelectCategory={toggleCategoryFilter} />
                   </Card>
                 ) : (
@@ -303,10 +303,10 @@ export function DashboardSection() {
               </div>
               {planning && (
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <Card title="Prevision de saldo" subtitle="Lo que tendras en tus cuentas si nada cambia">
+                  <Card title="Previsión de saldo" subtitle="Lo que tendrás en tus cuentas si nada cambia">
                     <BalanceForecastCard forecast={planning.forecast} bufferCents={planning.safe.bufferCents} />
                   </Card>
-                  <Card title="Indicadores" subtitle="Resiliencia y ahorro, cada uno con su calculo">
+                  <Card title="Indicadores" subtitle="Resiliencia y ahorro, cada uno con su cálculo">
                     <PlanningKpisCard kpis={planning.kpis} />
                   </Card>
                 </div>
@@ -341,7 +341,7 @@ export function DashboardSection() {
           </div>
 
           <Card
-            title="Evolucion mensual"
+            title="Evolución mensual"
             subtitle="Ingresos, gasto neto y ahorro por mes. Pulsa un mes para ver su resumen y filtrar el dashboard por ese mes"
           >
             <MonthlyEvolutionChart
@@ -352,7 +352,7 @@ export function DashboardSection() {
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title="Gasto por categoria" subtitle="Pulsa una categoria para filtrar el resto">
+            <Card title="Gasto por categoría" subtitle="Pulsa una categoría para filtrar el resto">
               <CategorySpendChart
                 byCategory={data.byCategory}
                 categoryNames={categoryNames}

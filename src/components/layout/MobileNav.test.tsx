@@ -18,15 +18,15 @@ function renderAt(path: string) {
 describe('MobileNav', () => {
   it('muestra las pestanas de uso diario y el boton Mas', () => {
     renderAt('/');
-    const nav = screen.getByRole('navigation', { name: 'Navegacion principal' });
+    const nav = screen.getByRole('navigation', { name: 'Navegación principal' });
     for (const label of ['Inicio', 'Movimientos', 'Presupuestos', 'Bandeja']) {
       expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument();
     }
-    expect(within(nav).getByRole('link', { name: 'Anadir movimiento' })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: 'Añadir movimiento' })).toHaveAttribute(
       'href',
       '/movimientos?nuevo=1',
     );
-    expect(within(nav).getByRole('button', { name: 'Mas' })).toHaveAttribute(
+    expect(within(nav).getByRole('button', { name: 'Más' })).toHaveAttribute(
       'aria-expanded',
       'false',
     );
@@ -35,7 +35,7 @@ describe('MobileNav', () => {
   it('el panel Mas da acceso a todas las secciones y se cierra al navegar', async () => {
     const user = userEvent.setup();
     renderAt('/');
-    await user.click(screen.getByRole('button', { name: 'Mas' }));
+    await user.click(screen.getByRole('button', { name: 'Más' }));
     const panel = screen.getByRole('dialog', { name: 'Todas las secciones' });
     const links = within(panel).getAllByRole('link');
     expect(links).toHaveLength(NAV_ITEMS.length);

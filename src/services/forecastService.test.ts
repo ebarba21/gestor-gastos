@@ -295,7 +295,7 @@ describe('computeForecastRange - gasto variable: historico, outlier y poco histo
     });
     expect(result.insufficientHistory).toBe(true);
     expect(result.central.variableRemainingCents).toBe(0);
-    expect(result.methodology.some((m) => m.toLowerCase().includes('sin historico'))).toBe(true);
+    expect(result.methodology.some((m) => m.toLowerCase().includes('sin histórico'))).toBe(true);
   });
 
   it('usa el historico de meses previos completos para estimar el gasto variable restante', () => {

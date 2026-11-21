@@ -284,17 +284,17 @@ export function computeForecastRange(params: {
     realizedCents + recurringUpperCents + (insufficientHistory ? 0 : Math.max(variableUpper, variableCentral));
 
   const methodology: string[] = [
-    'Formula: gasto realizado + recurrentes pendientes del periodo + gasto variable restante estimado.',
-    'Gasto realizado: movimientos ya ocurridos en el periodo (hasta hoy), con la misma semantica que las estadisticas (excluye transferencias, movimientos excluidos, padres de split y aportaciones a ahorro/inversion; los reembolsos ya reducen el gasto de su categoria original).',
-    'Recurrentes pendientes: ocurrencias esperadas de series de gasto activas dentro del periodo que aun no se han cobrado (las ya cobradas cuentan como gasto realizado, nunca dos veces). Los cobros recurrentes que no son nomina ni paro (gastos positivos) restan con importe negativo.',
+    'Fórmula: gasto realizado + recurrentes pendientes del periodo + gasto variable restante estimado.',
+    'Gasto realizado: movimientos ya ocurridos en el periodo (hasta hoy), con la misma semántica que las estadísticas (excluye transferencias, movimientos excluidos, padres de split y aportaciones a ahorro/inversión; los reembolsos ya reducen el gasto de su categoría original).',
+    'Recurrentes pendientes: ocurrencias esperadas de series de gasto activas dentro del periodo que aún no se han cobrado (las ya cobradas cuentan como gasto realizado, nunca dos veces). Los cobros recurrentes que no son nómina ni paro (gastos positivos) restan con importe negativo.',
     insufficientHistory
-      ? `Gasto variable restante: sin historico comparable suficiente (se necesitan meses completos anteriores a hoy); se muestra como 0 en vez de inventar precision.`
-      : `Gasto variable restante: media ponderada del gasto no recurrente de los ultimos ${kept.length} de ${historyMonths} meses comparables (mas peso a los recientes, outliers reducidos), en tasa diaria, multiplicada por los ${remainingDays} dias que quedan del periodo.`,
-    'El rango inferior/superior deriva de la tolerancia real de cada serie recurrente y de la dispersion real del historico variable, no de un porcentaje fijo arbitrario.',
+      ? `Gasto variable restante: sin histórico comparable suficiente (se necesitan meses completos anteriores a hoy); se muestra como 0 en vez de inventar precisión.`
+      : `Gasto variable restante: media ponderada del gasto no recurrente de los últimos ${kept.length} de ${historyMonths} meses comparables (más peso a los recientes, outliers reducidos), en tasa diaria, multiplicada por los ${remainingDays} días que quedan del periodo.`,
+    'El rango inferior/superior deriva de la tolerancia real de cada serie recurrente y de la dispersión real del histórico variable, no de un porcentaje fijo arbitrario.',
   ];
   if (settledOutsideRange.length > 0) {
     methodology.push(
-      `${settledOutsideRange.length} cobro(s) recurrente(s) previsto(s) en este periodo ya se cargaron con fecha real fuera de el (p. ej. unos dias antes); ya cuentan en el gasto realizado del periodo al que pertenece esa fecha real, no aqui, para no duplicarlos (ver desglose "settledOutsideRange").`,
+      `${settledOutsideRange.length} cobro(s) recurrente(s) previsto(s) en este periodo ya se cargaron con fecha real fuera de el (p. ej. unos días antes); ya cuentan en el gasto realizado del periodo al que pertenece esa fecha real, no aquí, para no duplicarlos (ver desglose "settledOutsideRange").`,
     );
   }
 

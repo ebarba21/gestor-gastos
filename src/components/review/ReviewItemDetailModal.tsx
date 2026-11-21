@@ -103,7 +103,7 @@ export function ReviewItemDetailModal({
       onChanged();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo completar la accion.');
+      setError(e instanceof Error ? e.message : 'No se pudo completar la acción.');
     } finally {
       setBusy(false);
     }
@@ -137,9 +137,9 @@ export function ReviewItemDetailModal({
         {/* --- Sin categorizar --- */}
         {item.type === 'uncategorized' && tx && (
           <div className="space-y-2">
-            <p className="text-slate-300">Este movimiento no tiene categoria asignada.</p>
+            <p className="text-slate-300">Este movimiento no tiene categoría asignada.</p>
             <label className="block text-xs text-slate-400" htmlFor="review-category-select">
-              Categoria
+              Categoría
             </label>
             <select
               id="review-category-select"
@@ -147,7 +147,7 @@ export function ReviewItemDetailModal({
               onChange={(e) => setCategoryId(e.target.value)}
               className={selectClass}
             >
-              <option value="">Elegir categoria...</option>
+              <option value="">Elegir categoría...</option>
               {categories.map((node) => (
                 <optgroup key={node.category.id} label={node.category.name}>
                   <option value={node.category.id}>{node.category.name}</option>
@@ -183,22 +183,22 @@ export function ReviewItemDetailModal({
         {item.type === 'lowConfidenceRule' && tx && (
           <div className="space-y-2">
             <p className="text-slate-300">
-              Una regla categorizo este movimiento, pero con poca certeza (coincidencia debil).
+              Una regla categorizó este movimiento, pero con poca certeza (coincidencia débil).
             </p>
             <div
               className="rounded-lg border border-amber-800 bg-amber-950/40 p-3"
               data-testid="review-proposed-category-detail"
             >
-              <p className="text-xs uppercase tracking-wide text-amber-300/80">Categoria propuesta</p>
+              <p className="text-xs uppercase tracking-wide text-amber-300/80">Categoría propuesta</p>
               <p className="mt-0.5 text-base font-semibold text-amber-100">
-                {proposal ? proposal.categoryLabel ?? 'Sin categoria' : 'Cargando...'}
+                {proposal ? proposal.categoryLabel ?? 'Sin categoría' : 'Cargando...'}
               </p>
               {proposal?.ruleName && (
                 <p className="mt-1 text-xs text-slate-400">Regla: {proposal.ruleName}</p>
               )}
             </div>
             <p className="text-xs text-slate-500">
-              Si aceptas, el movimiento se queda en esta categoria. Si la quitas, queda sin categoria
+              Si aceptas, el movimiento se queda en esta categoría. Si la quitas, queda sin categoría
               para que la elijas tu.
             </p>
             <div className="flex flex-wrap justify-end gap-2">
@@ -208,7 +208,7 @@ export function ReviewItemDetailModal({
                 className={buttonGhost}
                 onClick={() => run(() => reviewService.resolve(profileId, item.id, 'rule:accepted'))}
               >
-                {proposal?.categoryLabel ? `Aceptar ${proposal.categoryLabel}` : 'Aceptar la categoria'}
+                {proposal?.categoryLabel ? `Aceptar ${proposal.categoryLabel}` : 'Aceptar la categoría'}
               </button>
               <button
                 type="button"
@@ -223,7 +223,7 @@ export function ReviewItemDetailModal({
                   })
                 }
               >
-                Quitar categoria
+                Quitar categoría
               </button>
             </div>
           </div>
@@ -262,7 +262,7 @@ export function ReviewItemDetailModal({
             {counterpart ? (
               <TxSummary tx={counterpart} label="Posible pareja" />
             ) : (
-              <p className="text-slate-400">El movimiento con el que se pareo ya no esta disponible.</p>
+              <p className="text-slate-400">El movimiento con el que se pareo ya no está disponible.</p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
               <button
@@ -296,7 +296,7 @@ export function ReviewItemDetailModal({
             {counterpart ? (
               <TxSummary tx={counterpart} label="Gasto original" />
             ) : (
-              <p className="text-slate-400">El gasto original ya no esta disponible.</p>
+              <p className="text-slate-400">El gasto original ya no está disponible.</p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
               <button
@@ -328,7 +328,7 @@ export function ReviewItemDetailModal({
         {item.type === 'stalePending' && tx && (
           <div className="space-y-2">
             <p className="text-slate-300">
-              Este movimiento lleva {String(item.metadata.ageDays ?? '?')} dia(s) marcado como pendiente
+              Este movimiento lleva {String(item.metadata.ageDays ?? '?')} día(s) marcado como pendiente
               sin confirmarse.
             </p>
             <div className="flex flex-wrap justify-end gap-2">
@@ -338,7 +338,7 @@ export function ReviewItemDetailModal({
                 className={buttonGhost}
                 onClick={() => run(() => reviewService.snooze(profileId, item.id, Date.now() + 7 * 86_400_000))}
               >
-                Aplazar 7 dias
+                Aplazar 7 días
               </button>
               <button
                 type="button"
@@ -442,14 +442,14 @@ export function ReviewItemDetailModal({
         {item.type === 'syncConflict' && (
           <div className="space-y-2">
             <p className="text-slate-300">
-              Hay una edicion simultanea sin resolver entre dispositivos para esta entidad.
+              Hay una edición simultánea sin resolver entre dispositivos para esta entidad.
             </p>
             <Link
               to="/sincronizacion"
               className="inline-block text-indigo-400 underline"
               onClick={onClose}
             >
-              Ir a sincronizacion para resolverlo
+              Ir a sincronización para resolverlo
             </Link>
           </div>
         )}
