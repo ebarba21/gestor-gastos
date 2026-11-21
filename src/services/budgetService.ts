@@ -36,6 +36,7 @@ import { planningSettingsService, DEFAULT_PLANNING_SETTINGS, type PlanningSettin
 import { balancesAtDates } from './netWorthService';
 import {
   customRange,
+  daysBetweenISO,
   isWithinRange,
   monthRange,
   monthsSpanned,
@@ -170,6 +171,22 @@ export interface BudgetInput {
   customEnd?: string | null;
   rollover?: boolean;
   kind?: BudgetKind;
+}
+
+// Ritmo del periodo (noviembre 2026): que fraccion del periodo ha transcurrido a fecha `today`,
+// en tanto por mil, contando el dia de hoy como transcurrido. Sirve para pintar en la barra de
+// un limite de gasto la marca de "lo que llevarias gastado si fueras a ritmo constante".
+// null si hoy cae fuera del periodo (periodo pasado o futuro: no hay ritmo que comparar).
+export function periodElapsedPerMille(range: DateRange, today: string): number | null {
+  if (today < range.from || today > range.to) return null;
+  const total = daysBetweenISO(range.from, range.to) + 1;
+  const elapsed = daysBetweenISO(range.from, today) + 1;
+  return Math.round((elapsed * 1000) / total);
+}
+
+// Gasto que llevarias a ritmo constante: limite efectivo x fraccion transcurrida. Centimos.
+export function paceTargetCents(effectiveLimitCents: number, elapsedPerMille: number): number {
+  return Math.round((effectiveLimitCents * elapsedPerMille) / 1000);
 }
 
 export function normalizeBudgetName(name: string): string {

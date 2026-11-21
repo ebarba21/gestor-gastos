@@ -18,7 +18,18 @@ function perMilleLabel(v: number | null): string {
   return v === null ? 'Sin datos' : `${(v / 10).toLocaleString('es-ES', { maximumFractionDigits: 1 })} %`;
 }
 
-export function PlanningKpisCard({ kpis }: { kpis: PlanningKpis }) {
+export function PlanningKpisCard({
+  kpis,
+  merchantNames,
+}: {
+  kpis: PlanningKpis;
+  merchantNames?: Map<string, string>;
+}) {
+  const v = kpis.variability;
+  const c = kpis.concentration;
+  const topNames = c
+    ? c.top.map((t) => (t.merchantId !== null ? merchantNames?.get(t.merchantId) ?? t.concept : t.concept)).join(', ')
+    : '';
   const runway =
     kpis.runwayMonthsX10 === null
       ? 'Sin datos'
@@ -65,6 +76,24 @@ export function PlanningKpisCard({ kpis }: { kpis: PlanningKpis }) {
           kpis.reimbursablePendingCount > 0
             ? `${kpis.reimbursablePendingCount} gastos compartidos sin devolver del todo`
             : 'Marca "a recuperar" en un gasto compartido para seguirlo'
+        }
+      />
+      <Tile
+        label="Variabilidad del gasto"
+        value={v ? `± ${perMilleLabel(v.coefficientPerMille)}` : 'Sin datos'}
+        hint={
+          v
+            ? `Tu gasto variable mensual (media ${formatCents(v.meanCents)}) se desvía de media ${formatCents(v.stdDevCents)}; ${v.monthsUsed} meses. Cuanto más alto, más colchón conviene`
+            : 'Necesita al menos 3 meses con gastos'
+        }
+      />
+      <Tile
+        label="Concentración del gasto"
+        value={c ? perMilleLabel(c.topSharePerMille) : 'Sin datos'}
+        hint={
+          c
+            ? `De tu gasto variable de los últimos 3 meses va a ${topNames}`
+            : 'Sin gasto variable en los últimos 3 meses'
         }
       />
     </div>

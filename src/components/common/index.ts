@@ -7,3 +7,4 @@ export { ColorPicker } from './ColorPicker';
 export { IconPicker } from './IconPicker';
 export { VirtualList } from './VirtualList';
 export { ThemeToggle } from './ThemeToggle';
+export { PrivacyToggle } from './PrivacyToggle';

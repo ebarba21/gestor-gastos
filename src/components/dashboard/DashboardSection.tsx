@@ -294,8 +294,14 @@ export function DashboardSection() {
               <div className="grid gap-6 lg:grid-cols-2">
                 <PaceCard pace={insights.pace} health={insights.health} onOpenWaterfall={scrollToWaterfall} />
                 {insights.variance ? (
-                  <Card title="Frente al mes pasado" subtitle="Que categorías explican la diferencia a estas alturas">
-                    <VarianceCard variance={insights.variance} catName={catName} onSelectCategory={toggleCategoryFilter} />
+                  <Card title="Frente al mes pasado" subtitle="Qué categorías y comercios explican la diferencia a estas alturas">
+                    <VarianceCard
+                      variance={insights.variance}
+                      catName={catName}
+                      onSelectCategory={toggleCategoryFilter}
+                      merchantNames={merchantNames}
+                      yearAgo={insights.yearAgo}
+                    />
                   </Card>
                 ) : (
                   <div />
@@ -307,7 +313,7 @@ export function DashboardSection() {
                     <BalanceForecastCard forecast={planning.forecast} bufferCents={planning.safe.bufferCents} />
                   </Card>
                   <Card title="Indicadores" subtitle="Resiliencia y ahorro, cada uno con su cálculo">
-                    <PlanningKpisCard kpis={planning.kpis} />
+                    <PlanningKpisCard kpis={planning.kpis} merchantNames={merchantNames} />
                   </Card>
                 </div>
               )}

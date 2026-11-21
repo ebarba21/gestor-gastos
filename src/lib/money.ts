@@ -30,9 +30,25 @@ export function centsToEuros(cents: number): number {
   return cents / 100;
 }
 
+// Modo privado (noviembre 2026): con los importes ocultos, formatCents devuelve una mascara en
+// lugar de la cifra. Es solo presentacion (los calculos y las exportaciones no usan formatCents)
+// y una preferencia del dispositivo que gestiona PrivacyContext. Los graficos siguen dibujando
+// proporciones: lo que se oculta son las cifras.
+export const MASKED_AMOUNT = '•••• €';
+let amountsMasked = false;
+
+export function setAmountsMasked(masked: boolean): void {
+  amountsMasked = masked;
+}
+
+export function areAmountsMasked(): boolean {
+  return amountsMasked;
+}
+
 // Formatea centimos como texto monetario localizado. Capa de presentacion.
 export function formatCents(cents: number, locale = 'es-ES', currency = 'EUR'): string {
   assertCents(cents);
+  if (amountsMasked) return MASKED_AMOUNT;
   return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(cents / 100);
 }
 

@@ -129,3 +129,52 @@ describe('scoreAllRefundCandidates', () => {
     expect(results.map((r) => r.originalId)).toEqual(['tx-close', 'tx-far']);
   });
 });
+
+describe('Bizum de reparto (gasto entre N)', () => {
+  const dinner = { id: 'cena', amountCents: -8000, date: '2026-11-10', normalizedConcept: 'restaurante la tagliatella', merchantId: 'm-rest', refundOfId: null };
+  const bizum = (amountCents: number, date = '2026-11-11', id = 'b1') => ({
+    id,
+    amountCents,
+    date,
+    normalizedConcept: 'bizum de marta cena',
+    merchantId: null,
+    refundOfId: null,
+  });
+
+  it('acepta la mitad, el tercio o el cuarto del gasto con margen de redondeo', async () => {
+    const { scoreSplitSharePair } = await import('./refundCandidateEngine');
+    expect(scoreSplitSharePair(dinner, bizum(4000))?.shareOf).toBe(2);
+    expect(scoreSplitSharePair(dinner, bizum(2667))?.shareOf).toBe(3); // 26,67 x 3 = 80,01
+    expect(scoreSplitSharePair(dinner, bizum(2000))?.shareOf).toBe(4);
+    expect(scoreSplitSharePair(dinner, bizum(8000))?.shareOf).toBe(1);
+    expect(scoreSplitSharePair(dinner, bizum(3500))).toBeNull();
+  });
+
+  it('exige que sea un Bizum, posterior y dentro de 10 dias', async () => {
+    const { scoreSplitSharePair } = await import('./refundCandidateEngine');
+    expect(scoreSplitSharePair(dinner, { ...bizum(4000), normalizedConcept: 'transferencia' })).toBeNull();
+    expect(scoreSplitSharePair(dinner, bizum(4000, '2026-11-09'))).toBeNull();
+    expect(scoreSplitSharePair(dinner, bizum(4000, '2026-11-21'))).toBeNull();
+    expect(scoreSplitSharePair(dinner, bizum(4000, '2026-11-20'))).not.toBeNull();
+  });
+
+  it('no propone devolver mas que el gasto si ya hay reembolsos enlazados', async () => {
+    const { scoreSplitSharePair } = await import('./refundCandidateEngine');
+    expect(scoreSplitSharePair(dinner, bizum(2000), 6000)).not.toBeNull();
+    expect(scoreSplitSharePair(dinner, bizum(4000), 6000)).toBeNull();
+  });
+
+  it('un Bizum enviado no es un gasto a repartir', async () => {
+    const { scoreSplitSharePair } = await import('./refundCandidateEngine');
+    const sent = { ...dinner, normalizedConcept: 'bizum enviado a marta' };
+    expect(scoreSplitSharePair(sent, bizum(4000))).toBeNull();
+  });
+
+  it('elige el gasto mas cercano en fecha', async () => {
+    const { bestSplitShareCandidate } = await import('./refundCandidateEngine');
+    const older = { ...dinner, id: 'cena-vieja', date: '2026-11-03' };
+    const best = bestSplitShareCandidate(bizum(4000), [older, dinner]);
+    expect(best?.originalId).toBe('cena');
+    expect(best?.reasonCodes).toContain('splitShare');
+  });
+});

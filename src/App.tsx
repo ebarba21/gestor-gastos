@@ -18,7 +18,8 @@ import SecurityPage from './pages/SecurityPage';
 import AccountPage from './pages/AccountPage';
 import SyncPage from './pages/SyncPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
-import { ThemeToggle } from './components/common';
+import { PrivacyToggle, ThemeToggle } from './components/common';
+import { usePrivacy } from './context/PrivacyContext';
 import { SyncBadge } from './components/sync';
 import { ReviewBadge } from './components/review';
 import { LockGate } from './components/security';
@@ -51,8 +52,9 @@ function AppLayout() {
             <SyncBadge />
             {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). */}
             <ReviewBadge />
-            {/* Conmutador de tema, accesible desde cualquier seccion. */}
-            <ThemeToggle className="md:ml-auto" />
+            {/* Ocultar importes (modo privado) y conmutador de tema, desde cualquier seccion. */}
+            <PrivacyToggle className="md:ml-auto" />
+            <ThemeToggle />
           </div>
           {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
           <div className="w-36 shrink-0 sm:w-44 md:mt-4 md:w-auto">
@@ -105,9 +107,12 @@ function AppLayout() {
 
 // Al cambiar de perfil se monta de nuevo todo el layout: ningun estado (dashboard, patrimonio,
 // insights) del perfil anterior puede quedar visible mientras carga el nuevo (invariante 4).
+// Al ocultar o mostrar los importes tambien se vuelve a montar: las cifras ya formateadas en
+// avisos y resumenes se recalculan con o sin mascara.
 function ProfileScopedLayout() {
   const profileId = useActiveProfileId();
-  return <AppLayout key={profileId} />;
+  const { revision } = usePrivacy();
+  return <AppLayout key={`${profileId}:${revision}`} />;
 }
 
 export default function App() {

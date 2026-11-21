@@ -194,3 +194,27 @@ describe('fondos para gastos no mensuales', () => {
     expect(f.earmarkedCents).toBe(0);
   });
 });
+
+describe('ritmo del periodo (marca en la barra del presupuesto)', () => {
+  it('cuenta el dia de hoy como transcurrido', async () => {
+    const { periodElapsedPerMille } = await import('./budgetService');
+    const nov = { from: '2026-11-01', to: '2026-11-30' };
+    expect(periodElapsedPerMille(nov, '2026-11-01')).toBe(33); // 1/30
+    expect(periodElapsedPerMille(nov, '2026-11-15')).toBe(500);
+    expect(periodElapsedPerMille(nov, '2026-11-30')).toBe(1000);
+  });
+
+  it('fuera del periodo no hay ritmo', async () => {
+    const { periodElapsedPerMille } = await import('./budgetService');
+    const nov = { from: '2026-11-01', to: '2026-11-30' };
+    expect(periodElapsedPerMille(nov, '2026-10-31')).toBeNull();
+    expect(periodElapsedPerMille(nov, '2026-12-01')).toBeNull();
+  });
+
+  it('el objetivo a ritmo constante es el limite por la fraccion transcurrida', async () => {
+    const { paceTargetCents } = await import('./budgetService');
+    expect(paceTargetCents(30000, 500)).toBe(15000);
+    expect(paceTargetCents(10001, 333)).toBe(3330);
+    expect(paceTargetCents(0, 700)).toBe(0);
+  });
+});

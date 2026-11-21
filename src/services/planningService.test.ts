@@ -257,3 +257,54 @@ describe('KPIs y plan flexible', () => {
     expect(kpis.reimbursablePendingCount).toBe(1);
   });
 });
+
+describe('variabilidad y concentracion del gasto (noviembre 2026)', () => {
+  it('variabilidad: desviacion tipica sobre la media del gasto variable mensual', async () => {
+    const { computeSpendVariability } = await import('./planningService');
+    const { buildStatsContext } = await import('./statsService');
+    const cats = [makeCategory({ id: 'super', name: 'Supermercado' })];
+    // Tres meses de 200, 400 y 600 EUR: media 400, desviacion poblacional 163,30 -> 408 por mil.
+    const txs = [
+      makeTx({ date: '2026-08-10', amountCents: -20000, categoryId: 'super' }),
+      makeTx({ date: '2026-09-10', amountCents: -40000, categoryId: 'super' }),
+      makeTx({ date: '2026-10-10', amountCents: -60000, categoryId: 'super' }),
+    ];
+    const months = [
+      { from: '2026-08-01', to: '2026-08-31' },
+      { from: '2026-09-01', to: '2026-09-30' },
+      { from: '2026-10-01', to: '2026-10-31' },
+    ];
+    const v = computeSpendVariability(txs, buildStatsContext(cats, txs), new Set(), months)!;
+    expect(v.monthsUsed).toBe(3);
+    expect(v.meanCents).toBe(40000);
+    expect(v.stdDevCents).toBe(16330);
+    expect(v.coefficientPerMille).toBe(408);
+    // Con menos de 3 meses con actividad no hay dato.
+    expect(computeSpendVariability(txs.slice(0, 2), buildStatsContext(cats, txs), new Set(), months)).toBeNull();
+  });
+
+  it('concentracion: peso de los 3 comercios principales sobre el gasto variable', async () => {
+    const { computeSpendConcentration } = await import('./planningService');
+    const { buildStatsContext } = await import('./statsService');
+    const cats = [makeCategory({ id: 'super', name: 'Supermercado' })];
+    const txs = [
+      makeTx({ date: '2026-10-01', amountCents: -40000, categoryId: 'super', merchantId: 'm-merc', concept: 'Mercadona' }),
+      makeTx({ date: '2026-10-02', amountCents: -20000, categoryId: 'super', merchantId: 'm-amz', concept: 'Amazon' }),
+      makeTx({ date: '2026-10-03', amountCents: -10000, categoryId: 'super', merchantId: 'm-glovo', concept: 'Glovo' }),
+      makeTx({ date: '2026-10-04', amountCents: -30000, categoryId: 'super', merchantId: 'm-alq', concept: 'Alquiler' }), // fijo
+      makeTx({ date: '2026-10-05', amountCents: -5000, categoryId: 'super', concept: 'Tienda', normalizedConcept: 'tienda' }),
+      makeTx({ date: '2026-10-06', amountCents: -5000, categoryId: 'super', concept: 'Kiosko', normalizedConcept: 'kiosko' }),
+    ];
+    const fixed = new Set([txs[3]!.id]);
+    const c = computeSpendConcentration(txs, buildStatsContext(cats, txs), fixed, { from: '2026-10-01', to: '2026-10-31' })!;
+    expect(c.totalVariableCents).toBe(80000);
+    expect(c.top.map((t) => t.merchantId)).toEqual(['m-merc', 'm-amz', 'm-glovo']);
+    expect(c.topSharePerMille).toBe(875); // 700 / 800
+  });
+
+  it('computePlanning expone ambos indicadores en los KPIs', () => {
+    const out = computePlanning(baseInput());
+    expect(out.kpis).toHaveProperty('variability');
+    expect(out.kpis).toHaveProperty('concentration');
+  });
+});

@@ -298,6 +298,13 @@ export function ReviewItemDetailModal({
             ) : (
               <p className="text-slate-400">El gasto original ya no está disponible.</p>
             )}
+            {typeof item.metadata.shareOf === 'number' && (
+              <p className="text-xs text-slate-400">
+                {item.metadata.shareOf === 1
+                  ? 'El Bizum devuelve el gasto entero. Al vincularlo, el gasto deja de contar como tuyo.'
+                  : `El Bizum es tu gasto entre ${item.metadata.shareOf} personas. Al vincularlo, la categoría del gasto solo cuenta tu parte.`}
+              </p>
+            )}
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"

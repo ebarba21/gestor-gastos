@@ -6,6 +6,7 @@
 // color (verde vs naranja, no verde vs rojo). La identidad de cada serie va SIEMPRE acompanada
 // de leyenda/etiqueta, nunca solo color.
 import { useTheme, type Theme } from '../../context/ThemeContext';
+import { areAmountsMasked } from '../../lib/money';
 
 export interface ChartColors {
   income: string;
@@ -61,6 +62,8 @@ export function useChartColors(): ChartColors {
 // Formato compacto de euros para ticks de eje (corto, sin decimales innecesarios).
 // Solo presentacion; el valor real sigue en centimos enteros.
 export function formatCompactEuros(cents: number): string {
+  // Modo privado: los ejes no revelan cifras (el grafico conserva sus proporciones).
+  if (areAmountsMasked()) return '•';
   const euros = cents / 100;
   const abs = Math.abs(euros);
   if (abs >= 1000) {

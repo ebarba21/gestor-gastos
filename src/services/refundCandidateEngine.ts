@@ -12,14 +12,29 @@ export type RefundReasonCode =
   | 'oppositeAmounts'
   | 'sameMerchant'
   | 'sameNormalizedConcept'
-  | 'laterDate';
+  | 'laterDate'
+  | 'splitShare';
 
 export const REFUND_REASON_CODE_LABELS: Record<RefundReasonCode, string> = {
   oppositeAmounts: 'Importe opuesto (parcial o total)',
   sameMerchant: 'Mismo comercio',
   sameNormalizedConcept: 'Mismo concepto normalizado',
   laterDate: 'Fecha posterior al gasto original',
+  splitShare: 'Bizum que cuadra con una parte del gasto',
 };
+
+// Bizum de reparto (noviembre 2026): pagas una cena de 80 EUR y un amigo te manda un Bizum de
+// 40 (o 20, si erais cuatro). No comparte comercio ni concepto con el gasto, asi que el motor
+// clasico no lo propone. Aqui se acepta si el importe es el gasto entre N (2..6), o el gasto
+// entero (N = 1), con un margen de 1 centimo por persona por redondeo, y llega pocos dias
+// despues. Es una SUGERENCIA para la bandeja: nunca se enlaza sola.
+export const SPLIT_SHARE_MAX_PEOPLE = 6;
+export const SPLIT_SHARE_WINDOW_DAYS = 10;
+
+// Concepto de un Bizum recibido (Ibercaja, Revolut "Dinero anadido a traves de BIZUM"...).
+export function isBizumConcept(normalizedConcept: string): boolean {
+  return normalizedConcept.toLowerCase().includes('bizum');
+}
 
 // Forma minima de un gasto original candidato a tener un reembolso.
 export interface RefundOriginalTx {
@@ -46,6 +61,7 @@ export interface RefundPairScore {
   confidence: number; // 0..1000, heuristica orientativa (no probabilidad real)
   reasonCodes: RefundReasonCode[];
   dayDiff: number;
+  shareOf?: number; // solo Bizum de reparto: el gasto entre cuantas personas
 }
 
 function daysBetweenIso(a: string, b: string): number {
@@ -113,4 +129,63 @@ export function scoreAllRefundCandidates(
     if (y.confidence !== x.confidence) return y.confidence - x.confidence;
     return x.originalId.localeCompare(y.originalId);
   });
+}
+
+// Puntua si `candidate` (un Bizum recibido) es la parte de un gasto compartido `original`.
+// `alreadyLinkedCents`: lo que otros reembolsos ya devolvieron de ese gasto (no se puede devolver
+// mas que el gasto). PURA y determinista.
+export function scoreSplitSharePair(
+  original: RefundOriginalTx,
+  candidate: RefundCandidateTx,
+  alreadyLinkedCents = 0,
+): RefundPairScore | null {
+  if (original.id === candidate.id) return null;
+  if (original.refundOfId !== null || candidate.refundOfId !== null) return null;
+  if (original.amountCents >= 0 || candidate.amountCents <= 0) return null;
+  if (!isBizumConcept(candidate.normalizedConcept)) return null;
+  // El gasto original no es otro Bizum (enviar y recibir Bizums no es un reparto de gasto).
+  if (isBizumConcept(original.normalizedConcept)) return null;
+  const expense = Math.abs(original.amountCents);
+  if (alreadyLinkedCents + candidate.amountCents > expense) return null;
+  const dayDiff = daysBetweenIso(candidate.date, original.date);
+  if (dayDiff < 0 || dayDiff > SPLIT_SHARE_WINDOW_DAYS) return null;
+  let shareOf: number | null = null;
+  for (let n = 2; n <= SPLIT_SHARE_MAX_PEOPLE; n++) {
+    if (Math.abs(candidate.amountCents * n - expense) <= n) {
+      shareOf = n;
+      break;
+    }
+  }
+  if (shareOf === null && candidate.amountCents === expense) shareOf = 1;
+  if (shareOf === null) return null;
+  const base = shareOf === 1 ? 550 : 600;
+  return {
+    originalId: original.id,
+    confidence: Math.max(300, base - dayDiff * 20),
+    reasonCodes: ['oppositeAmounts', 'splitShare', ...(dayDiff > 0 ? (['laterDate'] as const) : [])],
+    dayDiff,
+    shareOf,
+  };
+}
+
+// Mejor gasto del que un Bizum recibido puede ser la parte. Empates: el mas cercano en fecha, y
+// despues el de mayor confianza y el id (determinista).
+export function bestSplitShareCandidate(
+  candidate: RefundCandidateTx,
+  originals: RefundOriginalTx[],
+  linkedByOriginal: ReadonlyMap<string, number> = new Map(),
+): RefundPairScore | null {
+  let best: RefundPairScore | null = null;
+  for (const o of originals) {
+    const s = scoreSplitSharePair(o, candidate, linkedByOriginal.get(o.id) ?? 0);
+    if (s === null) continue;
+    if (
+      best === null ||
+      s.confidence > best.confidence ||
+      (s.confidence === best.confidence && s.originalId.localeCompare(best.originalId) < 0)
+    ) {
+      best = s;
+    }
+  }
+  return best;
 }

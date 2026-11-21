@@ -6,9 +6,12 @@ import {
   BUDGET_KIND_LABELS,
   BUDGET_PERIOD_LABELS,
   BUDGET_SCOPE_LABELS,
+  paceTargetCents,
+  periodElapsedPerMille,
   type GoalStatus,
 } from '../../services/budgetService';
 import { formatCents } from '../../lib/money';
+import { todayISO } from '../../lib/dates';
 
 interface BudgetCardProps {
   evaluation: BudgetEvaluation;
@@ -16,6 +19,7 @@ interface BudgetCardProps {
   accountNames: Map<string, string>;
   onEdit: () => void;
   onDelete: () => void;
+  today?: string; // inyectable en tests; por defecto hoy
 }
 
 // Estilos de la barra y de la insignia de estado.
@@ -80,6 +84,7 @@ export function BudgetCard({
   accountNames,
   onEdit,
   onDelete,
+  today = todayISO(),
 }: BudgetCardProps) {
   const { budget, consumedCents, limitCents, remainingCents, percent, refundCents, status, range } =
     evaluation;
@@ -184,6 +189,11 @@ export function BudgetCard({
   }
   // La barra se recorta a [0, 100] para presentacion; el porcentaje real puede excederlo.
   const barPercent = Math.max(0, Math.min(100, percent));
+  // Marca de ritmo: lo que llevarias gastado a ritmo constante hoy. Solo en limites de gasto del
+  // periodo en curso con limite positivo.
+  const elapsed = isExpense && evaluation.effectiveLimitCents > 0 ? periodElapsedPerMille(range, today) : null;
+  const paceCents = elapsed !== null ? paceTargetCents(evaluation.effectiveLimitCents, elapsed) : null;
+  const vsPace = paceCents !== null ? consumedCents - paceCents : null;
 
   return (
     <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900 p-4">
@@ -218,6 +228,15 @@ export function BudgetCard({
         >
           <div className={`h-full rounded-full ${styles.bar}`} style={{ width: `${barPercent}%` }} />
         </div>
+        {elapsed !== null && (
+          <div className="relative h-0" aria-hidden="true">
+            {/* Raya del ritmo de hoy, encima de la barra. */}
+            <span
+              className="absolute -top-3.5 h-4 w-0.5 rounded bg-slate-200"
+              style={{ left: `calc(${Math.min(100, elapsed / 10)}% - 1px)` }}
+            />
+          </div>
+        )}
         <div className="mt-1.5 flex items-baseline justify-between text-xs">
           <span className="text-slate-300">
             <strong className="text-slate-100">{formatCents(consumedCents)}</strong>
@@ -239,6 +258,16 @@ export function BudgetCard({
         </span>
         {refundCents > 0 && <span title="Reembolsos y gastos positivos descontados del gasto">↩ {formatCents(refundCents)}</span>}
       </div>
+      {paceCents !== null && vsPace !== null && (
+        <p className="mt-1 text-xs text-slate-400">
+          <span aria-hidden="true">▏</span>Ritmo de hoy: {formatCents(paceCents)} ({Math.round(elapsed! / 10)} % del periodo).{' '}
+          {Math.abs(vsPace) < 100
+            ? 'Vas justo al ritmo.'
+            : vsPace > 0
+              ? `Vas ${formatCents(vsPace)} por encima del ritmo.`
+              : `Vas ${formatCents(-vsPace)} por debajo del ritmo.`}
+        </p>
+      )}
       {evaluation.carryCents !== 0 && (
         <p className="mt-1 text-xs text-slate-500">
           {evaluation.carryCents > 0

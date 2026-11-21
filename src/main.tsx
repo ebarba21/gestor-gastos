@@ -5,6 +5,7 @@ import App from './App';
 import { ProfileProvider } from './context/ProfileContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { PrivacyProvider } from './context/PrivacyContext';
 import { AuthProvider } from './auth';
 import { SyncProvider } from './sync/SyncContext';
 import { SecurityProvider } from './security/LockContext';
@@ -33,6 +34,8 @@ function renderApp(): void {
     <StrictMode>
       <BrowserRouter basename={routerBasename}>
         <ThemeProvider>
+          {/* Modo privado (importes ocultos): preferencia del dispositivo, como el tema. */}
+          <PrivacyProvider>
           <ToastProvider>
             {/* AuthProvider envuelve la app: la cuenta es OPCIONAL y nunca bloquea el modo
                 local. Va por fuera del gate de perfil para que la pantalla de cuenta y el
@@ -59,6 +62,7 @@ function renderApp(): void {
                 tambien en la pantalla de seleccion de perfil. */}
             <PwaReloadPrompt />
           </ToastProvider>
+          </PrivacyProvider>
         </ThemeProvider>
       </BrowserRouter>
     </StrictMode>,
