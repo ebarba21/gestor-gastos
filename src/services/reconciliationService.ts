@@ -27,7 +27,7 @@ export interface ComputedBalanceResult {
 // excludedFromStats: el saldo no es lo mismo que las estadisticas (FINANCIAL_ALGORITHMS 6).
 // Se EXCLUYEN las lineas hijas de un split (parentId != null): el cargo real en la cuenta lo
 // aporta el movimiento padre; sumar tambien las hijas duplicaria el importe (misma regla que
-// exportService.computeAccountBalances, la funcion canonica de saldo de cuenta).
+// accountService.computeAccountBalances, la funcion canonica de saldo de cuenta).
 export async function computeBalance(
   profileId: string,
   accountId: string,

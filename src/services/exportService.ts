@@ -33,7 +33,7 @@ import {
   type TxSort,
   type SortNameLookups,
 } from '../lib/transactionFilters';
-import { ACCOUNT_KIND_LABELS } from './accountService';
+import { ACCOUNT_KIND_LABELS, computeAccountBalances } from './accountService';
 import {
   BUDGET_SCOPE_LABELS,
   BUDGET_PERIOD_LABELS,
@@ -79,26 +79,11 @@ function nameOf(map: Map<string, string>, id: string | null): string {
   return map.get(id) ?? id;
 }
 
-// --- Saldos de cuenta (calculo compartido) ---
+// --- Saldos de cuenta ---
 
-// Saldo actual de cada cuenta = saldo inicial + suma de importes de sus movimientos. Se
-// excluyen las lineas hijas de un split (parentId != null): el importe real en la cuenta lo
-// aporta el movimiento padre; sumar tambien las hijas duplicaria el importe. Transferencias
-// y movimientos excluidos de estadisticas SI afectan al saldo (DATA_MODEL seccion 6.4).
-export function computeAccountBalances(
-  accounts: Account[],
-  transactions: Transaction[],
-): Map<string, number> {
-  const balance = new Map<string, number>();
-  for (const a of accounts) balance.set(a.id, a.openingBalanceCents);
-  for (const t of transactions) {
-    if (t.parentId !== null) continue; // linea hija de split: no suma al saldo
-    const current = balance.get(t.accountId);
-    if (current === undefined) continue; // cuenta desconocida (no deberia ocurrir)
-    balance.set(t.accountId, current + t.amountCents);
-  }
-  return balance;
-}
+// La funcion canonica vive en accountService; se reexporta aqui para no romper a quien la
+// usa desde exportService (ExportSection, tests).
+export { computeAccountBalances };
 
 // --- Hojas por entidad ---
 
