@@ -106,6 +106,24 @@ export interface InsightAlert {
 export interface VarianceItem {
   categoryId: string | null;
   deltaCents: number; // + gastaste mas, - gastaste menos
+  // Comercio (o concepto, si el movimiento no tiene comercio) que mas explica la variacion de la
+  // categoria, en su mismo sentido. "Restaurantes +82 EUR; el 64 % viene de Glovo".
+  driver?: VarianceDriver;
+}
+
+export interface VarianceDriver {
+  merchantId: string | null;
+  concept: string; // concepto de referencia si no hay comercio
+  deltaCents: number;
+  sharePerMille: number; // driver / variacion de la categoria (0..1000+)
+}
+
+// Mismo mes del ano anterior a la misma altura del mes (noviembre 2026).
+export interface YearAgoComparison {
+  month: string; // YYYY-MM del ano anterior
+  currentCents: number;
+  previousCents: number;
+  deltaCents: number;
 }
 
 export interface MonthVariance {
@@ -195,6 +213,7 @@ export interface MonthInsights {
   narrative: string[];
   health: DataHealth;
   variance: MonthVariance | null;
+  yearAgo: YearAgoComparison | null;
 }
 
 export interface InsightsInput {
@@ -223,6 +242,12 @@ const UNDER_FACTOR_PER_MILLE = 850; // -15 %
 const MIN_DELTA_CENTS = 2000; // por debajo de 20 EUR no se avisa
 const UNUSUAL_MIN_CENTS = 10000; // gasto inusual: al menos 100 EUR...
 const UNUSUAL_FACTOR = 3; // ...y 3 veces la mediana de su categoria
+// Cargo anomalo de un comercio habitual (recibo de la luz, seguro...): frente a la mediana de sus
+// cargos de los 12 meses anteriores. Mediana (no media): robusta ante un cargo raro aislado.
+const MERCHANT_ANOMALY_MIN_PAST = 4; // al menos 4 cargos previos del comercio
+const MERCHANT_ANOMALY_FACTOR_PER_MILLE = 1300; // +30 % sobre la mediana...
+const MERCHANT_ANOMALY_MIN_DELTA_CENTS = 1500; // ...y al menos 15 EUR mas
+const MERCHANT_ANOMALY_LOOKBACK_MONTHS = 12;
 
 // Dias entre dos fechas YYYY-MM-DD (b - a). Sin zonas horarias: componentes en UTC.
 export function daysBetween(a: string, b: string): number {
@@ -372,7 +397,8 @@ export function computeInsights(input: InsightsInput): MonthInsights {
   const upTo = isCurrentMonth ? today : null;
 
   const prevKeys = previousMonthKeys(input.anchorISO, Math.max(baselineMonths, heatmapMonths));
-  const allKeys = new Set([...prevKeys, month]);
+  const yearAgoKey = monthKey(shiftMonths(input.anchorISO, -12));
+  const allKeys = new Set([...prevKeys, month, yearAgoKey]);
   const buckets = bucketByMonth(input.transactions, ctx, input.fixedTransactionIds, allKeys, upTo, {
     elapsed: daysElapsed,
     dim,
@@ -564,6 +590,29 @@ export function computeInsights(input: InsightsInput): MonthInsights {
       impactCents: u.cents - u.median,
     });
   }
+  // Cargo anomalo de un comercio habitual (p. ej. un recibo de la luz muy por encima de lo
+  // normal). Los movimientos ya vinculados a una recurrencia confirmada los vigila el planificador
+  // de recurrencias (subidas de precio); aqui se cubre lo que se le escapa.
+  const unusualIds = new Set(unusual.slice(0, 2).map((u) => u.t.id));
+  const merchantAnomalies = detectMerchantAnomalies({
+    transactions: input.transactions,
+    ctx,
+    fixedIds: input.fixedTransactionIds,
+    monthTxs: inMonthToDate,
+    monthStart: range.from,
+    skipIds: unusualIds,
+  });
+  for (const a of merchantAnomalies.slice(0, 2)) {
+    alerts.push({
+      id: `merchant-anomaly-${a.t.id}`,
+      severity: 'action',
+      title: `${a.t.concept}: ${formatCents(a.cents)}, un ${pct(a.deltaPerMille)} más de lo habitual`,
+      detail: `La mediana de sus ${a.pastCount} cargos anteriores (12 meses) es ${formatCents(a.median)}. Comprueba que el importe es correcto.`,
+      transactionId: a.t.id,
+      impactCents: a.cents - a.median,
+    });
+  }
+
   const toLink = (review.transferCandidate ?? 0) + (review.refundCandidate ?? 0);
   if (toLink > 0) {
     alerts.push({
@@ -685,6 +734,27 @@ export function computeInsights(input: InsightsInput): MonthInsights {
 
   // 9. Variacion frente al mes anterior a la misma altura del mes.
   const variance = computeVariance(month, buckets, prevKeys);
+  if (variance) {
+    attachVarianceDrivers(variance, {
+      transactions: input.transactions,
+      ctx,
+      month,
+      previousMonth: variance.previousMonth,
+      upTo,
+      cutoff: { elapsed: daysElapsed, dim },
+    });
+  }
+  const yearAgoBucket = buckets.get(yearAgoKey);
+  const sumToDay = (b: MonthBuckets) => [...b.byCategoryToDay.values()].reduce((a, v) => a + v, 0);
+  const yearAgo: YearAgoComparison | null =
+    yearAgoBucket && yearAgoBucket.active
+      ? {
+          month: yearAgoKey,
+          currentCents: sumToDay(current),
+          previousCents: sumToDay(yearAgoBucket),
+          deltaCents: sumToDay(current) - sumToDay(yearAgoBucket),
+        }
+      : null;
 
   // 7. Resumen narrado
   const narrative = buildNarrative({
@@ -710,6 +780,7 @@ export function computeInsights(input: InsightsInput): MonthInsights {
     narrative,
     health,
     variance,
+    yearAgo,
   };
 }
 
@@ -769,6 +840,108 @@ function computeVariance(
     items: top,
     restCents: delta - top.reduce((s, i) => s + i.deltaCents, 0),
   };
+}
+
+// Clave de agrupacion por comercio: el comercio normalizado si lo hay; si no, el concepto
+// normalizado (asi tambien funciona sin haber asociado comercios).
+function merchantKeyOf(t: Transaction): string {
+  return t.merchantId !== null ? `m:${t.merchantId}` : `c:${t.normalizedConcept}`;
+}
+
+// Atribuye la variacion de cada categoria al comercio que mas la explica, con la misma vara "a
+// estas alturas" que computeVariance (misma fraccion del mes). Muta `variance.items`.
+export function attachVarianceDrivers(
+  variance: MonthVariance,
+  args: {
+    transactions: Transaction[];
+    ctx: StatsContext;
+    month: string;
+    previousMonth: string;
+    upTo: string | null;
+    cutoff: { elapsed: number; dim: number };
+  },
+): void {
+  if (variance.items.length === 0) return;
+  const wanted = new Set(variance.items.map((i) => i.categoryId));
+  // categoria -> clave de comercio -> { delta, merchantId, concepto }
+  const byCat = new Map<string | null, Map<string, { delta: number; merchantId: string | null; concept: string }>>();
+  for (const t of args.transactions) {
+    const k = monthKey(t.date);
+    const sign = k === args.month ? 1 : k === args.previousMonth ? -1 : 0;
+    if (sign === 0) continue;
+    if (args.upTo !== null && t.date > args.upTo) continue;
+    if (!countsInStats(t) || isRealIncome(t, args.ctx)) continue;
+    const c = netExpenseContribution(t, args.ctx);
+    if (!c || !wanted.has(c.rootCategoryId)) continue;
+    const day = parseISO(t.date).d;
+    const monthDays = parseISO(monthBounds(k).to).d;
+    if (day * args.cutoff.dim > args.cutoff.elapsed * monthDays) continue;
+    const perMerchant = byCat.get(c.rootCategoryId) ?? new Map();
+    byCat.set(c.rootCategoryId, perMerchant);
+    const key = merchantKeyOf(t);
+    const entry = perMerchant.get(key) ?? { delta: 0, merchantId: t.merchantId, concept: t.concept };
+    entry.delta += sign * c.cents;
+    perMerchant.set(key, entry);
+  }
+  for (const item of variance.items) {
+    const perMerchant = byCat.get(item.categoryId);
+    if (!perMerchant || item.deltaCents === 0) continue;
+    let best: { delta: number; merchantId: string | null; concept: string } | null = null;
+    for (const e of [...perMerchant.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v)) {
+      if (Math.sign(e.delta) !== Math.sign(item.deltaCents)) continue;
+      if (best === null || Math.abs(e.delta) > Math.abs(best.delta)) best = e;
+    }
+    if (best === null) continue;
+    const share = Math.round((best.delta * 1000) / item.deltaCents);
+    // Si un solo comercio no explica al menos una cuarta parte, no aporta: se omite.
+    if (share < 250) continue;
+    item.driver = { merchantId: best.merchantId, concept: best.concept, deltaCents: best.delta, sharePerMille: share };
+  }
+}
+
+export interface MerchantAnomaly {
+  t: Transaction;
+  cents: number;
+  median: number;
+  pastCount: number;
+  deltaPerMille: number;
+}
+
+// Cargos del mes muy por encima de la mediana de los cargos anteriores del MISMO comercio (12
+// meses previos al mes). Solo movimientos con comercio o concepto repetido; deterministas.
+export function detectMerchantAnomalies(args: {
+  transactions: Transaction[];
+  ctx: StatsContext;
+  fixedIds: ReadonlySet<string>;
+  monthTxs: Transaction[];
+  monthStart: string;
+  skipIds?: ReadonlySet<string>;
+}): MerchantAnomaly[] {
+  const lookbackFrom = shiftMonths(args.monthStart, -MERCHANT_ANOMALY_LOOKBACK_MONTHS);
+  const past = new Map<string, number[]>();
+  for (const t of args.transactions) {
+    if (t.type !== 'expense' || t.date < lookbackFrom || t.date >= args.monthStart) continue;
+    const c = netExpenseContribution(t, args.ctx);
+    if (!c || c.cents <= 0) continue;
+    const key = merchantKeyOf(t);
+    const list = past.get(key) ?? [];
+    list.push(c.cents);
+    past.set(key, list);
+  }
+  const out: MerchantAnomaly[] = [];
+  for (const t of args.monthTxs) {
+    if (t.type !== 'expense' || args.fixedIds.has(t.id) || args.skipIds?.has(t.id)) continue;
+    const c = netExpenseContribution(t, args.ctx);
+    if (!c || c.cents <= 0) continue;
+    const hist = past.get(merchantKeyOf(t)) ?? [];
+    if (hist.length < MERCHANT_ANOMALY_MIN_PAST) continue;
+    const median = medianCents(hist);
+    if (median <= 0) continue;
+    const delta = c.cents - median;
+    if (c.cents * 1000 < median * MERCHANT_ANOMALY_FACTOR_PER_MILLE || delta < MERCHANT_ANOMALY_MIN_DELTA_CENTS) continue;
+    out.push({ t, cents: c.cents, median, pastCount: hist.length, deltaPerMille: Math.round((delta * 1000) / median) });
+  }
+  return out.sort((a, b) => b.cents - b.median - (a.cents - a.median) || a.t.id.localeCompare(b.t.id));
 }
 
 // --- Flujo del dinero (Sankey) ---

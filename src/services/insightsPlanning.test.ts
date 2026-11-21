@@ -55,12 +55,96 @@ describe('variacion frente al mes anterior', () => {
     expect(v.previousCents).toBe(40000);
     expect(v.currentCents).toBe(57000);
     expect(v.deltaCents).toBe(17000);
-    expect(v.items).toEqual([
+    expect(v.items.map(({ categoryId, deltaCents }) => ({ categoryId, deltaCents }))).toEqual([
       { categoryId: 'viajes', deltaCents: 12000 },
       { categoryId: 'rest', deltaCents: 7500 },
       { categoryId: 'super', deltaCents: -2500 },
     ]);
     expect(v.restCents).toBe(0);
+  });
+
+  it('atribuye la variacion de cada categoria al comercio que mas la explica', () => {
+    const txs = [
+      ...monthlyHistory().map((t) => (t.categoryId === 'rest' ? { ...t, merchantId: 'm-bar', concept: 'Bar Pepe' } : t)),
+      makeTx({ date: '2026-11-04', amountCents: -10000, categoryId: 'rest', merchantId: 'm-bar', concept: 'Bar Pepe' }),
+      makeTx({ date: '2026-11-06', amountCents: -6400, categoryId: 'rest', merchantId: 'm-glovo', concept: 'GLOVO' }),
+      makeTx({ date: '2026-11-07', amountCents: -1600, categoryId: 'rest', merchantId: 'm-otro', concept: 'Otro' }),
+      makeTx({ date: '2026-11-08', amountCents: -30000, categoryId: 'super' }),
+    ];
+    const v = computeInsights(input(txs)).variance!;
+    const rest = v.items.find((i) => i.categoryId === 'rest')!;
+    // Octubre a dia 15: 100 EUR en Bar Pepe. Noviembre: 100 Bar Pepe + 64 Glovo + 16 otro = +80.
+    expect(rest.deltaCents).toBe(8000);
+    expect(rest.driver).toEqual({ merchantId: 'm-glovo', concept: 'GLOVO', deltaCents: 6400, sharePerMille: 800 });
+    // Supermercado no varia: no aparece ni lleva explicacion.
+    expect(v.items.find((i) => i.categoryId === 'super')).toBeUndefined();
+  });
+
+  it('sin un comercio que explique al menos un 25 % no se atribuye', () => {
+    // Octubre a dia 15: 100 EUR en restaurantes (concepto "Compra"). Noviembre: los mismos 100 y
+    // cinco comercios nuevos de 10 EUR: +50 repartidos, ninguno explica mas del 20 %.
+    const txs = [...monthlyHistory(), makeTx({ date: '2026-11-05', amountCents: -10000, categoryId: 'rest' })];
+    for (let i = 0; i < 5; i++) {
+      txs.push(makeTx({ date: `2026-11-0${i + 2}`, amountCents: -1000, categoryId: 'rest', merchantId: `m-${i}`, concept: `C${i}` }));
+    }
+    txs.push(makeTx({ date: '2026-11-08', amountCents: -30000, categoryId: 'super' }));
+    const rest = computeInsights(input(txs)).variance!.items.find((i) => i.categoryId === 'rest')!;
+    expect(rest.deltaCents).toBe(5000);
+    expect(rest.driver).toBeUndefined();
+  });
+});
+
+describe('mismo mes del ano anterior', () => {
+  it('compara a la misma altura del mes con el mismo mes de hace un ano', () => {
+    const txs = [
+      makeTx({ date: '2025-11-05', amountCents: -20000, categoryId: 'super' }),
+      makeTx({ date: '2025-11-25', amountCents: -50000, categoryId: 'super' }), // despues del dia 15: no cuenta
+      makeTx({ date: '2026-11-06', amountCents: -26000, categoryId: 'super' }),
+    ];
+    const y = computeInsights(input(txs)).yearAgo!;
+    expect(y.month).toBe('2025-11');
+    expect(y.previousCents).toBe(20000);
+    expect(y.currentCents).toBe(26000);
+    expect(y.deltaCents).toBe(6000);
+  });
+
+  it('sin datos del ano anterior no hay comparacion', () => {
+    expect(computeInsights(input(monthlyHistory())).yearAgo).toBeNull();
+  });
+});
+
+describe('cargo anomalo de un comercio habitual', () => {
+  function bills(): ReturnType<typeof makeTx>[] {
+    const out = [];
+    for (const m of ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']) {
+      out.push(makeTx({ date: `${m}-10`, amountCents: -6000, categoryId: 'super', merchantId: 'm-luz', concept: 'Endesa' }));
+    }
+    return out;
+  }
+
+  it('avisa si el cargo supera en un 30 % y 15 EUR la mediana de sus cargos anteriores', () => {
+    const big = makeTx({ date: '2026-11-10', amountCents: -8600, categoryId: 'super', merchantId: 'm-luz', concept: 'Endesa' });
+    const ins = computeInsights(input([...bills(), big]));
+    const a = ins.alerts.find((x) => x.id === `merchant-anomaly-${big.id}`)!;
+    expect(a).toBeDefined();
+    expect(a.title).toContain('43 %');
+    expect(a.detail).toContain('6 cargos');
+    expect(a.transactionId).toBe(big.id);
+    expect(a.impactCents).toBe(2600);
+  });
+
+  it('no avisa por subidas pequenas ni con poco historial', () => {
+    const small = makeTx({ date: '2026-11-10', amountCents: -7400, categoryId: 'super', merchantId: 'm-luz', concept: 'Endesa' });
+    expect(computeInsights(input([...bills(), small])).alerts.some((a) => a.id.startsWith('merchant-anomaly'))).toBe(false);
+    const few = bills().slice(0, 3);
+    const big = makeTx({ date: '2026-11-10', amountCents: -9000, categoryId: 'super', merchantId: 'm-luz', concept: 'Endesa' });
+    expect(computeInsights(input([...few, big])).alerts.some((a) => a.id.startsWith('merchant-anomaly'))).toBe(false);
+  });
+
+  it('los cargos ya vinculados a una recurrencia los vigila el planificador, no este aviso', () => {
+    const big = makeTx({ date: '2026-11-10', amountCents: -9000, categoryId: 'super', merchantId: 'm-luz', concept: 'Endesa' });
+    const ins = computeInsights(input([...bills(), big], { fixedTransactionIds: new Set([big.id]), hasFixedSeries: true }));
+    expect(ins.alerts.some((a) => a.id.startsWith('merchant-anomaly'))).toBe(false);
   });
 });
 

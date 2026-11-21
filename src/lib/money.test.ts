@@ -54,3 +54,29 @@ describe('money: formatCents', () => {
     expect(() => formatCents(12.34)).toThrow(ValidationError);
   });
 });
+
+describe('modo privado (importes ocultos)', () => {
+  it('formatCents devuelve la mascara mientras esta activo y la cifra al desactivarlo', async () => {
+    const { formatCents, setAmountsMasked, MASKED_AMOUNT, areAmountsMasked } = await import('./money');
+    setAmountsMasked(true);
+    try {
+      expect(areAmountsMasked()).toBe(true);
+      expect(formatCents(123456)).toBe(MASKED_AMOUNT);
+      expect(formatCents(-500)).toBe(MASKED_AMOUNT);
+    } finally {
+      setAmountsMasked(false);
+    }
+    expect(formatCents(123456)).not.toBe(MASKED_AMOUNT);
+    expect(formatCents(123456)).toContain('1234,56');
+  });
+
+  it('sigue validando que el importe sea entero aunque este oculto', async () => {
+    const { formatCents, setAmountsMasked } = await import('./money');
+    setAmountsMasked(true);
+    try {
+      expect(() => formatCents(1.5)).toThrow();
+    } finally {
+      setAmountsMasked(false);
+    }
+  });
+});

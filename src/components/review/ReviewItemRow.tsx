@@ -4,6 +4,23 @@
 // el contenedor.
 import type { ReviewItem } from '../../db/schema';
 import { REVIEW_TYPE_LABELS, type RuleProposal } from '../../services/reviewService';
+import { REASON_CODE_LABELS } from '../../services/duplicateEngine';
+import { REFUND_REASON_CODE_LABELS } from '../../services/refundCandidateEngine';
+import { TRANSFER_REASON_CODE_LABELS } from '../../services/transferCandidateEngine';
+
+// Motivo legible de una tarea (los motores guardan codigos internos). Por tipo de tarea, para
+// no mezclar codigos con el mismo nombre de motores distintos; si no hay etiqueta, el codigo.
+export function reasonLabel(type: ReviewItem['type'], code: string): string {
+  const table: Record<string, string> =
+    type === 'refundCandidate'
+      ? REFUND_REASON_CODE_LABELS
+      : type === 'transferCandidate'
+        ? TRANSFER_REASON_CODE_LABELS
+        : type === 'possibleDuplicate'
+          ? REASON_CODE_LABELS
+          : {};
+  return table[code] ?? code;
+}
 
 interface ReviewItemRowProps {
   item: ReviewItem;
@@ -55,7 +72,9 @@ export function ReviewItemRow({ item, selected, onToggleSelect, onOpen, proposal
           <span className="text-xs text-slate-500">{Math.round(item.confidence / 10)}%</span>
         )}
         {item.reasonCodes.length > 0 && (
-          <span className="truncate text-xs text-slate-500">{item.reasonCodes.join(', ')}</span>
+          <span className="truncate text-xs text-slate-500">
+            {item.reasonCodes.map((c) => reasonLabel(item.type, c)).join(' · ')}
+          </span>
         )}
         <span className="ml-auto shrink-0 text-xs text-slate-500">
           {new Date(item.createdAt).toLocaleDateString(LOCALE)}

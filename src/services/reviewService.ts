@@ -32,6 +32,7 @@ import {
   type TransferCandidateTx,
 } from './transferCandidateEngine';
 import {
+  bestSplitShareCandidate,
   scoreAllRefundCandidates,
   type RefundCandidateTx,
   type RefundOriginalTx,
@@ -410,14 +411,37 @@ async function generateRefundCandidates(profileId: string): Promise<void> {
     .filter((t) => t.amountCents < 0 && t.refundOfId === null)
     .map(toRefundOriginalTx);
   const candidates = all.filter((t) => t.amountCents > 0 && t.refundOfId === null);
+  // Lo ya devuelto de cada gasto (para no proponer devolver mas que el gasto).
+  const linkedByOriginal = new Map<string, number>();
+  for (const t of all) {
+    if (t.refundOfId !== null && t.amountCents > 0) {
+      linkedByOriginal.set(t.refundOfId, (linkedByOriginal.get(t.refundOfId) ?? 0) + t.amountCents);
+    }
+  }
+  // Para el reparto por Bizum solo cuentan gastos reales (no transferencias ni splits padre).
+  const splitOriginals = all
+    .filter((t) => t.type === 'expense' && t.amountCents < 0 && t.refundOfId === null && !t.isSplitParent)
+    .map(toRefundOriginalTx);
   for (const c of candidates) {
     const scores = scoreAllRefundCandidates(toRefundCandidateTx(c), originals);
     const best = scores[0];
-    if (!best) continue;
+    if (best) {
+      await upsertOpenReviewItem(profileId, 'refundCandidate', 'transaction', c.id, {
+        confidence: best.confidence,
+        reasonCodes: best.reasonCodes,
+        metadata: { originalId: best.originalId },
+      });
+      continue;
+    }
+    // Bizum de reparto: solo para entradas de tipo ingreso (las unicas que pueden enlazarse como
+    // reembolso) que no sean un ingreso real ya categorizado como tal.
+    if (c.type !== 'income') continue;
+    const share = bestSplitShareCandidate(toRefundCandidateTx(c), splitOriginals, linkedByOriginal);
+    if (!share) continue;
     await upsertOpenReviewItem(profileId, 'refundCandidate', 'transaction', c.id, {
-      confidence: best.confidence,
-      reasonCodes: best.reasonCodes,
-      metadata: { originalId: best.originalId },
+      confidence: share.confidence,
+      reasonCodes: share.reasonCodes,
+      metadata: { originalId: share.originalId, shareOf: share.shareOf },
     });
   }
 }

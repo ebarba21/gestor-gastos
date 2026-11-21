@@ -194,3 +194,69 @@ describe('fondos para gastos no mensuales', () => {
     expect(f.earmarkedCents).toBe(0);
   });
 });
+
+describe('ritmo del periodo (marca en la barra del presupuesto)', () => {
+  it('cuenta el dia de hoy como transcurrido', async () => {
+    const { periodElapsedPerMille } = await import('./budgetService');
+    const nov = { from: '2026-11-01', to: '2026-11-30' };
+    expect(periodElapsedPerMille(nov, '2026-11-01')).toBe(33); // 1/30
+    expect(periodElapsedPerMille(nov, '2026-11-15')).toBe(500);
+    expect(periodElapsedPerMille(nov, '2026-11-30')).toBe(1000);
+  });
+
+  it('fuera del periodo no hay ritmo', async () => {
+    const { periodElapsedPerMille } = await import('./budgetService');
+    const nov = { from: '2026-11-01', to: '2026-11-30' };
+    expect(periodElapsedPerMille(nov, '2026-10-31')).toBeNull();
+    expect(periodElapsedPerMille(nov, '2026-12-01')).toBeNull();
+  });
+
+  it('el objetivo a ritmo constante es el limite por la fraccion transcurrida', async () => {
+    const { paceTargetCents } = await import('./budgetService');
+    expect(paceTargetCents(30000, 500)).toBe(15000);
+    expect(paceTargetCents(10001, 333)).toBe(3330);
+    expect(paceTargetCents(0, 700)).toBe(0);
+  });
+});
+
+describe('presupuestos sugeridos para empezar', () => {
+  it('propone las 3 categorias variables con mas gasto medio, redondeadas a 10 EUR', async () => {
+    const { suggestStarterBudgets } = await import('./budgetService');
+    const { makeCategory, makeTx } = await import('../test/txFixtures');
+    const cats = ['super', 'rest', 'ocio', 'ropa', 'alquiler'].map((id) => makeCategory({ id, name: id }));
+    const txs = [];
+    for (const m of ['2026-08', '2026-09', '2026-10']) {
+      txs.push(makeTx({ date: `${m}-05`, amountCents: -31234, categoryId: 'super' }));
+      txs.push(makeTx({ date: `${m}-06`, amountCents: -15000, categoryId: 'rest' }));
+      txs.push(makeTx({ date: `${m}-07`, amountCents: -8000, categoryId: 'ocio' }));
+      txs.push(makeTx({ date: `${m}-08`, amountCents: -2000, categoryId: 'ropa' }));
+    }
+    const rent = makeTx({ date: '2026-10-01', amountCents: -90000, categoryId: 'alquiler' });
+    txs.push(rent);
+    // Noviembre (mes en curso) no cuenta.
+    txs.push(makeTx({ date: '2026-11-02', amountCents: -99999, categoryId: 'ropa' }));
+    const out = suggestStarterBudgets({ transactions: txs, categories: cats, budgets: [], fixedIds: new Set([rent.id]), today: '2026-11-21' });
+    expect(out).toEqual([
+      { categoryId: 'super', name: 'super', averageCents: 31234, limitCents: 32000 },
+      { categoryId: 'rest', name: 'rest', averageCents: 15000, limitCents: 15000 },
+      { categoryId: 'ocio', name: 'ocio', averageCents: 8000, limitCents: 8000 },
+    ]);
+  });
+
+  it('salta las categorias que ya tienen limite', async () => {
+    const { suggestStarterBudgets } = await import('./budgetService');
+    const { makeCategory, makeTx } = await import('../test/txFixtures');
+    const cats = [makeCategory({ id: 'super', name: 'super' }), makeCategory({ id: 'rest', name: 'rest' })];
+    const txs = [
+      makeTx({ date: '2026-10-05', amountCents: -30000, categoryId: 'super' }),
+      makeTx({ date: '2026-10-06', amountCents: -10000, categoryId: 'rest' }),
+    ];
+    const budget = {
+      id: 'b1', profileId: 'p', name: 'Super', scope: 'category', scopeId: 'super', direction: 'expense',
+      limitCents: 30000, period: 'monthly', customStart: null, customEnd: null, rollover: false, archivedAt: null,
+      createdAt: 0, updatedAt: 0,
+    } as unknown as import('../db/schema').Budget;
+    const out = suggestStarterBudgets({ transactions: txs, categories: cats, budgets: [budget], fixedIds: new Set(), today: '2026-11-21' });
+    expect(out.map((s) => s.categoryId)).toEqual(['rest']);
+  });
+});

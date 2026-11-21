@@ -11,7 +11,7 @@ import {
   type RuleProposal,
 } from '../../services/reviewService';
 import type { ReviewItem, ReviewItemStatus, ReviewItemType } from '../../db/schema';
-import { EmptyState } from '../common';
+import { EmptyState, SwipeRow } from '../common';
 import { useToast } from '../../context/ToastContext';
 import { ReviewItemRow } from './ReviewItemRow';
 import { ReviewItemDetailModal } from './ReviewItemDetailModal';
@@ -68,6 +68,28 @@ export function ReviewInboxSection() {
 
   function toggleSelectAll() {
     setSelected((prev) => (prev.size === items.length ? new Set() : new Set(items.map((i) => i.id))));
+  }
+
+  // Gesto rapido sobre una tarea: resolver o descartar, con "Deshacer" en el aviso.
+  async function quickAction(item: ReviewItem, action: 'resolve' | 'dismiss') {
+    try {
+      if (action === 'resolve') await reviewService.resolve(profileId, item.id, 'swipe:resolved');
+      else await reviewService.dismiss(profileId, item.id, 'swipe:dismissed');
+      await reload();
+      showToast(action === 'resolve' ? 'Tarea resuelta.' : 'Tarea descartada.', 'success', {
+        label: 'Deshacer',
+        onClick: async () => {
+          try {
+            await reviewService.reopen(profileId, item.id);
+            await reload();
+          } catch (e) {
+            showToast(e instanceof Error ? e.message : 'No se pudo deshacer.', 'error');
+          }
+        },
+      });
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo actualizar la tarea.', 'error');
+    }
   }
 
   async function bulkAction(action: 'resolve' | 'dismiss') {
@@ -224,16 +246,25 @@ export function ReviewInboxSection() {
             )}
           </div>
 
+          <p className="text-xs text-slate-500 md:hidden">
+            Desliza una tarea a la derecha para resolverla o a la izquierda para descartarla.
+          </p>
           <ul className="space-y-2">
             {items.map((item) => (
-              <ReviewItemRow
+              <SwipeRow
                 key={item.id}
-                item={item}
-                selected={selected.has(item.id)}
-                onToggleSelect={() => toggleSelect(item.id)}
-                onOpen={() => setOpenItem(item)}
-                proposal={proposals.get(item.id)}
-              />
+                className="rounded-lg"
+                leading={{ label: 'Resolver', className: 'bg-emerald-600 text-white', onTrigger: () => void quickAction(item, 'resolve') }}
+                trailing={{ label: 'Descartar', className: 'bg-slate-600 text-white', onTrigger: () => void quickAction(item, 'dismiss') }}
+              >
+                <ReviewItemRow
+                  item={item}
+                  selected={selected.has(item.id)}
+                  onToggleSelect={() => toggleSelect(item.id)}
+                  onOpen={() => setOpenItem(item)}
+                  proposal={proposals.get(item.id)}
+                />
+              </SwipeRow>
             ))}
           </ul>
         </>

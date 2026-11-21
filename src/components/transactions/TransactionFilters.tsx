@@ -11,6 +11,8 @@ interface TransactionFiltersProps {
   accounts: Account[];
   categories: Category[];
   tags: Tag[];
+  // Como se ha interpretado la busqueda (busqueda con sintaxis).
+  searchChips?: string[];
 }
 
 const controlClass =
@@ -30,6 +32,7 @@ export function TransactionFilters({
   accounts,
   categories,
   tags,
+  searchChips,
 }: TransactionFiltersProps) {
   const [expanded, setExpanded] = useState(false);
   const roots = categories.filter((c) => c.parentId === null && c.archivedAt === null);
@@ -92,7 +95,7 @@ export function TransactionFilters({
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="search"
-          placeholder="Buscar por concepto o notas"
+          placeholder="Buscar: mercadona octubre, >50 super, #viaje"
           value={searchText}
           onChange={(e) => onSearchChange(e.target.value)}
           className={`${controlClass} min-w-[12rem] flex-1`}
@@ -114,6 +117,17 @@ export function TransactionFilters({
           </button>
         )}
       </div>
+
+      {searchChips && searchChips.length > 0 && (searchChips.length > 1 || !searchChips[0]!.startsWith('Texto')) && (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs" aria-label="Búsqueda interpretada">
+          <span className="text-slate-500">Buscando:</span>
+          {searchChips.map((c) => (
+            <span key={c} className="rounded-full border border-slate-700 bg-slate-800/60 px-2 py-0.5 text-slate-300">
+              {c}
+            </span>
+          ))}
+        </div>
+      )}
 
       {expanded && (
         <div className="grid gap-4 rounded-lg border border-slate-800 bg-slate-900/60 p-4 sm:grid-cols-2">

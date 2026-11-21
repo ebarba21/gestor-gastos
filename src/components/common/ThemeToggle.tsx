@@ -46,7 +46,7 @@ export function ThemeToggle({ variant = 'icon', className = '' }: ThemeTogglePro
       onClick={toggleTheme}
       title={nextLabel}
       aria-label={nextLabel}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 text-base text-slate-300 hover:bg-slate-800 ${className}`}
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700 text-base text-slate-300 hover:bg-slate-800 ${className}`}
     >
       <span aria-hidden>{theme === 'dark' ? '☀️' : '🌙'}</span>
     </button>

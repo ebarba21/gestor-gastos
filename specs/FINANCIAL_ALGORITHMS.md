@@ -232,3 +232,18 @@ Meses de colchon = saldo liquido / mediana del gasto neto mensual (6 meses). Rec
 
 ### 13.6 Insights
 Variacion = gasto neto por categoria del mes actual frente al anterior a la misma fraccion del mes. Proyeccion de cierre por categoria = actual + (media mensual - media a estas alturas). Prioridad de un aviso (0..100) = base por gravedad (critico 70, accion 40, info 15) + hasta 20 por dinero en juego (log) + 10/5 si vence en 3/7 dias + 3 si hay accion. Un aviso pospuesto se oculta 7 dias, uno no util 30; uno critico nunca mas de 1 dia.
+
+## 14. Mejoras del benchmark (noviembre 2026)
+
+Todas puras, deterministas y en centimos enteros; misma semantica de gasto neto que el dashboard (`netExpenseContribution`).
+
+- **Causa de la variacion** (`attachVarianceDrivers`): para cada categoria de "Frente al mes pasado", el comercio (o concepto normalizado si no hay comercio) cuya diferencia, a la misma fraccion del mes, tiene el mismo signo y mayor valor absoluto. Se omite si explica menos del 25 %.
+- **Mismo mes del ano anterior** (`yearAgo`): gasto neto del mes hasta hoy frente al mismo mes de hace 12 meses a la misma fraccion del mes.
+- **Cargo anomalo de un comercio** (`detectMerchantAnomalies`): cargo del mes >= mediana x 1,3 y >= mediana + 15 EUR, con al menos 4 cargos previos del mismo comercio en los 12 meses anteriores. Se excluyen los vinculados a una recurrencia confirmada (ya vigilados por las subidas de precio del planificador, umbral > 1 EUR y > 3 %).
+- **Variabilidad** (`computeSpendVariability`): desviacion tipica poblacional / media del gasto variable mensual (sin fijos) de los ultimos 12 meses completos con actividad; requiere 3 meses.
+- **Concentracion** (`computeSpendConcentration`): suma de los 3 comercios con mas gasto variable neto / gasto variable neto de los ultimos 3 meses completos.
+- **Bizum de reparto** (`scoreSplitSharePair`): un ingreso cuyo concepto contiene "bizum", 0 a 10 dias despues de un gasto (que no sea otro Bizum), con importe x N = gasto +- N centimos para N en 2..6, o igual al gasto (N = 1). Lo ya reembolsado del gasto mas el Bizum no puede superar el gasto. Confianza 600 (550 si N = 1) - 20 por dia, minimo 300. Solo genera una tarea en la bandeja; enlazarlo usa `markAsRefund`.
+- **Ritmo del presupuesto** (`periodElapsedPerMille`, `paceTargetCents`): dias transcurridos (hoy incluido) / dias del periodo; objetivo a ritmo constante = limite efectivo x fraccion, redondeado.
+- **Presupuestos sugeridos** (`suggestStarterBudgets`): media mensual del gasto variable neto por categoria raiz en los 3 meses completos anteriores (dividida por los meses con actividad), redondeada hacia arriba a 10 EUR; se saltan las categorias con limite activo.
+- **Cierre de mes** (`computeMonthClose`): cuenta importada si su ultimo movimiento es como mucho 3 dias anterior a fin de mes; conciliada si tiene una conciliacion no descuadrada con fecha de extracto >= fin de mes - 3 dias (una posterior tambien avala el mes, el saldo es acumulado).
+- **Informe por etiqueta** (`computeTagReport`): movimientos con la etiqueta mas los reembolsos enlazados a uno de ellos; coste por dia = neto / dias entre el primero y el ultimo, ambos incluidos.

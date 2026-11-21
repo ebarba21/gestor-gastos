@@ -3,6 +3,7 @@
 // seccion 16. Toda accion real (categorizar, vincular, eliminar, crear comercio...) llama al
 // servicio correspondiente y despues resuelve/descarta la tarea; nunca se resuelve en
 // silencio (invariante 11 de CLAUDE.md).
+import { reasonLabel } from './ReviewItemRow';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ReviewItem, Transaction } from '../../db/schema';
@@ -127,7 +128,7 @@ export function ReviewItemDetailModal({
         )}
 
         {item.reasonCodes.length > 0 && (
-          <p className="text-xs text-slate-400">Motivos: {item.reasonCodes.join(', ')}</p>
+          <p className="text-xs text-slate-400">Motivos: {item.reasonCodes.map((c) => reasonLabel(item.type, c)).join(' · ')}</p>
         )}
         {item.confidence > 0 && (
           <p className="text-xs text-slate-500">Confianza orientativa: {Math.round(item.confidence / 10)}%</p>
@@ -297,6 +298,13 @@ export function ReviewItemDetailModal({
               <TxSummary tx={counterpart} label="Gasto original" />
             ) : (
               <p className="text-slate-400">El gasto original ya no está disponible.</p>
+            )}
+            {typeof item.metadata.shareOf === 'number' && (
+              <p className="text-xs text-slate-400">
+                {item.metadata.shareOf === 1
+                  ? 'El Bizum devuelve el gasto entero. Al vincularlo, el gasto deja de contar como tuyo.'
+                  : `El Bizum es tu gasto entre ${item.metadata.shareOf} personas. Al vincularlo, la categoría del gasto solo cuenta tu parte.`}
+              </p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
               <button

@@ -17,8 +17,11 @@ import SettingsPage from './pages/SettingsPage';
 import SecurityPage from './pages/SecurityPage';
 import AccountPage from './pages/AccountPage';
 import SyncPage from './pages/SyncPage';
+import MonthClosePage from './pages/MonthClosePage';
+import TagReportPage from './pages/TagReportPage';
 import { ProfileGate, ProfileSwitcher } from './components/profile';
-import { ThemeToggle } from './components/common';
+import { PrivacyToggle, ThemeToggle } from './components/common';
+import { usePrivacy } from './context/PrivacyContext';
 import { SyncBadge } from './components/sync';
 import { ReviewBadge } from './components/review';
 import { LockGate } from './components/security';
@@ -46,13 +49,16 @@ function AppLayout() {
             en PC vuelven a apilarse en la barra lateral. */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate whitespace-nowrap text-base font-bold md:text-lg">Gestor de Gastos</span>
+            {/* En movil el nombre de la app se oculta: cada pantalla ya lleva su titulo y asi caben
+                los avisos y los botones de privacidad y tema sin apretarse. */}
+            <span className="hidden truncate whitespace-nowrap text-base font-bold sm:inline md:text-lg">Gestor de Gastos</span>
             {/* Insignia de estado de sincronizacion (solo con cuenta activa). */}
             <SyncBadge />
             {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). */}
             <ReviewBadge />
-            {/* Conmutador de tema, accesible desde cualquier seccion. */}
-            <ThemeToggle className="md:ml-auto" />
+            {/* Ocultar importes (modo privado) y conmutador de tema, desde cualquier seccion. */}
+            <PrivacyToggle className="md:ml-auto" />
+            <ThemeToggle />
           </div>
           {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
           <div className="w-36 shrink-0 sm:w-44 md:mt-4 md:w-auto">
@@ -91,6 +97,8 @@ function AppLayout() {
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/cuentas" element={<AccountsPage />} />
           <Route path="/presupuestos" element={<BudgetsPage />} />
+          <Route path="/cierre" element={<MonthClosePage />} />
+          <Route path="/etiquetas" element={<TagReportPage />} />
           <Route path="/exportar" element={<ExportPage />} />
           <Route path="/cuenta" element={<AccountPage />} />
           <Route path="/sincronizacion" element={<SyncPage />} />
@@ -105,9 +113,12 @@ function AppLayout() {
 
 // Al cambiar de perfil se monta de nuevo todo el layout: ningun estado (dashboard, patrimonio,
 // insights) del perfil anterior puede quedar visible mientras carga el nuevo (invariante 4).
+// Al ocultar o mostrar los importes tambien se vuelve a montar: las cifras ya formateadas en
+// avisos y resumenes se recalculan con o sin mascara.
 function ProfileScopedLayout() {
   const profileId = useActiveProfileId();
-  return <AppLayout key={profileId} />;
+  const { revision } = usePrivacy();
+  return <AppLayout key={`${profileId}:${revision}`} />;
 }
 
 export default function App() {

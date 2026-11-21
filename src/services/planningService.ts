@@ -156,6 +156,26 @@ export interface PlanningKpis {
   savingsRateMonthsUsed: { short: number; long: number };
   reimbursablePendingCents: number;
   reimbursablePendingCount: number;
+  // Noviembre 2026 (benchmark de apps): cuanto se mueve tu gasto variable de un mes a otro y
+  // cuanto depende de pocos comercios.
+  variability: SpendVariability | null;
+  concentration: SpendConcentration | null;
+}
+
+// Variabilidad del gasto variable mensual: desviacion tipica / media de los ultimos meses
+// completos. Un gasto muy variable pide mas colchon.
+export interface SpendVariability {
+  monthsUsed: number;
+  meanCents: number;
+  stdDevCents: number;
+  coefficientPerMille: number; // desviacion / media x 1000
+}
+
+// Peso de los 3 comercios en los que mas gastas sobre tu gasto variable (ultimos 3 meses).
+export interface SpendConcentration {
+  totalVariableCents: number;
+  top: { merchantId: string | null; concept: string; cents: number }[];
+  topSharePerMille: number;
 }
 
 export interface FlexPlan {
@@ -491,6 +511,15 @@ export function computePlanning(input: PlanningInput): PlanningResult {
     savingsRateMonthsUsed: { short: r3.used, long: r12.used },
     reimbursablePendingCents: reimbursablePending,
     reimbursablePendingCount: reimbursableCount,
+    variability: computeSpendVariability(input.transactions, ctx, fixedIds, lastCompleteMonths(today, 12)),
+    concentration: (() => {
+      const months = lastCompleteMonths(today, 3);
+      if (months.length === 0) return null;
+      return computeSpendConcentration(input.transactions, ctx, fixedIds, {
+        from: months[0]!.from,
+        to: months[months.length - 1]!.to,
+      });
+    })(),
   };
 
   // 4. Plan flexible.
@@ -716,6 +745,69 @@ export function planningAlerts(p: PlanningResult): InsightAlert[] {
     });
   }
   return alerts;
+}
+
+// Variabilidad del gasto variable mensual (sin recibos fijos), en meses con actividad. Pura.
+export function computeSpendVariability(
+  txs: readonly Transaction[],
+  ctx: StatsContext,
+  fixedIds: ReadonlySet<string>,
+  months: DateRange[],
+): SpendVariability | null {
+  const values: number[] = [];
+  for (const r of months) {
+    const inMonth = inRange(txs, r);
+    if (!inMonth.some(countsInStats)) continue;
+    let variable = 0;
+    for (const t of inMonth) {
+      if (isFixedTransaction(t, fixedIds)) continue;
+      const c = netExpenseContribution(t, ctx);
+      if (c) variable += c.cents;
+    }
+    values.push(variable);
+  }
+  if (values.length < 3) return null;
+  const mean = values.reduce((a, v) => a + v, 0) / values.length;
+  if (mean <= 0) return null;
+  const variance = values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length;
+  const std = Math.sqrt(variance);
+  return {
+    monthsUsed: values.length,
+    meanCents: Math.round(mean),
+    stdDevCents: Math.round(std),
+    coefficientPerMille: Math.round((std * 1000) / mean),
+  };
+}
+
+// Concentracion del gasto variable en los 3 comercios principales (comercio normalizado o, si
+// no hay, concepto normalizado). Pura.
+export function computeSpendConcentration(
+  txs: readonly Transaction[],
+  ctx: StatsContext,
+  fixedIds: ReadonlySet<string>,
+  range: DateRange,
+): SpendConcentration | null {
+  const groups = new Map<string, { merchantId: string | null; concept: string; cents: number }>();
+  let total = 0;
+  for (const t of inRange(txs, range)) {
+    if (isFixedTransaction(t, fixedIds)) continue;
+    const c = netExpenseContribution(t, ctx);
+    if (!c) continue;
+    total += c.cents;
+    const key = t.merchantId !== null ? `m:${t.merchantId}` : `c:${t.normalizedConcept}`;
+    const g = groups.get(key) ?? { merchantId: t.merchantId, concept: t.concept, cents: 0 };
+    g.cents += c.cents;
+    groups.set(key, g);
+  }
+  if (total <= 0) return null;
+  const top = [...groups.entries()]
+    .filter(([, g]) => g.cents > 0)
+    .sort((a, b) => b[1].cents - a[1].cents || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([, g]) => g);
+  if (top.length === 0) return null;
+  const topSum = top.reduce((a, g) => a + g.cents, 0);
+  return { totalVariableCents: total, top, topSharePerMille: Math.round((topSum * 1000) / total) };
 }
 
 // --- Servicio (carga aislada por perfil) ---

@@ -1,0 +1,37 @@
+# Mantiene activo el proyecto Supabase del plan gratuito.
+#
+# El plan gratuito pausa un proyecto tras unos dias sin actividad y la sincronizacion deja de
+# funcionar hasta que alguien lo restaura a mano en el panel. Con un grupo pequeno de usuarios
+# puede pasar una semana sin que nadie sincronice. Este flujo hace dos veces por semana una
+# peticion minima a la API REST con la clave PUBLICABLE (la misma que ya va en el JavaScript de
+# la app). Sin sesion, RLS no devuelve ninguna fila: no lee ni escribe datos de nadie.
+# NUNCA pongas aqui la clave service_role ni ningun secreto (invariante 7 de CLAUDE.md).
+name: Mantener Supabase activo
+
+on:
+  schedule:
+    # Lunes y jueves a las 06:17 UTC.
+    - cron: '17 6 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Peticion minima a la API REST
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://skwhlbwpnsdgmdsfozcr.supabase.co' }}
+          SUPABASE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rtfmOQ2eD30HRqle9e2rPA_wdyX59ck' }}
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "apikey: ${SUPABASE_KEY}" \
+            "${SUPABASE_URL}/rest/v1/profiles?select=id&limit=1")
+          echo "Respuesta HTTP: ${status}"
+          # 200 (lista vacia por RLS) o 401/403 (sin sesion) confirman que el proyecto responde.
+          case "$status" in
+            200|401|403) exit 0 ;;
+            *) echo "El proyecto no respondio como se esperaba (puede estar pausado)."; exit 1 ;;
+          esac

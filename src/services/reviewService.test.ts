@@ -281,6 +281,73 @@ describe('reviewService: reembolso candidato', () => {
   });
 });
 
+describe('reviewService: Bizum de reparto', () => {
+  it('propone enlazar un Bizum recibido que es la mitad de un gasto reciente', async () => {
+    const dinner = await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ amountCents: -8000, type: 'expense', date: '2026-02-01', normalizedConcept: 'restaurante pepe' }),
+    );
+    const bizum = await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ amountCents: 4000, type: 'income', date: '2026-02-02', normalizedConcept: 'bizum de marta' }),
+    );
+    await reviewService.generateRefundCandidates(PROFILE_A);
+    const item = await reviewItemsRepo.findOpenByTypeAndEntity(PROFILE_A, 'refundCandidate', bizum.id);
+    expect(item).toBeDefined();
+    expect(item!.metadata).toMatchObject({ originalId: dinner.id, shareOf: 2 });
+    expect(item!.reasonCodes).toContain('splitShare');
+  });
+
+  it('un Bizum que no cuadra con ningun reparto no genera tarea', async () => {
+    await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ amountCents: -8000, type: 'expense', date: '2026-02-01', normalizedConcept: 'restaurante pepe' }),
+    );
+    const bizum = await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ amountCents: 3300, type: 'income', date: '2026-02-02', normalizedConcept: 'bizum de marta' }),
+    );
+    await reviewService.generateRefundCandidates(PROFILE_A);
+    expect(await reviewItemsRepo.findOpenByTypeAndEntity(PROFILE_A, 'refundCandidate', bizum.id)).toBeUndefined();
+  });
+});
+
+describe('regla sugerida con alcance (solo futuras / pasadas y futuras)', () => {
+  async function setup() {
+    const super_ = await categoriesRepo.create(PROFILE_A, {
+      name: 'Supermercado', parentId: null, kind: 'expense', color: null, icon: null, archivedAt: null, sortOrder: 0,
+    });
+    const past = await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ concept: 'MERCADONA 12', rawConcept: 'MERCADONA 12', normalizedConcept: 'mercadona 12' }),
+    );
+    return { super_, past };
+  }
+
+  it('solo futuras crea la regla sin tocar el historico', async () => {
+    const { ruleSuggestionService } = await import('./ruleSuggestion');
+    const { super_, past } = await setup();
+    const { changed, rule } = await ruleSuggestionService.accept(
+      PROFILE_A,
+      { keyword: 'mercadona', categoryId: super_.id, subcategoryId: null, name: 'mercadona → Supermercado' },
+      { retroactive: false },
+    );
+    expect(changed).toBe(0);
+    expect(rule.enabled).toBe(true);
+    expect((await transactionsRepo.getById(PROFILE_A, past.id))!.categoryId).toBeNull();
+  });
+
+  it('pasadas y futuras recategoriza el historico', async () => {
+    const { ruleSuggestionService } = await import('./ruleSuggestion');
+    const { super_, past } = await setup();
+    const { changed } = await ruleSuggestionService.accept(PROFILE_A, {
+      keyword: 'mercadona', categoryId: super_.id, subcategoryId: null, name: 'mercadona → Supermercado',
+    });
+    expect(changed).toBe(1);
+    expect((await transactionsRepo.getById(PROFILE_A, past.id))!.categoryId).toBe(super_.id);
+  });
+});
+
 describe('reviewService: pendiente antiguo', () => {
   it('marca como pendiente antiguo un movimiento pending con fecha mas alla del umbral', async () => {
     const oldDate = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);

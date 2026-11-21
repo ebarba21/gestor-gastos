@@ -235,7 +235,38 @@ export function StatTiles({ summary, onOpenIncome, onOpenExpenses }: StatTilesPr
           hint="Ahorro sobre ingresos"
         />
       </div>
+      <HowItsCalculated summary={summary} />
       {showBreakdown && <NetSavingsBreakdown summary={summary} />}
     </div>
+  );
+}
+
+// "Como se calcula": las formulas de las cuatro tarjetas con las cifras del periodo, para que
+// ningun KPI sea una caja negra.
+function HowItsCalculated({ summary }: { summary: IncomeExpenseSummary }) {
+  return (
+    <details className="group rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-2 text-xs text-slate-400">
+      <summary className="cursor-pointer select-none py-1 font-medium text-slate-300">¿Cómo se calcula?</summary>
+      <ul className="mt-2 space-y-1.5 pb-1 leading-snug">
+        <li>
+          <strong className="text-slate-200">Ingresos</strong>: solo nómina y paro ({formatCents(summary.incomeCents)}). Los
+          Bizum recibidos, devoluciones y demás entradas no son ingresos: restan del gasto de su categoría.
+        </li>
+        <li>
+          <strong className="text-slate-200">Gastos</strong>: gasto bruto {formatCents(summary.expenseGrossCents)}
+          {summary.refundCents > 0 ? ` − reembolsos ${formatCents(summary.refundCents)}` : ''}
+          {summary.positiveExpenseCents > 0 ? ` − gastos positivos ${formatCents(summary.positiveExpenseCents)}` : ''} ={' '}
+          {formatCents(summary.expenseNetCents)}. No cuentan las transferencias entre tus cuentas, lo marcado como excluido
+          ni lo que apartas a Ahorro o Inversión.
+        </li>
+        <li>
+          <strong className="text-slate-200">Ahorro neto</strong>: ingresos − gastos = {formatCents(summary.netSavingsCents)}.
+        </li>
+        <li>
+          <strong className="text-slate-200">Tasa de ahorro</strong>: ahorro neto ÷ ingresos
+          {summary.savingsRatePerMille === null ? ' (sin ingresos en el periodo no se calcula).' : ` = ${savingsRateLabel(summary.savingsRatePerMille)}.`}
+        </li>
+      </ul>
+    </details>
   );
 }
