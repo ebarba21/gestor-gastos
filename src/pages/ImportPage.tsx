@@ -4,7 +4,7 @@ import { ImportSection } from '../components/import';
 
 export default function ImportPage() {
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <ImportSection />
     </div>
   );

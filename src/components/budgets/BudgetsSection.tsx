@@ -11,6 +11,11 @@ import { useToast } from '../../context/ToastContext';
 import { BudgetCard } from './BudgetCard';
 import { BudgetFormModal } from './BudgetFormModal';
 
+// Resta mostrada con signo solo si hay algo que restar: nunca "-0,00 €".
+function minusCents(cents: number): string {
+  return cents > 0 ? `-${formatCents(cents)}` : formatCents(0);
+}
+
 // Etiqueta del periodo de referencia (mes y ano) a partir del YYYY-MM-DD.
 function referenceLabel(referenceISO: string): string {
   const [y, m] = referenceISO.split('-');
@@ -144,15 +149,15 @@ export function BudgetsSection() {
             </div>
             <div>
               <dt className="text-xs text-slate-500">Recibos fijos</dt>
-              <dd className="tabular-nums text-slate-200">-{formatCents(flexPlan.fixedMonthlyCents)}</dd>
+              <dd className="tabular-nums text-slate-200">{minusCents(flexPlan.fixedMonthlyCents)}</dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Fondos</dt>
-              <dd className="tabular-nums text-slate-200">-{formatCents(flexPlan.fundsMonthlyCents)}</dd>
+              <dd className="tabular-nums text-slate-200">{minusCents(flexPlan.fundsMonthlyCents)}</dd>
             </div>
             <div>
               <dt className="text-xs text-slate-500">Objetivos</dt>
-              <dd className="tabular-nums text-slate-200">-{formatCents(flexPlan.goalsMonthlyCents)}</dd>
+              <dd className="tabular-nums text-slate-200">{minusCents(flexPlan.goalsMonthlyCents)}</dd>
             </div>
           </dl>
           <p className="mt-3 text-sm text-slate-300">

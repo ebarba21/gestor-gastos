@@ -18,6 +18,32 @@ interface Datum {
   color: string;
 }
 
+// Parte una etiqueta de eje por el espacio mas centrado para que quepa en dos lineas.
+function TwoLineTick({ x, y, label, fill }: { x: number; y: number; label: string; fill: string }) {
+  const words = label.split(' ');
+  let lines = [label];
+  if (words.length > 1) {
+    let best = 1;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(' ').length;
+      const b = words.slice(i).join(' ').length;
+      const bestA = words.slice(0, best).join(' ').length;
+      const bestB = words.slice(best).join(' ').length;
+      if (Math.max(a, b) < Math.max(bestA, bestB)) best = i;
+    }
+    lines = [words.slice(0, best).join(' '), words.slice(best).join(' ')];
+  }
+  return (
+    <text x={x} y={y + 12} textAnchor="middle" fontSize={10} fill={fill}>
+      {lines.map((l, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? 0 : 12}>
+          {l}
+        </tspan>
+      ))}
+    </text>
+  );
+}
+
 export function WaterfallCard({ steps }: WaterfallCardProps) {
   const colors = useChartColors();
   const income = steps.find((s) => s.key === 'income')?.cents ?? 0;
@@ -54,11 +80,13 @@ export function WaterfallCard({ steps }: WaterfallCardProps) {
           <XAxis
             dataKey="label"
             interval={0}
-            tick={{ fontSize: 10, fill: colors.axis }}
+            // Etiqueta completa en dos lineas ("Gasto / variable") en lugar de recortarla.
+            tick={(props: { x: number; y: number; payload: { value: string } }) => (
+              <TwoLineTick x={props.x} y={props.y} label={props.payload.value} fill={colors.axis} />
+            )}
             axisLine={{ stroke: colors.grid }}
             tickLine={false}
             height={44}
-            tickFormatter={(l: string) => (l.length > 12 ? `${l.slice(0, 11)}.` : l)}
           />
           <YAxis tickFormatter={formatCompactEuros} tick={{ fontSize: 11, fill: colors.axis }} axisLine={false} tickLine={false} width={44} />
           <Tooltip

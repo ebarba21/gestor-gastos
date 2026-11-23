@@ -23,7 +23,9 @@ const DOT: Record<SyncStatusUi, string> = {
   synced: 'bg-emerald-500',
 };
 
-export function SyncBadge(): React.ReactElement | null {
+// compact: solo el punto de color (con su texto para lectores de pantalla y en el title), para
+// la cabecera movil.
+export function SyncBadge({ compact = false }: { compact?: boolean }): React.ReactElement | null {
   const sync = useSyncOptional();
   // Sin proveedor (montajes parciales) o sin cuenta activa: no se muestra la insignia.
   if (!sync || !sync.enabled) return null;
@@ -38,14 +40,15 @@ export function SyncBadge(): React.ReactElement | null {
   return (
     <Link
       to="/sincronizacion"
-      className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
-      title="Estado de sincronización"
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
+      title={`Sincronización: ${LABELS[sync.status]}${extra}`}
     >
       <span className={`h-2 w-2 rounded-full ${DOT[sync.status]}`} aria-hidden />
-      <span>
+      <span className={compact ? 'sr-only' : undefined}>
         {LABELS[sync.status]}
         {extra}
       </span>
+      {compact && extra && <span aria-hidden>{extra.trim().replace(/[()]/g, '')}</span>}
     </Link>
   );
 }

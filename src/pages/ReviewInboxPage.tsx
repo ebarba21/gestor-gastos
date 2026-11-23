@@ -4,7 +4,7 @@ import { ReviewInboxSection } from '../components/review';
 
 export default function ReviewInboxPage() {
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <ReviewInboxSection />
     </div>
   );

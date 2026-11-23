@@ -70,7 +70,7 @@ function Insight({ icon, children }: { icon: string; children: React.ReactNode }
 
 function rateLabel(perMille: number | null): string {
   if (perMille === null) return 'Sin ingresos';
-  return `${(perMille / 10).toFixed(1)}%`;
+  return `${(perMille / 10).toFixed(1).replace('.', ',')} %`;
 }
 
 function monthsLabel(n: number): string {

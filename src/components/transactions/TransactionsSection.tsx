@@ -3,6 +3,7 @@
 // especiales. Toda la logica vive en transactionService/transactionFilters; aqui solo
 // orquestacion de UI y estado local de la pagina.
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MOBILE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import { useSearchParams } from 'react-router-dom';
 import type { Transaction } from '../../db/schema';
 import { useTransactions } from '../../hooks/useTransactions';
@@ -31,6 +32,23 @@ import { RowActionsModal } from './RowActionsModal';
 const LOCALE = 'es-ES';
 const CURRENCY = 'EUR';
 const LIST_HEIGHT = 600;
+// En PC la lista ocupa el alto de la ventana disponible (menos cabecera, buscador y orden) en
+// lugar de una caja fija de 600 px que dejaba media pantalla vacia en monitores altos.
+const DESKTOP_LIST_CHROME = 250;
+
+function useDesktopListHeight(enabled: boolean): number {
+  const compute = () =>
+    typeof window === 'undefined' ? LIST_HEIGHT : Math.max(LIST_HEIGHT - 200, window.innerHeight - DESKTOP_LIST_CHROME);
+  const [height, setHeight] = useState<number>(compute);
+  useEffect(() => {
+    if (!enabled) return;
+    const onResize = () => setHeight(compute());
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [enabled]);
+  return enabled ? height : LIST_HEIGHT;
+}
 
 const SORT_FIELDS: { field: SortField; label: string }[] = [
   { field: 'date', label: 'Fecha' },
@@ -43,6 +61,8 @@ const SORT_FIELDS: { field: SortField; label: string }[] = [
 ];
 
 export function TransactionsSection() {
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+  const listHeight = useDesktopListHeight(!isMobile);
   const {
     profileId,
     transactions,
@@ -276,7 +296,7 @@ export function TransactionsSection() {
             <VirtualList
               items={visible}
               rowHeight={ROW_HEIGHT}
-              height={LIST_HEIGHT}
+              height={listHeight}
               keyFor={(t) => t.id}
               renderRow={(t) => (
                 // Gestos en el movil: derecha abre la ficha para categorizar, izquierda abre las

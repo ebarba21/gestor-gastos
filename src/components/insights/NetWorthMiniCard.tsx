@@ -25,7 +25,7 @@ export function NetWorthMiniCard({ netWorth, accounts }: NetWorthMiniCardProps) 
       </p>
       <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-100">{formatCents(netWorth.summary.currentCents)}</p>
       <p className="mt-0.5 text-xs tabular-nums">
-        <DeltaText cents={netWorth.summary.changeMonthCents} suffix="en 1 mes" />
+        <DeltaText cents={netWorth.summary.changeMonthCents} suffix="en el último mes" />
       </p>
       <div className="mt-2" aria-hidden>
         <NetWorthChart data={netWorth} accounts={accounts} view="total" height={70} compact />

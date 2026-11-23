@@ -3,7 +3,7 @@ import { TagReportSection } from '../components/tagReport';
 
 export default function TagReportPage() {
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <TagReportSection />
     </div>
   );

@@ -5,7 +5,7 @@ import { RecurringSeriesSection } from '../components/recurring';
 
 export default function RecurringSeriesPage() {
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <RecurringSeriesSection />
     </div>
   );

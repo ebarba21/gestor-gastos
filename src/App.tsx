@@ -31,7 +31,7 @@ import { useActiveProfileId } from './hooks/useProfiles';
 
 function navLinkClass({ isActive }: { isActive: boolean }): string {
   return [
-    'whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+    'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
     isActive
       ? 'bg-slate-800 text-slate-50'
       : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
@@ -44,29 +44,49 @@ function AppLayout() {
   const isMobile = useMediaQuery(MOBILE_QUERY);
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100 md:flex-row">
-      <aside className="border-b border-slate-800 bg-slate-900 md:w-64 md:shrink-0 md:border-b-0 md:border-r">
-        {/* En movil, titulo y selector de perfil comparten fila para ahorrar altura;
-            en PC vuelven a apilarse en la barra lateral. */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-4">
-          <div className="flex min-w-0 items-center gap-2">
-            {/* En movil el nombre de la app se oculta: cada pantalla ya lleva su titulo y asi caben
-                los avisos y los botones de privacidad y tema sin apretarse. */}
-            <span className="hidden truncate whitespace-nowrap text-base font-bold sm:inline md:text-lg">Gestor de Gastos</span>
-            {/* Insignia de estado de sincronizacion (solo con cuenta activa). */}
-            <SyncBadge />
-            {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). */}
-            <ReviewBadge />
-            {/* Ocultar importes (modo privado) y conmutador de tema, desde cualquier seccion. */}
-            <PrivacyToggle className="md:ml-auto" />
-            <ThemeToggle />
+      <aside className="border-b border-slate-800 bg-slate-900 md:sticky md:top-0 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col md:border-b-0 md:border-r">
+        {isMobile ? (
+          // En movil, titulo y selector de perfil comparten fila para ahorrar altura.
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              {/* En movil el nombre de la app se oculta: cada pantalla ya lleva su titulo y asi caben
+                  los avisos y los botones de privacidad y tema sin apretarse. */}
+              <span className="hidden truncate whitespace-nowrap text-base font-bold sm:inline">Gestor de Gastos</span>
+              {/* Insignia de estado de sincronizacion (solo con cuenta activa). Compacta: punto. */}
+              <SyncBadge compact />
+              {/* Insignia discreta de la bandeja de revision (oculta si no hay tareas). Compacta:
+                  punto y numero, para que no empuje los botones bajo el selector de perfil. */}
+              <ReviewBadge compact />
+              {/* Ocultar importes (modo privado) y conmutador de tema, desde cualquier seccion. */}
+              <PrivacyToggle />
+              <ThemeToggle />
+            </div>
+            {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
+            <div className="w-36 shrink-0 sm:w-44">
+              <ProfileSwitcher />
+            </div>
           </div>
-          {/* Selector de perfil activo. Cambio/creacion de perfil desde cualquier seccion. */}
-          <div className="w-36 shrink-0 sm:w-44 md:mt-4 md:w-auto">
+        ) : (
+          // En PC la barra lateral mide 16rem: el nombre y los botones van en una fila, las
+          // insignias (sincronizacion y bandeja) en otra que puede partirse, y el perfil debajo.
+          // Asi ningun elemento se sale de la barra ni pisa el titulo de la pantalla.
+          <div className="space-y-3 px-4 pb-3 pt-4">
+            <p className="truncate text-lg font-bold">Gestor de Gastos</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <SyncBadge />
+              <ReviewBadge />
+              <div className="ml-auto flex items-center gap-2">
+                <PrivacyToggle />
+                <ThemeToggle />
+              </div>
+            </div>
             <ProfileSwitcher />
           </div>
-        </div>
+        )}
         {!isMobile && (
-          <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
+          // Con la barra fija a la altura de la ventana, la lista de secciones se desplaza por
+          // dentro si no cabe (pantallas bajas), sin arrastrar el contenido principal.
+          <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-4" aria-label="Secciones">
             {NAV_ITEMS.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
                 {item.label}
@@ -83,6 +103,9 @@ function AppLayout() {
         className="min-w-0 flex-1 p-4 md:p-6"
         style={isMobile ? { paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom))' } : undefined}
       >
+        {/* Contenedor comun de todas las pantallas: mismo borde izquierdo para todos los titulos
+            y un ancho maximo para que en monitores anchos las lineas no se estiren sin fin. */}
+        <div className="mx-auto w-full max-w-7xl">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/patrimonio" element={<NetWorthPage />} />
@@ -105,6 +128,7 @@ function AppLayout() {
           <Route path="/ajustes" element={<SettingsPage />} />
           <Route path="/ajustes/seguridad" element={<SecurityPage />} />
         </Routes>
+        </div>
       </main>
       {isMobile && <MobileNav />}
     </div>

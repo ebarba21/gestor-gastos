@@ -526,3 +526,31 @@ describe('reviewService: offline y sincronizacion', () => {
     expect(item?.syncStatus).toBe('pending');
   });
 });
+
+describe('reviewService.describeSubjects: movimiento de cada tarea', () => {
+  it('devuelve fecha, concepto e importe del movimiento de cada tarea del perfil', async () => {
+    const tx = await transactionsRepo.create(
+      PROFILE_A,
+      txInput({ concept: 'Mercadona', categoryId: null, date: '2026-07-14', amountCents: -4520 }),
+    );
+    await reviewService.generateFromImportBatch(PROFILE_A, 'batch-1', [tx]);
+    const items = await reviewItemsRepo.listOpen(PROFILE_A);
+    const subjects = await reviewService.describeSubjects(PROFILE_A, items);
+    const item = items.find((i) => i.entityId === tx.id)!;
+    expect(subjects.get(item.id)).toMatchObject({
+      transactionId: tx.id,
+      date: '2026-07-14',
+      concept: 'Mercadona',
+      amountCents: -4520,
+    });
+  });
+
+  it('no describe tareas de otro perfil aunque se le pasen', async () => {
+    const foreignTx = await transactionsRepo.create(PROFILE_B, txInput({ concept: 'Ajeno', categoryId: null }));
+    await reviewService.generateFromImportBatch(PROFILE_B, 'batch-b', [foreignTx]);
+    const foreign = await reviewItemsRepo.listOpen(PROFILE_B);
+    expect(foreign.length).toBeGreaterThan(0);
+    const subjects = await reviewService.describeSubjects(PROFILE_A, foreign);
+    expect(subjects.size).toBe(0);
+  });
+});
