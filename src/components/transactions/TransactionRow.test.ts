@@ -12,8 +12,8 @@ describe('typeLabelFor', () => {
     expect(typeLabelFor(t({ categoryId: 'c-nom' }), income)).toBe('Ingreso');
   });
   it('un positivo fuera de las categorias de ingreso es un gasto positivo', () => {
-    expect(typeLabelFor(t({ categoryId: 'c-bizum' }), income)).toBe('Gasto +');
-    expect(typeLabelFor(t({ categoryId: null }), income)).toBe('Gasto +');
+    expect(typeLabelFor(t({ categoryId: 'c-bizum' }), income)).toBe('Gasto positivo');
+    expect(typeLabelFor(t({ categoryId: null }), income)).toBe('Gasto positivo');
   });
   it('los gastos, transferencias y reembolsos conservan su etiqueta', () => {
     expect(typeLabelFor(t({ type: 'expense', amountCents: -100 }), income)).toBe('Gasto');

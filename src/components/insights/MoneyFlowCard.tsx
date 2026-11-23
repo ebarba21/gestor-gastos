@@ -39,6 +39,14 @@ interface NodeProps {
   payload: SankeyNode & { value: number };
 }
 
+// Espacio lateral para las etiquetas "nombre · importe" de una columna de nodos, estimado a
+// partir del texto mas largo (11 px, unos 6,3 px por caracter). Evita que una etiqueta larga
+// como "Devoluciones y Bizums · 767,15 €" se corte por el borde de la tarjeta.
+function labelSpace(nodes: readonly { name: string }[]): number {
+  const longest = nodes.reduce((max, n) => Math.max(max, n.name.length), 0);
+  return Math.min(280, Math.max(120, Math.round((longest + 14) * 6.3) + 12));
+}
+
 export function MoneyFlowCard({ flow, categoryColors }: MoneyFlowCardProps) {
   const colors = useChartColors();
   if (flow.links.length === 0) {
@@ -47,15 +55,18 @@ export function MoneyFlowCard({ flow, categoryColors }: MoneyFlowCardProps) {
   const renderNode = (props: unknown) => {
     const { x, y, width, height, index, payload } = props as NodeProps;
     const isSource = payload.kind === 'source';
-    const textX = isSource ? x - 6 : x + width + 6;
+    // El nodo central lleva la etiqueta encima: a su derecha quedaria sobre las bandas de flujo.
+    const isHub = payload.kind === 'hub';
+    const textX = isHub ? x + width / 2 : isSource ? x - 6 : x + width + 6;
+    const textY = isHub ? y - 8 : y + height / 2;
     return (
       <Layer key={`node-${index}`}>
         <Rectangle x={x} y={y} width={width} height={height} fill={nodeColor(payload, colors, categoryColors)} fillOpacity={0.9} />
         <text
           x={textX}
-          y={y + height / 2}
-          textAnchor={isSource ? 'end' : 'start'}
-          dominantBaseline="middle"
+          y={textY}
+          textAnchor={isHub ? 'middle' : isSource ? 'end' : 'start'}
+          dominantBaseline={isHub ? 'auto' : 'middle'}
           fontSize={11}
           fill={colors.axis}
         >
@@ -71,7 +82,7 @@ export function MoneyFlowCard({ flow, categoryColors }: MoneyFlowCardProps) {
         node={renderNode}
         nodePadding={14}
         nodeWidth={10}
-        margin={{ top: 8, right: 170, bottom: 8, left: 150 }}
+        margin={{ top: 24, right: labelSpace(flow.nodes.filter((n) => n.kind !== 'source' && n.kind !== 'hub')), bottom: 8, left: labelSpace(flow.nodes.filter((n) => n.kind === 'source')) }}
         link={{ stroke: colors.axis, strokeOpacity: 0.25 }}
         iterations={32}
       >

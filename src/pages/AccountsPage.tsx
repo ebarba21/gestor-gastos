@@ -3,7 +3,7 @@ import { AccountsSection } from '../components/accounts';
 
 export default function AccountsPage() {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <AccountsSection />
     </div>
   );

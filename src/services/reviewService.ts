@@ -315,6 +315,41 @@ async function describeRuleProposals(
   return result;
 }
 
+// Movimiento al que se refiere cada tarea (fecha, concepto e importe), para que la fila de la
+// bandeja diga de que movimiento se trata sin abrir el detalle. Solo tareas del perfil sobre
+// movimientos; una lectura de la lista del perfil en lugar de una consulta por tarea.
+export interface ReviewSubject {
+  itemId: string;
+  transactionId: string;
+  date: string;
+  concept: string;
+  amountCents: number;
+}
+
+async function describeSubjects(
+  profileId: string,
+  items: readonly ReviewItem[],
+): Promise<Map<string, ReviewSubject>> {
+  requireProfileId(profileId);
+  const result = new Map<string, ReviewSubject>();
+  const relevant = items.filter((i) => i.entityType === 'transaction' && i.profileId === profileId);
+  if (relevant.length === 0) return result;
+  const txs = await transactionsRepo.list(profileId);
+  const byId = new Map(txs.map((t) => [t.id, t] as const));
+  for (const item of relevant) {
+    const tx = byId.get(item.entityId);
+    if (!tx || tx.profileId !== profileId) continue;
+    result.set(item.id, {
+      itemId: item.id,
+      transactionId: tx.id,
+      date: tx.date,
+      concept: tx.concept,
+      amountCents: tx.amountCents,
+    });
+  }
+  return result;
+}
+
 // Disparado tras crear/actualizar un Conflict de sincronizacion (src/sync/conflictsRepo.ts).
 // entityId referencia el propio Conflict (entityType='conflict'), nunca la entidad financiera
 // en conflicto directamente: el conflicto ya guarda esa referencia (Conflict.entityType/
@@ -582,6 +617,7 @@ export const reviewService = {
   generateFromImportBatch,
   generateFromRuleMatches,
   describeRuleProposals,
+  describeSubjects,
   generateFromConflict,
   generatePossibleDuplicates,
   generateNewMerchantCandidates,

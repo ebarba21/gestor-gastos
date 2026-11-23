@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import type { SafeToSpend } from '../../services/planningService';
 import { formatCents } from '../../lib/money';
 import { shortDate } from './format';
+import { shiftDays } from '../../lib/dates';
 
 function euros(cents: number): string {
   // Sin centimos: la cifra es orientativa (rango redondeado a 10 EUR).
@@ -20,9 +21,15 @@ function wholeEuros(cents: number): number {
 export function SafeToSpendCard({ safe }: { safe: SafeToSpend }) {
   const [open, setOpen] = useState(false);
   const negative = safe.rangeHighCents <= 0;
-  const until =
-    safe.nextIncomeSource === 'monthStart'
-      ? `hasta fin de mes (${shortDate(safe.nextIncomeDate)})`
+  // Si el cobro de referencia ya ha pasado (datos sin importar desde entonces), la cifra es la
+  // de aquel periodo: se dice asi y no se reparte "por dia", que saldria igual al total.
+  const stale = safe.incomeOverdue && safe.nextIncomeDate < safe.today;
+  // "Fin de mes" es el ultimo dia del mes, no el dia 1 del siguiente (fecha del calculo).
+  const monthEnd = shiftDays(safe.nextIncomeDate, -1);
+  const until = stale
+    ? `Cifra del periodo que terminó el ${shortDate(safe.nextIncomeSource === 'monthStart' ? monthEnd : safe.nextIncomeDate)}`
+    : safe.nextIncomeSource === 'monthStart'
+      ? `hasta fin de mes (${shortDate(monthEnd)})`
       : `hasta tu próximo cobro · ${shortDate(safe.nextIncomeDate)}`;
   const lines: { label: string; cents: number; hint?: string }[] = [
     { label: 'Dinero en tus cuentas', cents: safe.liquidCents, hint: `a ${shortDate(safe.asOf)}` },
@@ -47,7 +54,7 @@ export function SafeToSpendCard({ safe }: { safe: SafeToSpend }) {
       )}
       <p className="mt-1 text-sm text-slate-400">
         {until}
-        {!negative && safe.perDayHighCents !== null && (
+        {!negative && !stale && safe.perDayHighCents !== null && (
           <>
             {' · '}
             <span className="text-slate-200">

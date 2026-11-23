@@ -4,7 +4,7 @@ import { TransactionsSection } from '../components/transactions';
 
 export default function TransactionsPage() {
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <TransactionsSection />
     </div>
   );

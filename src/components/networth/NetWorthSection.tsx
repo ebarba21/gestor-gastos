@@ -65,7 +65,7 @@ export function NetWorthSection() {
               {formatCents(data.summary.currentCents)}
             </p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
-              <DeltaText cents={data.summary.changeMonthCents} suffix="en 1 mes" />
+              <DeltaText cents={data.summary.changeMonthCents} suffix="en el último mes" />
               <DeltaText cents={data.summary.changeYearCents} suffix="en 12 meses" />
             </div>
             {data.futureCount > 0 && (
@@ -136,7 +136,7 @@ export function NetWorthSection() {
                         </span>
                         <span className="block text-xs text-slate-500">
                           {ACCOUNT_KIND_LABELS[a.kind]}
-                          {s.sharePerMille !== null && ` · ${(s.sharePerMille / 10).toFixed(1)}% del total`}
+                          {s.sharePerMille !== null && ` · ${(s.sharePerMille / 10).toFixed(1).replace('.', ',')} % del total`}
                         </span>
                       </span>
                       <span className="text-right tabular-nums">

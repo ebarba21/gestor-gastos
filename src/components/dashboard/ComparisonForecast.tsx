@@ -11,9 +11,9 @@ interface ComparisonForecastProps {
 
 function deltaLabel(perMille: number | null): string {
   if (perMille === null) return 'sin referencia';
-  const pct = (perMille / 10).toFixed(1);
+  const pct = (perMille / 10).toFixed(1).replace('.', ',');
   const sign = perMille > 0 ? '+' : '';
-  return `${sign}${pct}%`;
+  return `${sign}${pct} %`;
 }
 
 export function ComparisonForecast({ comparison }: ComparisonForecastProps) {

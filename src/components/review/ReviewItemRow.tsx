@@ -3,7 +3,9 @@
 // propuesta por la regla (la que se mantiene al aceptar). La accion (ver/resolver) la maneja
 // el contenedor.
 import type { ReviewItem } from '../../db/schema';
-import { REVIEW_TYPE_LABELS, type RuleProposal } from '../../services/reviewService';
+import { REVIEW_TYPE_LABELS, type ReviewSubject, type RuleProposal } from '../../services/reviewService';
+import { formatCents } from '../../lib/money';
+import { displayDate } from '../transactions/TransactionRow';
 import { REASON_CODE_LABELS } from '../../services/duplicateEngine';
 import { REFUND_REASON_CODE_LABELS } from '../../services/refundCandidateEngine';
 import { TRANSFER_REASON_CODE_LABELS } from '../../services/transferCandidateEngine';
@@ -28,6 +30,8 @@ interface ReviewItemRowProps {
   onToggleSelect: () => void;
   onOpen: () => void;
   proposal?: RuleProposal;
+  // Movimiento al que se refiere la tarea, si aplica.
+  subject?: ReviewSubject;
 }
 
 const LOCALE = 'es-ES';
@@ -45,7 +49,7 @@ const TYPE_BADGE_CLASS: Record<ReviewItem['type'], string> = {
   recurringAnomaly: 'bg-fuchsia-900 text-fuchsia-200',
 };
 
-export function ReviewItemRow({ item, selected, onToggleSelect, onOpen, proposal }: ReviewItemRowProps) {
+export function ReviewItemRow({ item, selected, onToggleSelect, onOpen, proposal, subject }: ReviewItemRowProps) {
   return (
     <li
       className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900/40 px-3 py-2.5 hover:border-slate-700"
@@ -76,9 +80,19 @@ export function ReviewItemRow({ item, selected, onToggleSelect, onOpen, proposal
             {item.reasonCodes.map((c) => reasonLabel(item.type, c)).join(' · ')}
           </span>
         )}
-        <span className="ml-auto shrink-0 text-xs text-slate-500">
+        <span className="ml-auto shrink-0 text-xs text-slate-500" title="Fecha en que se detectó la tarea">
           {new Date(item.createdAt).toLocaleDateString(LOCALE)}
         </span>
+        {subject && !proposal && (
+          // De que movimiento se trata: sin esto todas las filas de un mismo tipo se ven iguales.
+          <span className="flex min-w-0 basis-full items-center gap-2 text-sm" data-testid="review-subject">
+            <span className="shrink-0 tabular-nums text-slate-500">{displayDate(subject.date)}</span>
+            <span className="min-w-0 flex-1 truncate text-slate-200">{subject.concept}</span>
+            <span className={`shrink-0 tabular-nums ${subject.amountCents > 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
+              {formatCents(subject.amountCents)}
+            </span>
+          </span>
+        )}
         {proposal && (
           <span className="flex min-w-0 basis-full items-center gap-1.5 text-xs">
             <span className="truncate text-slate-300">{proposal.concept}</span>

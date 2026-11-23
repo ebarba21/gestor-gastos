@@ -65,7 +65,7 @@ function Tile({
 // Tasa de ahorro (tanto por mil entero) a porcentaje con un decimal.
 function savingsRateLabel(perMille: number | null): string {
   if (perMille === null) return 'Sin ingresos';
-  return `${(perMille / 10).toFixed(1)}%`;
+  return `${(perMille / 10).toFixed(1).replace('.', ',')} %`;
 }
 
 // --- Reparto del ahorro neto -------------------------------------------------

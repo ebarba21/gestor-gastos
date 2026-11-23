@@ -9,6 +9,7 @@ import {
   REVIEW_TYPE_LABELS,
   REVIEW_STATUS_LABELS,
   type RuleProposal,
+  type ReviewSubject,
 } from '../../services/reviewService';
 import type { ReviewItem, ReviewItemStatus, ReviewItemType } from '../../db/schema';
 import { EmptyState, SwipeRow } from '../common';
@@ -23,6 +24,8 @@ const SORT_OPTIONS: { value: 'newest' | 'oldest' | 'confidence'; label: string }
   { value: 'confidence', label: 'Mayor confianza' },
 ];
 
+const PAGE_SIZE = 100;
+
 const inputClass =
   'rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-slate-500';
 
@@ -34,6 +37,28 @@ export function ReviewInboxSection() {
   const [openItem, setOpenItem] = useState<ReviewItem | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [proposals, setProposals] = useState<Map<string, RuleProposal>>(new Map());
+  const [subjects, setSubjects] = useState<Map<string, ReviewSubject>>(new Map());
+  // Con cientos de tareas, pintarlas todas de golpe hace la pagina enorme y lenta: se muestran
+  // por tandas y un boton carga mas. Cambiar filtros vuelve a la primera tanda.
+  const [shown, setShown] = useState(PAGE_SIZE);
+  useEffect(() => setShown(PAGE_SIZE), [filters]);
+
+  // Movimiento de cada tarea (fecha, concepto, importe) para identificarla sin abrir el detalle.
+  useEffect(() => {
+    let cancelled = false;
+    reviewService
+      .describeSubjects(profileId, items)
+      .then((map) => {
+        if (!cancelled) setSubjects(map);
+      })
+      .catch(() => {
+        // Sin este dato la fila sigue mostrando tipo y motivos; el detalle lo carga igualmente.
+        if (!cancelled) setSubjects(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, items]);
 
   // Categoria propuesta de cada tarea "regla de baja confianza", para verla sin abrir el detalle.
   useEffect(() => {
@@ -179,7 +204,8 @@ export function ReviewInboxSection() {
           placeholder="Buscar por tipo o motivo..."
           value={filters.search ?? ''}
           onChange={(e) => setFilters({ ...filters, search: e.target.value || undefined })}
-          className={`${inputClass} min-w-0 flex-1`}
+          // Ancho minimo: en pantallas estrechas baja a su propia linea en vez de encogerse a nada.
+          className={`${inputClass} min-w-[12rem] flex-1`}
         />
         <label className="sr-only" htmlFor="review-sort">
           Orden
@@ -250,7 +276,7 @@ export function ReviewInboxSection() {
             Desliza una tarea a la derecha para resolverla o a la izquierda para descartarla.
           </p>
           <ul className="space-y-2">
-            {items.map((item) => (
+            {items.slice(0, shown).map((item) => (
               <SwipeRow
                 key={item.id}
                 className="rounded-lg"
@@ -263,10 +289,25 @@ export function ReviewInboxSection() {
                   onToggleSelect={() => toggleSelect(item.id)}
                   onOpen={() => setOpenItem(item)}
                   proposal={proposals.get(item.id)}
+                  subject={subjects.get(item.id)}
                 />
               </SwipeRow>
             ))}
           </ul>
+          {items.length > shown && (
+            <div className="flex flex-wrap items-center justify-center gap-3 py-2 text-sm">
+              <span className="text-slate-500">
+                Mostrando {shown} de {items.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShown((n) => n + PAGE_SIZE)}
+                className="rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 hover:bg-slate-800"
+              >
+                Mostrar {Math.min(PAGE_SIZE, items.length - shown)} más
+              </button>
+            </div>
+          )}
         </>
       )}
 

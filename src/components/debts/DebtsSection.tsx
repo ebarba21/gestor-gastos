@@ -117,7 +117,7 @@ export function DebtsSection() {
           </div>
           <div className={cardClass}>
             <p className="text-xs text-slate-500">Interés medio ponderado</p>
-            <p className="mt-1 text-lg font-semibold text-slate-100">{(summary.weightedAverageRatePpm / 10000).toFixed(2)}%</p>
+            <p className="mt-1 text-lg font-semibold text-slate-100">{(summary.weightedAverageRatePpm / 10000).toFixed(2).replace('.', ',')} %</p>
           </div>
           <div className={cardClass}>
             <p className="text-xs text-slate-500">Próximo pago</p>

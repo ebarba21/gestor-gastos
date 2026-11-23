@@ -3,7 +3,7 @@ import { MonthCloseSection } from '../components/monthClose';
 
 export default function MonthClosePage() {
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-3xl">
       <MonthCloseSection />
     </div>
   );

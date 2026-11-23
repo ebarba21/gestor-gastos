@@ -13,6 +13,7 @@ import { useFrozenDrillDown } from '../../hooks/useFrozenDrillDown';
 import { TransactionFormModal } from '../transactions/TransactionFormModal';
 import { EmptyState } from '../common';
 import { PeriodSelector } from './PeriodSelector';
+import { longMonthLabel } from './chartTheme';
 import { StatTiles } from './StatTiles';
 import { ComparisonForecast } from './ComparisonForecast';
 import { ForecastRangeCard } from './ForecastRangeCard';
@@ -93,6 +94,8 @@ export function DashboardSection() {
     reload: reloadInsights,
   } = useInsights(insightsAnchor);
   const [view, setView] = useState<'today' | 'analysis'>('today');
+  // Mes (AAAA-MM) del ultimo movimiento de tus cuentas, para el atajo del estado vacio.
+  const lastDataMonth = planning ? planning.safe.asOf.slice(0, 7) : null;
   const isMobile = useMediaQuery(MOBILE_QUERY);
   const reloadAll = useCallback(async () => {
     await Promise.all([reload(), reloadInsights()]);
@@ -155,17 +158,16 @@ export function DashboardSection() {
       {showToday && (
         <div className="mt-4 space-y-4">
           <GettingStartedCard />
+          {/* En PC dos columnas independientes: a la izquierda decidir (disponible y avisos), a la
+              derecha el contexto (patrimonio y proximos dias). Cada columna apila sus tarjetas, asi
+              una tarjeta alta no deja huecos vacios debajo de su vecina. */}
+          <div className="grid items-start gap-4 lg:grid-cols-3">
+          <div className="min-w-0 space-y-4 lg:col-span-2">
           {planning ? (
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <SafeToSpendCard safe={planning.safe} />
-              </div>
-              {!isMobile && netWorth && netWorth.hasData && <NetWorthMiniCard netWorth={netWorth} accounts={accounts} />}
-            </div>
+            <SafeToSpendCard safe={planning.safe} />
           ) : (
             loading && <p className="text-sm text-slate-500">Calculando tu disponible...</p>
           )}
-          <div className="grid gap-4 lg:grid-cols-2">
             <Card
               title="Necesita atención"
               subtitle={
@@ -183,11 +185,15 @@ export function DashboardSection() {
                 usefulIds={usefulIds}
               />
             </Card>
+          </div>
+          <div className="min-w-0 space-y-4">
+            {!isMobile && netWorth && netWorth.hasData && <NetWorthMiniCard netWorth={netWorth} accounts={accounts} />}
             {planning && (
               <Card title="Próximos 14 días" subtitle="Recibos e ingresos esperados y el saldo que quedará">
                 <UpcomingWithBalanceCard forecast={planning.forecast} bufferCents={planning.safe.bufferCents} />
               </Card>
             )}
+          </div>
           </div>
           {atRisk.length > 0 && (
             <Card title="Categorías en riesgo" subtitle="Por encima de lo que sueles llevar a estas alturas">
@@ -282,6 +288,19 @@ export function DashboardSection() {
             icon="📊"
             title="Sin datos en este periodo"
             description="No hay movimientos que cuenten en estadísticas en el periodo seleccionado. Prueba otro mes o importa un extracto."
+            action={
+              // Con los extractos sin importar, el mes en curso sale vacio: un toque lleva al
+              // ultimo mes con movimientos en lugar de obligar a retroceder mes a mes.
+              mode === 'month' && lastDataMonth !== null && lastDataMonth !== referenceISO.slice(0, 7) ? (
+                <button
+                  type="button"
+                  onClick={() => selectMonth(lastDataMonth)}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
+                >
+                  Ver {longMonthLabel(lastDataMonth)}, tu último mes con datos
+                </button>
+              ) : undefined
+            }
           />
         </div>
       ) : (
@@ -384,12 +403,16 @@ export function DashboardSection() {
                 onSelectMovement={openMovement}
               />
             </Card>
-
+            {/* Los dos rankings del periodo, lado a lado (antes Top gastos quedaba solo en
+                media fila con la otra mitad vacia). */}
+            <Card title="Gasto por comercio" subtitle="Ranking de gasto del periodo por comercio asociado">
+              <MerchantSpendCard merchantSpend={data.merchantSpend} merchantNames={merchantNames} />
+            </Card>
           </div>
 
           {insights && (
             <div className="grid gap-6 lg:grid-cols-2">
-              <div id="cascada-del-mes" className="scroll-mt-4">
+              <div id="cascada-del-mes" className="scroll-mt-4 [&>div]:h-full">
                 <Card title="Del ingreso al ahorro" subtitle="Cómo se llega a tu ahorro neto del mes y en qué queda">
                   <WaterfallCard steps={insights.waterfall} />
                 </Card>
@@ -404,10 +427,6 @@ export function DashboardSection() {
               <MoneyFlowCard flow={insights.flow} categoryColors={categoryColors} />
             </Card>
           )}
-
-          <Card title="Gasto por comercio" subtitle="Ranking de gasto del periodo por comercio asociado">
-            <MerchantSpendCard merchantSpend={data.merchantSpend} merchantNames={merchantNames} />
-          </Card>
 
           {/* Apartado de ahorro e inversion: siempre sobre la ventana de evolucion completa,
               sin filtro cruzado (ver DashboardData.savingsInvestment). Pulsar sus graficos

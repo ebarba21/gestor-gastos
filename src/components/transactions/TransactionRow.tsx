@@ -12,6 +12,12 @@ const TYPE_LABEL: Record<Transaction['type'], string> = {
   transfer: 'Transferencia',
 };
 
+// Fecha en formato espanol (dd/mm/aaaa) para leerla de un vistazo; el dato sigue en ISO.
+export function displayDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return y && m && d ? `${d}/${m}/${y}` : iso;
+}
+
 function Badge({ children, className }: { children: string; className: string }) {
   return (
     <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${className}`}>
@@ -43,7 +49,7 @@ export function typeLabelFor(tx: Transaction, incomeCategoryIds?: Set<string>): 
     const isIncome =
       (tx.categoryId !== null && incomeCategoryIds.has(tx.categoryId)) ||
       (tx.subcategoryId !== null && incomeCategoryIds.has(tx.subcategoryId));
-    if (!isIncome) return 'Gasto +';
+    if (!isIncome) return 'Gasto positivo';
   }
   return TYPE_LABEL[tx.type];
 }
@@ -87,7 +93,7 @@ export function TransactionRow({
       />
 
       {/* En pantallas estrechas la fecha pasa a la linea secundaria del concepto. */}
-      <span className="hidden w-24 shrink-0 tabular-nums text-slate-400 sm:block">{tx.date}</span>
+      <span className="hidden w-24 shrink-0 tabular-nums text-slate-400 sm:block" title={tx.date}>{displayDate(tx.date)}</span>
 
       <button
         type="button"
@@ -101,7 +107,7 @@ export function TransactionRow({
         </span>
         <span className="mt-0.5 flex w-full min-w-0 flex-wrap items-center gap-1">
           <span className="min-w-0 max-w-full truncate text-xs text-slate-500">
-            <span className="tabular-nums sm:hidden">{tx.date} · </span>
+            <span className="tabular-nums sm:hidden">{displayDate(tx.date)} · </span>
             {categoryLabel}
             {subLabel ? ` › ${subLabel}` : ''} · {accountLabel}
             {merchantLabel ? ` · ${merchantLabel}` : ''}
@@ -109,7 +115,7 @@ export function TransactionRow({
           {tx.excludedFromStats && <Badge className="bg-slate-700 text-slate-300">Excluido</Badge>}
           {tx.isSplitParent && <Badge className="bg-violet-900/50 text-violet-300">Split</Badge>}
           {tx.transferGroupId !== null && (
-            <Badge className="bg-sky-900/50 text-sky-300">Transfer</Badge>
+            <Badge className="bg-sky-900/50 text-sky-300">Transferencia</Badge>
           )}
           {tx.refundOfId !== null && (
             <Badge className="bg-amber-900/50 text-amber-300">Reembolso</Badge>

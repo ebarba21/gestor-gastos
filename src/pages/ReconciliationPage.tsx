@@ -5,7 +5,7 @@ import { ReconciliationSection } from '../components/reconciliation';
 
 export default function ReconciliationPage() {
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <ReconciliationSection />
     </div>
   );
